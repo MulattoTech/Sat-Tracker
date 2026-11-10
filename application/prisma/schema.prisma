@@ -1,0 +1,1843 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum SleepType {
+  NAP
+  NIGHT_SLEEP
+}
+
+enum SleepQuality {
+  POOR
+  FAIR
+  GOOD
+  EXCELLENT
+}
+
+enum FeedType {
+  BREAST
+  BOTTLE
+  SOLIDS
+}
+
+enum FoodEnjoyment {
+  HATED
+  DISLIKED
+  NEUTRAL
+  LIKED
+  LOVED
+}
+
+// Type of a manually recorded allergen (food tracker follow-up)
+enum AllergenType {
+  FOOD
+  MEDICINE
+  ENVIRONMENT
+  OTHER
+}
+
+enum BreastSide {
+  LEFT
+  RIGHT
+}
+
+enum DiaperType {
+  WET
+  DIRTY
+  BOTH
+  DRY
+}
+
+enum Mood {
+  HAPPY
+  CALM
+  FUSSY
+  CRYING
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum MilestoneCategory {
+  MOTOR
+  COGNITIVE
+  SOCIAL
+  LANGUAGE
+  CUSTOM
+}
+
+enum PlayType {
+  TUMMY_TIME
+  INDOOR_PLAY
+  OUTDOOR_PLAY
+  WALK
+  CUSTOM
+}
+
+enum MeasurementType {
+  HEIGHT
+  WEIGHT
+  HEAD_CIRCUMFERENCE
+  TEMPERATURE
+}
+
+// New enum for calendar event types
+enum CalendarEventType {
+  APPOINTMENT
+  CARETAKER_SCHEDULE
+  REMINDER
+  CUSTOM
+}
+
+// New enum for recurrence patterns
+enum RecurrencePattern {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  YEARLY
+  CUSTOM
+}
+
+// Enum for notification event types
+enum NotificationEventType {
+  ACTIVITY_CREATED
+  FEED_TIMER_EXPIRED
+  DIAPER_TIMER_EXPIRED
+  MEDICINE_TIMER_EXPIRED
+}
+
+// Account model for email/password authentication
+model Account {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  password             String // bcrypt hashed
+  firstName            String?
+  lastName             String?
+  verified             Boolean   @default(false)
+  verificationToken    String?   @unique
+  passwordResetToken   String?   @unique
+  passwordResetExpires DateTime?
+  betaparticipant      Boolean   @default(false) // Beta participant flag (0 or 1)
+  closed               Boolean   @default(false) // Account closure flag
+  closedAt             DateTime? // When the account was closed
+
+  // Future OAuth fields (ready for Phase 2)
+  provider   String? // 'email', 'google', 'apple', 'github'
+  providerId String? // OAuth provider's user ID
+
+  // Future billing fields
+  stripeCustomerId String?
+  subscriptionId   String?
+  planType         String? // 'sub', 'full'
+  planExpires      DateTime?
+  trialEnds        DateTime?
+
+  // Localization preference
+  language String? @default("en") // language or locale code (e.g., "en", "pt-PT", "zh-CN")
+
+  // Changelog notification
+  lastSeenVersion String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations (one-to-one with family)
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? @unique
+
+  // Link to admin caretaker for seamless access
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?    @unique
+
+  // Relations
+  feedback Feedback[]
+  pushSubscriptions PushSubscription[]
+  deviceTokens DeviceToken[]
+  notificationPreferences NotificationPreference[]
+  redeemedGiftCodes GiftCode[]
+
+  @@index([email])
+  @@index([verified])
+  @@index([verificationToken])
+  @@index([passwordResetToken])
+}
+
+// New model for multi-family support
+model Family {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  isActive   Boolean  @default(true)
+  setupStage Int      @default(0) // 0=not started, 1=family created, 2=security configured, 3=complete
+
+  // Account ownership
+  account   Account?
+  accountId String?  @unique
+
+  // Relations
+  babies         Baby[]
+  caretakers     Caretaker[]
+  settings       Settings[]
+  sleepLogs      SleepLog[]
+  feedLogs       FeedLog[]
+  diaperLogs     DiaperLog[]
+  moodLogs       MoodLog[]
+  notes          Note[]
+  milestones     Milestone[]
+  pumpLogs       PumpLog[]
+  playLogs       PlayLog[]
+  bathLogs       BathLog[]
+  measurements   Measurement[]
+  medicines      Medicine[]
+  medicineLogs   MedicineLog[]
+  contacts       Contact[]
+  calendarEvents CalendarEvent[]
+  familyMembers  FamilyMember[]
+  familySetups   FamilySetup[]
+  feedback       Feedback[]
+  pushSubscriptions PushSubscription[]
+  deviceTokens   DeviceToken[]
+  notificationPreferences NotificationPreference[]
+  breastMilkAdjustments BreastMilkAdjustment[]
+  activeBreastFeeds ActiveBreastFeed[]
+  activeActivities  ActiveActivity[]
+  vaccineLogs    VaccineLog[]
+  apiKeys        ApiKey[]
+  photos         Photo[]
+  photoLogs      PhotoLog[]
+  externalImportRecords ExternalImportRecord[]
+  ocrDocuments   OcrDocument[]
+  foods          Food[]
+  foodLogs       FoodLog[]
+  babyAllergens  BabyAllergen[]
+}
+
+// New model for family membership
+model FamilyMember {
+  family      Family    @relation(fields: [familyId], references: [id])
+  familyId    String
+  caretaker   Caretaker @relation(fields: [caretakerId], references: [id])
+  caretakerId String
+  role        String // e.g., "admin", "member"
+  joinedAt    DateTime  @default(now())
+
+  @@id([familyId, caretakerId])
+  @@index([familyId])
+  @@index([caretakerId])
+}
+
+model Baby {
+  id                String    @id @default(uuid())
+  firstName         String
+  lastName          String
+  birthDate         DateTime
+  gender            Gender?
+  inactive          Boolean   @default(false)
+  feedWarningTime   String    @default("03:00") // Default 3 hours
+  diaperWarningTime String    @default("02:00") // Default 2 hours
+  feedTimerFrom     String    @default("start") // "start" | "end" - count feed timer from start or end of feeding
+  feedTimerTypes    String? // JSON array of feed categories that reset the feed timer (issue #225); null = all feeds count
+  dailyIntakeTargetMl Float? // Caregiver-entered tracking target; never a calculated prescription
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  sleepLogs    SleepLog[]
+  feedLogs     FeedLog[]
+  diaperLogs   DiaperLog[]
+  moodLogs     MoodLog[]
+  notes        Note[]
+  milestones   Milestone[]
+  pumpLogs     PumpLog[]
+  playLogs     PlayLog[]
+  bathLogs     BathLog[]
+  measurements Measurement[]
+  events       BabyEvent[] // New relationship for calendar events
+  medicineLogs MedicineLog[] // New relationship for medicine logs
+  notificationPreferences NotificationPreference[]
+  breastMilkAdjustments BreastMilkAdjustment[]
+  activeBreastFeed ActiveBreastFeed?
+  activeActivity   ActiveActivity?
+  vaccineLogs  VaccineLog[]
+  apiKeys      ApiKey[]
+  photos       Photo[]
+  photoLogs    PhotoLog[]
+  foodLogs     FoodLog[]
+  babyAllergens BabyAllergen[]
+
+  @@index([birthDate])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model Caretaker {
+  id          String    @id @default(uuid())
+  loginId     String // Two-digit login identifier for quick authentication
+  name        String
+  type        String? // parent, daycare, nanny, grandparent, uncle, etc.
+  role        UserRole  @default(USER) // User role for authentication permissions
+  inactive    Boolean   @default(false)
+  securityPin String
+  language    String?   @default("en") // language or locale code (e.g., "en", "pt-PT", "zh-CN")
+  badgeColor  String? // Timeline badge color id (e.g. "teal"); null = neutral gray
+  lastSeenVersion String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Optional account link (for account holders who are also caretakers)
+  account   Account?
+  accountId String?  @unique
+
+  // Relationships
+  sleepLogs     SleepLog[]
+  feedLogs      FeedLog[]
+  diaperLogs    DiaperLog[]
+  moodLogs      MoodLog[]
+  notes         Note[]
+  milestones    Milestone[]
+  pumpLogs      PumpLog[]
+  playLogs      PlayLog[]
+  bathLogs      BathLog[]
+  measurements  Measurement[]
+  medicineLogs  MedicineLog[] // Relation to MedicineLog model
+  events        CaretakerEvent[] // New relationship for calendar events
+  familyMembers FamilyMember[]
+  familySetups  FamilySetup[]
+  feedback      Feedback[]
+  pushSubscriptions PushSubscription[]
+  deviceTokens  DeviceToken[]
+  notificationPreferences NotificationPreference[]
+  breastMilkAdjustments BreastMilkAdjustment[]
+  activeBreastFeeds ActiveBreastFeed[]
+  activeActivities  ActiveActivity[]
+  vaccineLogs   VaccineLog[]
+  photos        Photo[]
+  photoLogs     PhotoLog[]
+  foodLogs      FoodLog[]
+  babyAllergens BabyAllergen[]
+
+  @@index([deletedAt])
+  @@index([familyId])
+  @@index([accountId])
+}
+
+model SleepLog {
+  id        String        @id @default(uuid())
+  startTime DateTime
+  endTime   DateTime?
+  duration  Int? // Duration in minutes, calculated from start/end
+  type      SleepType
+  location  String?
+  quality   SleepQuality?
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([startTime])
+  @@index([endTime])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model Unit {
+  id            String   @id @default(uuid())
+  unitAbbr      String   @unique
+  unitName      String
+  activityTypes String? // Comma-separated list of activity types: height, weight, temp, medicine
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  feedLogs     FeedLog[]
+  pumpLogs     PumpLog[]
+  medicines    Medicine[] // Relation to Medicine model
+  medicineLogs MedicineLog[] // Relation to MedicineLog model
+
+  @@index([unitAbbr])
+}
+
+model FeedLog {
+  id           String      @id @default(uuid())
+  time         DateTime
+  startTime    DateTime? // Used for breast feeding duration tracking
+  endTime      DateTime? // Used for breast feeding duration tracking
+  feedDuration Int? // Duration in seconds, useful for tracking actual feeding time
+  pauseDuration Int? // Total session pause in seconds (same value on all rows of a breastfeed session; null on non-breast rows and legacy rows)
+  type         FeedType
+  amount       Float? // Amount in specified unit
+  offeredAmount Float? // Offered volume, in the same unit as amount (consumed)
+  formulaKcalOz Float? // Optional documented concentration in kcal per US fluid ounce
+  formulaName  String?
+  bottleLabel  String?
+  sourceCaregiverName String? // Imported attribution; never grants caretaker permissions
+  unit         Unit?       @relation(fields: [unitAbbr], references: [unitAbbr])
+  unitAbbr     String?
+  side         BreastSide?
+  food         String? // Description of solid foods
+  notes        String? // Optional notes for any feed type
+  hadReaction  Boolean     @default(false) // True when this feed caused a reaction (e.g. a formula intolerance)
+  reactionDescription String? // Description of the reaction (redness, swelling, ...)
+  reactionCause String? // What caused the reaction (e.g. a formula name like "Similac")
+  bottleType   String? // Type of bottle feed: formula, breast milk, formula/breast, milk, other
+  breastMilkAmount Float? // Breast milk amount used (for Formula/Breast mixed feeds)
+  sessionId    String? // Groups breast feeds into one nursing session; a unique value opts a feed out of heuristic grouping
+  sourcePumpId String? @unique // Links an automatic breast-milk feed to the pump session that created it
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([unitAbbr])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model DiaperLog {
+  id        String     @id @default(uuid())
+  time      DateTime
+  type      DiaperType
+  condition String?
+  color     String?
+  blowout      Boolean    @default(false)
+  creamApplied Boolean    @default(false)
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model MoodLog {
+  id        String    @id @default(uuid())
+  time      DateTime
+  mood      Mood
+  intensity Int?      @default(3) // Scale of 1-5
+  duration  Int? // Duration in minutes
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model Note {
+  id        String    @id @default(uuid())
+  time      DateTime
+  content   String // The actual note content
+  category  String? // Optional categorization
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model Settings {
+  id                  String   @id @default(uuid())
+  familyName          String   @default("My Family")
+  securityPin         String   @default("111222")
+  authType            String? // "SYSTEM" or "CARETAKER" - determines authentication method, auto-detected if empty
+  defaultBottleUnit   String   @default("OZ") // Default unit for bottle feeding
+  defaultSolidsUnit   String   @default("TBSP") // Default unit for solid feeding
+  defaultHeightUnit   String   @default("IN") // Default unit for height measurement
+  defaultWeightUnit   String   @default("LB") // Default unit for weight measurement
+  defaultTempUnit     String   @default("F") // Default unit for temperature
+  activitySettings    String? // JSON string for activity order and visibility settings
+  sleepLocationSettings String? // JSON string for hidden sleep locations
+  bathTypeSettings    String? // JSON string for hidden bath types
+  nurseryModeSettings String? // JSON string for nursery mode settings per caretaker
+  enableDebugTimer    Boolean  @default(false) // Enable debug session timer
+  enableDebugTimezone Boolean  @default(false) // Enable debug timezone tool
+  enableBreastMilkTracking Boolean @default(true) // Enable breast milk inventory tracking (stored/fed/discarded actions, adjustments, balance)
+  includeSolidsInFeedTimer Boolean @default(true) // DEPRECATED (orphaned): superseded by per-baby Baby.feedTimerTypes; no longer read or written. Kept to avoid a destructive column drop.
+  photoQuotaMB        Int? // Per-family photo quota override in MB; null = use AppConfig default
+  dateFormat          String   @default("MM/DD/YYYY") // "MM/DD/YYYY" | "DD/MM/YYYY" | "YYYY-MM-DD"
+  timeFormat          String   @default("12h") // "12h" | "24h"
+  growthChartStandard String   @default("CDC") // "CDC" | "WHO" — growth chart standard for percentile calculations
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  @@index([familyId])
+}
+
+// New models for additional activity logs
+
+model Milestone {
+  id          String            @id @default(uuid())
+  date        DateTime
+  title       String
+  description String?
+  category    MilestoneCategory
+  ageInDays   Int? // Optional calculated field based on baby's birthdate
+  photo       String? // Path to photo if you want to store milestone photos
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  photos Photo[]
+
+  @@index([date])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model Photo {
+  id              String    @id @default(uuid())
+  originalName    String
+  storedName      String // Encrypted display image (<uuid>.enc) under Files/photos/<familyId>/
+  thumbStoredName String // Encrypted ~300px thumbnail
+  mimeType        String // Mime type of the stored display image
+  fileSize        Int // Display image bytes (counts toward quota)
+  thumbSize       Int // Thumbnail bytes (counts toward quota)
+  takenAt         DateTime // EXIF-derived or user-set; drives Month grouping
+  caption         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // Trash; purge-eligible at deletedAt + 30 days
+
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+  milestone   Milestone? @relation(fields: [milestoneId], references: [id])
+  milestoneId String?
+  family      Family?    @relation(fields: [familyId], references: [id])
+  familyId    String? // Nullable initially for migration
+
+  links     PhotoLink[]
+  favorites PhotoFavorite[]
+
+  @@index([familyId])
+  @@index([babyId])
+  @@index([takenAt])
+  @@index([deletedAt])
+  @@index([milestoneId])
+}
+
+model PhotoLog {
+  id        String    @id @default(uuid())
+  time      DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+  family      Family?    @relation(fields: [familyId], references: [id])
+  familyId    String? // Nullable initially for migration
+
+  @@index([familyId])
+  @@index([babyId])
+  @@index([time])
+  @@index([deletedAt])
+}
+
+model PhotoLink {
+  id           String   @id @default(uuid())
+  photo        Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  photoId      String
+  activityType String // 'photo' | 'feed' | 'milestone' | 'bath' | 'play' | 'measurement' | 'foodLog'
+  activityId   String // Polymorphic - no FK
+  createdAt    DateTime @default(now())
+
+  @@unique([photoId, activityType, activityId])
+  @@index([activityType, activityId])
+}
+
+model PhotoFavorite {
+  id          String   @id @default(uuid())
+  photo       Photo    @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  photoId     String
+  caretakerId String? // Set for PIN-auth users
+  accountId   String? // Set for account-auth users
+  createdAt   DateTime @default(now())
+
+  @@index([photoId])
+  @@index([caretakerId])
+  @@index([accountId])
+}
+
+model PumpLog {
+  id          String    @id @default(uuid())
+  startTime   DateTime
+  endTime     DateTime?
+  duration    Int? // Duration in minutes
+  leftAmount  Float? // Amount in specified unit
+  rightAmount Float? // Amount in specified unit
+  totalAmount Float? // Total amount pumped
+  unit        Unit?     @relation(fields: [unitAbbr], references: [unitAbbr])
+  unitAbbr    String?
+  pumpAction  String    @default("STORED") // "STORED" | "FED" | "DISCARDED"
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([startTime])
+  @@index([endTime])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([unitAbbr])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model BreastMilkAdjustment {
+  id          String    @id @default(uuid())
+  time        DateTime
+  amount      Float // Positive = add to inventory, negative = remove
+  unitAbbr    String?
+  reason      String? // "Initial Stock", "Expired", "Spilled", "Donated", "Other"
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model PlayLog {
+  id         String    @id @default(uuid())
+  startTime  DateTime
+  endTime    DateTime?
+  duration   Int? // Duration in minutes
+  type       PlayType
+  notes      String?
+  activities String? // Description of activities during play
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([startTime])
+  @@index([endTime])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model BathLog {
+  id          String    @id @default(uuid())
+  time        DateTime // Single time when the bath occurred
+  bathType    String? // e.g. "Full Bath", "Sponge Bath", "Wipe Down", or custom value
+  soapUsed    Boolean   @default(true)
+  shampooUsed Boolean   @default(true)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model Measurement {
+  id        String          @id @default(uuid())
+  date      DateTime
+  type      MeasurementType
+  value     Float
+  unit      String // Unit of measurement (in, cm, lb, kg, etc.)
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([date])
+  @@index([type])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// New model for contacts (doctors, teachers, etc.)
+model Contact {
+  id        String    @id @default(uuid())
+  name      String
+  role      String // doctor, teacher, family member, etc.
+  phone     String?
+  email     String?
+  address   String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  events    ContactEvent[] // Events associated with this contact
+  medicines ContactMedicine[] // Medicines associated with this medicine
+  vaccines  ContactVaccine[] // Vaccines associated with this contact
+
+  @@index([role])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// New model for calendar events
+model CalendarEvent {
+  id          String            @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime?
+  allDay      Boolean           @default(false)
+  type        CalendarEventType
+  location    String?
+  color       String? // For custom color coding
+
+  // Recurrence fields
+  recurring         Boolean            @default(false)
+  recurrencePattern RecurrencePattern?
+  recurrenceEnd     DateTime? // When the recurrence ends
+  customRecurrence  String? // JSON string for custom recurrence rules
+
+  // Notification fields
+  reminderTime     Int? // Minutes before event to send reminder
+  notificationSent Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships - multiple babies and caretakers can be associated with an event
+  babies     BabyEvent[]
+  caretakers CaretakerEvent[]
+  contacts   ContactEvent[] // Many-to-many with contacts
+
+  @@index([startTime])
+  @@index([endTime])
+  @@index([type])
+  @@index([recurring])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// Junction table for many-to-many relationship between babies and events
+model BabyEvent {
+  baby    Baby          @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId  String
+  event   CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+
+  @@id([babyId, eventId])
+  @@index([babyId])
+  @@index([eventId])
+}
+
+// Junction table for many-to-many relationship between caretakers and events
+model CaretakerEvent {
+  caretaker   Caretaker     @relation(fields: [caretakerId], references: [id], onDelete: Cascade)
+  caretakerId String
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId     String
+
+  @@id([caretakerId, eventId])
+  @@index([caretakerId])
+  @@index([eventId])
+}
+
+// Junction table for many-to-many relationship between contacts and events
+model ContactEvent {
+  contact   Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId String
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+
+  @@id([contactId, eventId])
+  @@index([contactId])
+  @@index([eventId])
+}
+
+// Medicine table to track available medicines
+model Medicine {
+  id              String    @id @default(uuid())
+  name            String
+  typicalDoseSize Float?
+  unitAbbr        String?
+  doseMinTime     String? // Minimum time between doses (format: "HH:MM")
+  notes           String? // Additional notes about the medicine
+  active          Boolean   @default(true)
+  isSupplement    Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  medicineLogs MedicineLog[] // Logs of medicine administration
+  contacts     ContactMedicine[] // Contacts associated with this medicine
+  unit         Unit?             @relation(fields: [unitAbbr], references: [unitAbbr])
+
+  @@index([name])
+  @@index([active])
+  @@index([isSupplement])
+  @@index([unitAbbr])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// Medicine log table to track medicine administration
+model MedicineLog {
+  id         String    @id @default(uuid())
+  time       DateTime
+  doseAmount Float
+  unitAbbr   String?
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Nullable initially for migration
+
+  // Relationships
+  medicine    Medicine   @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  medicineId  String
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+  unit        Unit?      @relation(fields: [unitAbbr], references: [unitAbbr])
+
+  @@index([time])
+  @@index([medicineId])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([unitAbbr])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// Junction table for many-to-many relationship between contacts and medicines
+model ContactMedicine {
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId  String
+  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  medicineId String
+
+  @@id([contactId, medicineId])
+  @@index([contactId])
+  @@index([medicineId])
+}
+
+// Vaccine tracking
+model VaccineLog {
+  id            String    @id @default(uuid())
+  time          DateTime
+  vaccineName   String
+  doseNumber    Int?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String?
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+  documents   VaccineDocument[]
+  contacts    ContactVaccine[]
+
+  @@index([time])
+  @@index([vaccineName])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+model VaccineDocument {
+  id              String    @id @default(uuid())
+  originalName    String
+  storedName      String
+  mimeType        String
+  fileSize        Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vaccineLog   VaccineLog @relation(fields: [vaccineLogId], references: [id], onDelete: Cascade)
+  vaccineLogId String
+
+  @@index([vaccineLogId])
+}
+
+// Junction table for many-to-many relationship between contacts and vaccines
+model ContactVaccine {
+  contact      Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contactId    String
+  vaccineLog   VaccineLog @relation(fields: [vaccineLogId], references: [id], onDelete: Cascade)
+  vaccineLogId String
+
+  @@id([contactId, vaccineLogId])
+  @@index([contactId])
+  @@index([vaccineLogId])
+}
+
+// Food tracking - family-scoped catalog of foods (issue #203)
+model Food {
+  id             String    @id @default(uuid())
+  name           String
+  commonAllergen Boolean   @default(false)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String?
+
+  // Relationships
+  foodLogs FoodLog[] // Logs of food tries
+
+  @@index([name])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// Food log table to track when a baby tries a food (issue #203)
+model FoodLog {
+  id                  String         @id @default(uuid())
+  time                DateTime
+  amount              Float? // Optional amount eaten, in unitAbbr
+  unitAbbr            String? // Unit for amount (e.g. TBSP, G); plain string, no FK
+  enjoyment           FoodEnjoyment?
+  hadReaction         Boolean        @default(false) // Derived: true if any foods[] item reacted (legacy single-food rows keep row-level)
+  reactionDescription String? // Description of the reaction (redness, swelling, ...) — legacy / meal summary
+  notes               String?
+  feedLogId           String? // Optional soft link to the SOLIDS FeedLog this try happened in (no FK)
+  // JSON text: [{ foodId, hadReaction?, reactionDescription? }] for multi-food meals (#247).
+  // Dual-write with foodId when N=1; foodId null when N>1. Expand via expandFoodItems().
+  foods               String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  deletedAt           DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String?
+
+  // Relationships — foodId nullable for multi-food meals (foods JSON is source of truth)
+  food        Food?      @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  foodId      String?
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([time])
+  @@index([foodId])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// Manually recorded allergens for a baby (food tracker follow-up).
+// Complements the allergen profile derived from reaction-flagged FoodLogs.
+model BabyAllergen {
+  id                  String       @id @default(uuid())
+  name                String
+  allergenType        AllergenType @default(FOOD)
+  reactionDescription String? // Description of the reaction (redness, swelling, ...)
+  notes               String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  deletedAt           DateTime?
+
+  // Add family relation
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String?
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([name])
+  @@index([babyId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([familyId])
+}
+
+// New model for family setup invitations
+model FamilySetup {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  password  String // Password for token-based authentication
+  expiresAt DateTime
+  createdBy String // ID of the admin Caretaker who initiated the setup
+  familyId  String?  @unique // Linked to the Family record upon creation
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator Caretaker @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  family  Family?   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([createdBy])
+}
+
+// Beta subscriber for coming soon page signups
+model BetaSubscriber {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  firstName  String?
+  lastName   String?
+  isOptedIn  Boolean   @default(true)
+  optedOutAt DateTime?
+  source     String    @default("coming-soon")
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  // Future-proofing: relationship to campaigns
+  campaignEmails BetaCampaignEmail[]
+
+  @@index([email])
+  @@index([isOptedIn])
+  @@index([source])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+// Lifetime-license gift codes (SaaS mode). Status is derived:
+// revokedAt set -> revoked, else redeemedAt set -> redeemed, else active.
+model GiftCode {
+  id              String    @id @default(cuid())
+  code            String    @unique // e.g. ABCD-EFGH-JKLM-NPQR
+  source          String // 'purchase' | 'admin'
+  purchaserEmail  String? // buyer email from Stripe, or admin "issued to"
+  stripeSessionId String?   @unique // checkout session id; webhook idempotency
+  stripePaymentId String?
+  redeemedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  redeemedByAccount   Account? @relation(fields: [redeemedByAccountId], references: [id])
+  redeemedByAccountId String?
+
+  @@index([redeemedByAccountId])
+}
+
+model ShortLink {
+  id          String   @id @default(cuid())
+  slug        String   @unique // 8 hex chars, e.g. "a1b2c3d4"
+  url         String // destination URL (absolute http/https only)
+  name        String
+  description String?
+  tag         String? // campaign tag for grouping
+  enabled     Boolean  @default(true)
+  clickCount  Int      @default(0) // denormalized total
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clicks ShortLinkClick[]
+
+  @@index([tag])
+}
+
+model ShortLinkClick {
+  id             String   @id @default(cuid())
+  timestamp      DateTime @default(now())
+  deviceType     String? // mobile | tablet | desktop | bot | unknown
+  browser        String?
+  os             String?
+  referrerDomain String?
+  country        String? // ISO code from CDN header when available
+  region         String?
+  visitorHash    String? // truncated sha256(secret + day + ip + ua)
+  queryString    String? // incoming query string (UTM etc.)
+
+  shortLink   ShortLink @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+  shortLinkId String
+
+  @@index([shortLinkId, timestamp])
+}
+
+model Pageview {
+  id             String   @id @default(cuid())
+  timestamp      DateTime @default(now())
+  path           String // normalized route, e.g. "/pricing" — no query, no trailing slash
+  deviceType     String? // mobile | tablet | desktop | bot | unknown
+  browser        String?
+  os             String?
+  referrerDomain String?
+  country        String? // ISO code from CDN header when available
+  region         String?
+  visitorHash    String? // truncated sha256(secret + day + ip + ua) — no raw IP
+  queryString    String? // incoming query string (UTM etc.), capped at 1024
+
+  @@index([timestamp])
+  @@index([path, timestamp])
+}
+
+// Future-proof campaign system
+model BetaCampaign {
+  id          String           @id @default(cuid())
+  name        String
+  subject     String
+  content     String?
+  type        BetaCampaignType @default(NOTIFICATION)
+  isActive    Boolean          @default(true)
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  campaignEmails BetaCampaignEmail[]
+
+  @@index([type])
+  @@index([isActive])
+  @@index([scheduledAt])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model BetaCampaignEmail {
+  id           String          @id @default(cuid())
+  sentAt       DateTime        @default(now())
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  status       BetaEmailStatus @default(SENT)
+  errorMessage String?
+
+  campaign     BetaCampaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId   String
+  subscriber   BetaSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  subscriberId String
+
+  @@unique([campaignId, subscriberId])
+  @@index([sentAt])
+  @@index([status])
+  @@index([campaignId])
+  @@index([subscriberId])
+}
+
+enum BetaCampaignType {
+  NOTIFICATION
+  UPDATE
+  WELCOME
+  REMINDER
+}
+
+enum BetaEmailStatus {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+enum EmailProviderType {
+  MANUAL_SFTP
+  SENDGRID
+  SMTP2GO
+}
+
+// Application configuration settings
+model AppConfig {
+  id          String   @id @default(cuid())
+  adminPass   String // Sitewide admin password
+  rootDomain  String // Root domain for the application
+  enableHttps Boolean  @default(false) // Whether HTTPS is enabled (0/1)
+  adminEmail  String? // Admin email for feedback replies
+  enablePhotos        Boolean @default(false) // Enable the Photos feature deployment-wide
+  defaultPhotoQuotaMB Int     @default(5120) // Default per-family photo storage quota in MB
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailConfig {
+  id                  String            @id @default(cuid())
+  providerType        EmailProviderType @default(SENDGRID)
+  sendGridApiKey      String?
+  smtp2goApiKey       String?
+  serverAddress       String?
+  port                Int?
+  username            String?
+  password            String?
+  enableTls           Boolean           @default(true)
+  allowSelfSignedCert Boolean           @default(false)
+  updatedAt           DateTime          @updatedAt
+}
+
+// Push notification configuration (managed via App Configuration UI)
+model NotificationConfig {
+  id               String   @id @default(cuid())
+  enabled          Boolean  @default(false)
+  vapidPublicKey   String?
+  vapidPrivateKey  String?  // Encrypted with AES-256-GCM
+  vapidSubject     String?  // Default generated at seed time: mailto:notify_<8-char-hex>@sprout-track.com
+  logRetentionDays Int      @default(30)
+  updatedAt        DateTime @updatedAt
+}
+
+// Demo family tracking for automated demo regeneration
+model DemoTracker {
+  id             String    @id @default(cuid())
+  familyId       String    @unique // ID of the current demo family
+  sourceFamilyId String // ID of the family used as source data
+  dateRangeStart DateTime // Start of the 30-day period used from source
+  dateRangeEnd   DateTime // End of the 30-day period used from source
+  generatedAt    DateTime  @default(now())
+  lastAccessedAt DateTime?
+  accessCount    Int       @default(0)
+  notes          String? // Any notes about this demo generation
+
+  @@index([generatedAt])
+  @@index([lastAccessedAt])
+}
+
+// CDC Growth Chart reference data for percentile calculations
+// Data from: https://www.cdc.gov/growthcharts/cdc-data-files.htm
+// Uses LMS method for percentile calculations
+// Separate tables for each measurement type for cleaner organization
+
+// Weight-for-age reference data (infants 0-36 months)
+model CdcWeightForAge {
+  id        String @id @default(uuid())
+  sex       Int // 1 = Male, 2 = Female
+  ageMonths Float // Age in months (0, 0.5, 1.5, 2.5, etc.)
+  l         Float // L parameter (power in Box-Cox transformation)
+  m         Float // M parameter (median)
+  s         Float // S parameter (generalized coefficient of variation)
+  p3        Float // 3rd percentile
+  p5        Float // 5th percentile
+  p10       Float // 10th percentile
+  p25       Float // 25th percentile
+  p50       Float // 50th percentile (median)
+  p75       Float // 75th percentile
+  p90       Float // 90th percentile
+  p95       Float // 95th percentile
+  p97       Float // 97th percentile
+
+  @@unique([sex, ageMonths])
+  @@index([sex])
+  @@index([ageMonths])
+}
+
+// Length-for-age reference data (infants 0-36 months)
+model CdcLengthForAge {
+  id        String @id @default(uuid())
+  sex       Int // 1 = Male, 2 = Female
+  ageMonths Float // Age in months (0, 0.5, 1.5, 2.5, etc.)
+  l         Float // L parameter (power in Box-Cox transformation)
+  m         Float // M parameter (median)
+  s         Float // S parameter (generalized coefficient of variation)
+  p3        Float // 3rd percentile
+  p5        Float // 5th percentile
+  p10       Float // 10th percentile
+  p25       Float // 25th percentile
+  p50       Float // 50th percentile (median)
+  p75       Float // 75th percentile
+  p90       Float // 90th percentile
+  p95       Float // 95th percentile
+  p97       Float // 97th percentile
+
+  @@unique([sex, ageMonths])
+  @@index([sex])
+  @@index([ageMonths])
+}
+
+// Head circumference-for-age reference data (infants 0-36 months)
+model CdcHeadCircumferenceForAge {
+  id        String @id @default(uuid())
+  sex       Int // 1 = Male, 2 = Female
+  ageMonths Float // Age in months (0, 0.5, 1.5, 2.5, etc.)
+  l         Float // L parameter (power in Box-Cox transformation)
+  m         Float // M parameter (median)
+  s         Float // S parameter (generalized coefficient of variation)
+  p3        Float // 3rd percentile
+  p5        Float // 5th percentile
+  p10       Float // 10th percentile
+  p25       Float // 25th percentile
+  p50       Float // 50th percentile (median)
+  p75       Float // 75th percentile
+  p90       Float // 90th percentile
+  p95       Float // 95th percentile
+  p97       Float // 97th percentile
+
+  @@unique([sex, ageMonths])
+  @@index([sex])
+  @@index([ageMonths])
+}
+
+// WHO Growth Standard reference data for percentile calculations
+// Data from: WHO Multicentre Growth Reference Study (MGRS)
+// Uses LMS method for percentile calculations (same as CDC)
+
+// WHO Weight-for-age reference data (infants 0-24 months)
+model WhoWeightForAge {
+  id        String @id @default(uuid())
+  sex       Int // 1 = Male, 2 = Female
+  ageMonths Float // Age in months (0, 1, 2, ..., 24)
+  l         Float // L parameter (power in Box-Cox transformation)
+  m         Float // M parameter (median)
+  s         Float // S parameter (generalized coefficient of variation)
+  p3        Float // 3rd percentile
+  p5        Float // 5th percentile
+  p10       Float // 10th percentile
+  p25       Float // 25th percentile
+  p50       Float // 50th percentile (median)
+  p75       Float // 75th percentile
+  p90       Float // 90th percentile
+  p95       Float // 95th percentile
+  p97       Float // 97th percentile
+
+  @@unique([sex, ageMonths])
+  @@index([sex])
+  @@index([ageMonths])
+}
+
+// WHO Length-for-age reference data (infants 0-24 months)
+model WhoLengthForAge {
+  id        String @id @default(uuid())
+  sex       Int
+  ageMonths Float
+  l         Float
+  m         Float
+  s         Float
+  p3        Float
+  p5        Float
+  p10       Float
+  p25       Float
+  p50       Float
+  p75       Float
+  p90       Float
+  p95       Float
+  p97       Float
+
+  @@unique([sex, ageMonths])
+  @@index([sex])
+  @@index([ageMonths])
+}
+
+// WHO Head circumference-for-age reference data (infants 0-24 months)
+model WhoHeadCircumferenceForAge {
+  id        String @id @default(uuid())
+  sex       Int
+  ageMonths Float
+  l         Float
+  m         Float
+  s         Float
+  p3        Float
+  p5        Float
+  p10       Float
+  p25       Float
+  p50       Float
+  p75       Float
+  p90       Float
+  p95       Float
+  p97       Float
+
+  @@unique([sex, ageMonths])
+  @@index([sex])
+  @@index([ageMonths])
+}
+
+// Feedback model for user feedback and support requests
+model Feedback {
+  id          String    @id @default(uuid())
+  subject     String
+  message     String
+  submittedAt DateTime  @default(now())
+  viewed      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations to capture submitter information
+  family   Family? @relation(fields: [familyId], references: [id])
+  familyId String? // Family context for the feedback
+
+  account   Account? @relation(fields: [accountId], references: [id])
+  accountId String? // Account that submitted the feedback (for email)
+
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String? // Caretaker that submitted the feedback (for name)
+
+  // Denormalized fields for easier querying (populated from relations)
+  submitterName  String? // Name from caretaker or account
+  submitterEmail String? // Email from account
+
+  // Reply relationship - all replies reference the original feedback
+  parentId String? // Nullable - only set for replies, references original feedback
+  parent   Feedback?  @relation("FeedbackReplies", fields: [parentId], references: [id])
+  replies  Feedback[] @relation("FeedbackReplies")
+
+  // Attachments (images)
+  attachments FeedbackAttachment[]
+
+  @@index([submittedAt])
+  @@index([viewed])
+  @@index([familyId])
+  @@index([accountId])
+  @@index([caretakerId])
+  @@index([deletedAt])
+  @@index([parentId])
+}
+
+// Feedback attachment model for images uploaded with feedback messages
+model FeedbackAttachment {
+  id           String   @id @default(uuid())
+  originalName String
+  storedName   String   // Encrypted filename (uuid.enc) in Files/feedback/
+  mimeType     String
+  fileSize     Int      // Size in bytes after compression
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  feedbackId String
+
+  @@index([feedbackId])
+}
+
+// Push notification subscription model
+model PushSubscription {
+  id            String   @id @default(cuid())
+  accountId     String?
+  caretakerId   String?
+  familyId      String
+  endpoint      String   @unique
+  p256dh        String
+  auth          String
+  deviceLabel   String?
+  userAgent     String?
+  failureCount  Int      @default(0)
+  lastFailureAt DateTime?
+  lastSuccessAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  account   Account?   @relation(fields: [accountId], references: [id])
+  caretaker Caretaker? @relation(fields: [caretakerId], references: [id])
+  family    Family     @relation(fields: [familyId], references: [id])
+  notificationPreferences NotificationPreference[]
+  notificationLogs        NotificationLog[]
+
+  @@index([accountId])
+  @@index([caretakerId])
+  @@index([familyId])
+  @@index([endpoint])
+  @@index([failureCount])
+}
+
+// Native push device token model (iOS/Android)
+model DeviceToken {
+  id            String    @id @default(cuid())
+  token         String
+  platform      String // 'ios' | 'android'
+  accountId     String?
+  caretakerId   String?
+  familyId      String
+  failureCount  Int       @default(0)
+  lastFailureAt DateTime?
+  lastSuccessAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  account   Account?   @relation(fields: [accountId], references: [id])
+  caretaker Caretaker? @relation(fields: [caretakerId], references: [id])
+  family    Family     @relation(fields: [familyId], references: [id])
+
+  @@unique([token, familyId])
+  @@index([accountId])
+  @@index([caretakerId])
+  @@index([familyId])
+}
+
+// Notification preferences per baby, owned either by a web-push PushSubscription
+// (subscriptionId set — one row per browser subscription, unchanged from the
+// original design) or directly by a caretaker/account (subscriptionId null —
+// the native-push path, where there is no PushSubscription to hang off of
+// because WKWebView / Android System WebView cannot register one). Every row
+// also carries its owner (caretakerId/accountId) and familyId directly so send
+// sites don't have to go through `subscription` to find a target.
+model NotificationPreference {
+  id                    String                @id @default(cuid())
+  subscriptionId        String?
+  babyId                String
+  eventType             NotificationEventType
+  activityTypes         String? // JSON string array of activity types (null = all)
+  timerIntervalMinutes  Int? // Minutes between repeat notifications (null = once per expiration)
+  lastTimerNotifiedAt   DateTime?
+  enabled               Boolean                @default(true)
+  caretakerId           String?
+  accountId             String?
+  // Nullable, not required: a required column with no default cannot be
+  // added by `prisma db push` to a Postgres table that already has rows
+  // (confirmed empirically against this repo's Prisma version) — db push is
+  // exactly how docker-startup.sh deploys Postgres, and it has no `set -e`
+  // to catch the failure. Purely-additive nullable columns always push
+  // cleanly on both providers. resolvePreferenceOwner() and the GET query
+  // both tolerate a null familyId (falling back to `subscription`).
+  familyId              String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  // Relations
+  subscription PushSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  baby         Baby              @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  caretaker    Caretaker?        @relation(fields: [caretakerId], references: [id], onDelete: SetNull)
+  account      Account?          @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  family       Family?           @relation(fields: [familyId], references: [id])
+
+  @@unique([subscriptionId, babyId, eventType])
+  @@index([subscriptionId])
+  @@index([babyId])
+  @@index([eventType])
+  @@index([enabled])
+  @@index([caretakerId])
+  @@index([accountId])
+  @@index([familyId])
+}
+
+// Notification log for debugging and failure tracking
+model NotificationLog {
+  id            String                @id @default(cuid())
+  subscriptionId String
+  eventType     NotificationEventType
+  activityType  String? // Specific activity type (for ACTIVITY_CREATED)
+  babyId        String
+  success       Boolean
+  errorMessage  String?
+  httpStatus    Int?
+  payload       String? // JSON of notification content sent
+  createdAt     DateTime              @default(now())
+
+  // Relations
+  subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([createdAt])
+  @@index([success])
+}
+
+// Active breastfeeding session tracking (persistent across devices)
+model ActiveBreastFeed {
+  id                   String      @id @default(uuid())
+  activeSide           BreastSide  // Currently active side (LEFT or RIGHT)
+  isPaused             Boolean     @default(false)
+  leftDuration         Int         @default(0) // Accumulated seconds for left side
+  rightDuration        Int         @default(0) // Accumulated seconds for right side
+  pauseDuration        Int         @default(0) // Accumulated seconds paused within the session
+  pausedAt             DateTime?               // When the session was last paused (null when not paused)
+  firstSide            BreastSide?             // Side used first in the session (for ordering consolidated rows); null on legacy rows
+  currentSideStartTime DateTime? // When current side started timing (null when paused)
+  sessionStartTime     DateTime // When the overall session began
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String     @unique // Only one active session per baby
+  family      Family?    @relation(fields: [familyId], references: [id])
+  familyId    String?
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([babyId])
+  @@index([familyId])
+}
+
+model ActiveActivity {
+  id               String    @id @default(uuid())
+  playType         PlayType              // TUMMY_TIME, INDOOR_PLAY, OUTDOOR_PLAY, WALK
+  isPaused         Boolean   @default(false)
+  duration         Int       @default(0)  // Accumulated seconds
+  currentStartTime DateTime?             // When current timing segment started (null when paused)
+  sessionStartTime DateTime              // When the overall session began
+  subCategory      String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relationships
+  baby        Baby       @relation(fields: [babyId], references: [id], onDelete: Cascade)
+  babyId      String     @unique          // Only one active activity session per baby
+  family      Family?    @relation(fields: [familyId], references: [id])
+  familyId    String?
+  caretaker   Caretaker? @relation(fields: [caretakerId], references: [id])
+  caretakerId String?
+
+  @@index([babyId])
+  @@index([familyId])
+}
+
+// API Key for external integrations (Home Assistant, webhooks, etc.)
+model ApiKey {
+  id          String    @id @default(cuid())
+  name        String // User-provided label: "Nursery Button", "HA Dashboard", etc.
+  keyPrefix   String // First 16 chars of key for UI display: "st_live_XXXXXXXX"
+  keyHash     String    @unique // SHA-256 hash of full key for lookup
+  familyId    String
+  babyId      String? // Optional: restrict to a specific baby
+  scopes      String // JSON array: ["read","write"] or ["read"] or ["write"]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime? // Optional expiration
+  revoked     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+  baby   Baby?  @relation(fields: [babyId], references: [id])
+
+  @@index([keyHash])
+  @@index([familyId])
+  @@index([revoked])
+}
+
+model ExternalImportRecord {
+  id               String   @id @default(uuid())
+  providerId       String
+  sourceEntityType String
+  sourceRecordId   String
+  sourceChildId    String?
+  targetEntityType String
+  targetRecordId   String
+  importedAt       DateTime @default(now())
+
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  familyId String
+
+  @@unique([familyId, providerId, sourceEntityType, sourceRecordId])
+  @@index([familyId, providerId])
+  @@index([targetEntityType, targetRecordId])
+}
+
+// BabyTracker: additive OCR review state; care events stay in the upstream tables.
+model OcrDocument {
+  id             String   @id @default(uuid())
+  familyId       String
+  babyId         String
+  sourceHash     String
+  originalName   String
+  mimeType       String
+  byteSize       Int
+  sourceFile     String?
+  previewFiles   String
+  pageCount      Int
+  parserVersion  String
+  sourceTimezone String
+  originalState  String // AES-GCM encrypted extraction, never overwritten by review
+  reviewState    String // AES-GCM encrypted editable candidates
+  revision       Int      @default(0)
+  commitHash     String?
+  resultJson     String?
+  committedAt    DateTime?
+  sourceExpiresAt DateTime
+  purgedAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  audits OcrAudit[]
+
+  @@unique([familyId, babyId, sourceHash])
+  @@index([familyId, babyId, createdAt])
+  @@index([sourceExpiresAt])
+}
+
+model OcrAudit {
+  id          String   @id @default(uuid())
+  documentId  String
+  action      String
+  actorId     String?
+  snapshot    String // AES-GCM encrypted review/correction snapshot
+  createdAt   DateTime @default(now())
+
+  document OcrDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@index([documentId, createdAt])
+}

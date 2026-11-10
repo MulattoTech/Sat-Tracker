@@ -1,0 +1,36 @@
+/* Dark mode overrides for CardVisual component */
+
+html.dark .card-visual-container {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .card-visual-title {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .card-visual-main-value {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .card-visual-comparative-value {
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .card-visual-description {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+html.dark .card-visual-icon {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+/* Trend border colors in dark mode */
+html.dark .card-visual-trend-positive {
+  border-left-color: #10b981 !important; /* emerald-500 */
+}
+
+html.dark .card-visual-trend-negative {
+  border-left-color: #ef4444 !important; /* red-500 */
+}

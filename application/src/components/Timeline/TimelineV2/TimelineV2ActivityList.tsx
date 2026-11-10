@@ -1,0 +1,593 @@
+import { Baby as BabyIcon } from 'lucide-react';
+import { useRef, useMemo, useState, useEffect } from 'react';
+import { ActivityType, TimelineActivityListProps } from '../types';
+import { getActivityIcon, getActivityStyle, getActivityDescription, getActivityTime, formatWeightDisplay } from '../utils';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Label } from '@/src/components/ui/label';
+import { useLocalization } from '@/src/context/localization';
+import { useTimezone } from '@/app/context/timezone';
+import { formatTimeDisplay, formatDateShort } from '@/src/utils/dateFormat';
+import { useUnit } from '@/src/hooks/useUnit';
+import { FOOD_ENJOYMENT_LABELS, isFoodLogActivity, isValidEnjoyment } from '@/src/utils/foodLogUtils';
+import { useAuthedImage, useInView, photoFileUrl } from '@/src/hooks/useAuthedImage';
+import { getVisibleThumbnails } from '@/src/utils/photoUtils';
+import { TimelinePhotoInfo } from '@/app/api/types';
+import { getBadgeColorOption, getBadgeTextColor } from '@/src/constants/caretakerBadge';
+import { localizeSleepLocation } from '@/src/utils/sleepLocationUtils';
+
+import '../timeline-activity-list.css';
+
+// 3 thumbs on desktop, 2 on mobile (PRD 4.3); +N badge for overflow
+function TimelinePhotoThumbs({ photos, onPhotoClick }: { photos: TimelinePhotoInfo[]; onPhotoClick: (photoId: string) => void }) {
+  const [maxVisible, setMaxVisible] = useState(3);
+  useEffect(() => {
+    const update = () => setMaxVisible(window.innerWidth < 940 ? 2 : 3);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  const { visible, overflow } = getVisibleThumbnails(photos, maxVisible);
+  return (
+    <div className="flex gap-1.5">
+      {visible.map((photo) => (
+        <TimelineThumb key={photo.id} photo={photo} onClick={() => onPhotoClick(photo.id)} />
+      ))}
+      {overflow > 0 && (
+        <span className="grid h-11 w-11 place-items-center rounded-[10px] border-[1.5px] border-dashed border-gray-300 bg-gray-100 text-xs font-bold text-gray-600 timeline-thumb-more">
+          +{overflow}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function TimelineThumb({ photo, onClick }: { photo: TimelinePhotoInfo; onClick: () => void }) {
+  const { ref, inView } = useInView<HTMLButtonElement>();
+  const { src } = useAuthedImage(photoFileUrl(photo.id, 'thumb'), inView);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className="h-11 w-11 shrink-0 overflow-hidden rounded-[10px] bg-gray-100 shadow-sm"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={photo.caption || undefined}
+    >
+      {src && <img src={src} alt={photo.caption || ''} className="h-full w-full object-cover" />}
+    </button>
+  );
+}
+
+const TimelineV2ActivityList = ({
+  activities,
+  settings,
+  isLoading,
+  isAnimated = true,
+  selectedDate,
+  onActivitySelect,
+  onPhotoClick,
+}: TimelineActivityListProps) => {
+
+  const { t } = useLocalization();
+  const { unitSymbol } = useUnit();
+  const { dateFormat, timeFormat } = useTimezone();
+
+  const translateNotes = (notes: string): string => {
+    if (notes === 'Auto-created from pump session') return t('Auto-created from pump session');
+    if (notes.startsWith('Auto-created from pump: ')) {
+      return `${t('Auto-created from pump:')} ${notes.slice('Auto-created from pump: '.length)}`;
+    }
+    return notes;
+  };
+  
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Group activities by time of day
+  const getTimeOfDay = (date: Date): string => {
+    const hour = date.getHours();
+    if (hour >= 0 && hour < 6) return 'early-morning';
+    if (hour >= 6 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 17) return 'afternoon';
+    if (hour >= 17 && hour < 21) return 'evening';
+    return 'night'; // 21:00 (9 PM) to 23:59 (11:59 PM)
+  };
+
+  const getTimeOfDayLabel = (timeOfDay: string): string => {
+    switch (timeOfDay) {
+      case 'early-morning': return t('Early Morning');
+      case 'morning': return t('Morning');
+      case 'afternoon': return t('Afternoon');
+      case 'evening': return t('Evening');
+      case 'night': return t('Night');
+      default: return timeOfDay;
+    }
+  };
+
+  const groupedActivities = useMemo(() => {
+    const groups: { [key: string]: ActivityType[] } = {
+      'early-morning': [],
+      morning: [],
+      afternoon: [],
+      evening: [],
+      night: [],
+    };
+    
+    activities.forEach(activity => {
+      let groupingTime: Date;
+      
+      // Special logic for sleep activities
+      if ('duration' in activity && 'startTime' in activity && activity.endTime) {
+        const startTime = new Date(activity.startTime);
+        const endTime = new Date(activity.endTime);
+        
+        const startDate = startTime.toDateString();
+        const endDate = endTime.toDateString();
+        
+        if (startDate === endDate) {
+          groupingTime = startTime;
+        } else {
+          const viewingDate = selectedDate || new Date();
+          const viewingDateStr = viewingDate.toDateString();
+          const startDateStr = startTime.toDateString();
+          const endDateStr = endTime.toDateString();
+          
+          if (startDateStr === viewingDateStr) {
+            groupingTime = startTime;
+          } else if (endDateStr === viewingDateStr) {
+            groupingTime = endTime;
+          } else {
+            groupingTime = startTime;
+          }
+        }
+      } else {
+        groupingTime = new Date(getActivityTime(activity));
+      }
+      
+      const timeOfDay = getTimeOfDay(groupingTime);
+      groups[timeOfDay].push(activity);
+    });
+    
+    // Sort activities within each group (newest first)
+    Object.keys(groups).forEach(key => {
+      groups[key].sort((a, b) => {
+        const timeA = new Date(getActivityTime(a));
+        const timeB = new Date(getActivityTime(b));
+        return timeB.getTime() - timeA.getTime();
+      });
+    });
+    
+    // Return groups in order: night (9 PM-12 AM), evening, afternoon, morning, early-morning (12 AM-6 AM)
+    return [
+      { timeOfDay: 'night', activities: groups.night },
+      { timeOfDay: 'evening', activities: groups.evening },
+      { timeOfDay: 'afternoon', activities: groups.afternoon },
+      { timeOfDay: 'morning', activities: groups.morning },
+      { timeOfDay: 'early-morning', activities: groups['early-morning'] },
+    ].filter(group => group.activities.length > 0);
+  }, [activities, selectedDate]);
+
+
+  return (
+    <>
+      {/* Scrollable Content */}
+      <div 
+        className="h-full overflow-y-auto relative bg-white timeline-activity-scroll-container" 
+        ref={contentRef}
+      >
+        {/* Timeline View */}
+        <div className="min-h-full bg-white relative timeline-activity-list px-5 pb-5">
+          {/* Fade gradient at top - from white to transparent */}
+          <div className="absolute position: sticky top-0 left-0 right-0 h-2 bg-gradient-to-b from-white to-transparent pointer-events-none z-20 timeline-top-gradient"></div>
+          {activities.length > 0 ? (
+            <div className="relative">
+              {/* Timeline vertical line */}
+              <div className="border-l-2 border-gray-200 pl-5 ml-2.5 timeline-container">
+                <AnimatePresence>
+                  {groupedActivities.map((group, groupIndex) => (
+                    <motion.div
+                      key={group.timeOfDay}
+                      className="relative timeline-hour-group mb-6"
+                      initial={isAnimated ? { opacity: 0, y: -10 } : false}
+                      animate={isAnimated ? { opacity: 1, y: 0 } : false}
+                      transition={isAnimated ? {
+                        delay: groupIndex * 0.05,
+                        duration: 0.2,
+                        ease: "easeOut"
+                      } : { duration: 0 }}
+                    >
+                      {/* Time of Day Header */}
+                      <div className="flex items-center mb-3 ml-2">
+                        <div className="text-sm font-semibold text-gray-500">
+                          {getTimeOfDayLabel(group.timeOfDay)}
+                        </div>
+                      </div>
+                      
+                      {/* Activities in this time period */}
+                      <div className="space-y-0 pb-4">
+                        {group.activities.map((activity, activityIndex) => {
+                          const style = getActivityStyle(activity);
+                          const description = getActivityDescription(activity, settings, t);
+                          const activityTime = new Date(getActivityTime(activity));
+
+                          // Caretaker/account badge (hidden server-side for system-PIN entries).
+                          // A resolved color sets the CSS vars; otherwise the CSS gray fallback applies.
+                          const badgeOption = getBadgeColorOption(activity.caretakerBadgeColor);
+                          const caretakerBadgeStyle = badgeOption
+                            ? ({ '--badge-bg': badgeOption.hex, '--badge-fg': getBadgeTextColor(badgeOption.hex) } as React.CSSProperties)
+                            : undefined;
+                          let timeStr: string;
+                          
+                          if ('duration' in activity && 'startTime' in activity) {
+                            const startTime = new Date(activity.startTime);
+                            const startDateStr = startTime.toDateString();
+                            
+                            if (activity.endTime) {
+                              const endTime = new Date(activity.endTime);
+                              const endDateStr = endTime.toDateString();
+                              const isOvernight = startDateStr !== endDateStr;
+                              
+                              const startTimeStr = formatTimeDisplay(startTime, timeFormat);
+                              const endTimeStr = formatTimeDisplay(endTime, timeFormat);
+
+                              if (isOvernight) {
+                                // Show dates for overnight entries
+                                const startDateFormatted = formatDateShort(startTime, dateFormat);
+                                const endDateFormatted = formatDateShort(endTime, dateFormat);
+                                timeStr = `${startDateFormatted} ${startTimeStr} - ${endDateFormatted} ${endTimeStr}`;
+                              } else {
+                                timeStr = `${startTimeStr} - ${endTimeStr}`;
+                              }
+                            } else {
+                              timeStr = formatTimeDisplay(startTime, timeFormat);
+                            }
+                          } else {
+                            timeStr = formatTimeDisplay(activityTime, timeFormat);
+                          }
+                          
+                          const getActivityColor = (bgClass: string) => {
+                            if (bgClass.includes('bg-gradient-to-br from-gray-400')) return '#9ca3af'; // gray-400 - matches old timeline
+                            if (bgClass.includes('bg-sky-200')) return '#7dd3fc'; // sky-300 - matches old timeline
+                            if (bgClass.includes('bg-gradient-to-r from-teal-600')) return '#0d9488'; // teal-600 - matches old timeline
+                            if (bgClass.includes('bg-[#FFFF99]')) return '#fef08a'; // yellow-200 - matches old timeline
+                            if (bgClass.includes('bg-gradient-to-r from-orange-400')) return '#fb923c'; // orange-400 - matches old timeline
+                            if (bgClass.includes('bg-gradient-to-r from-purple-200')) return '#c084fc'; // purple-400 - matches old timeline
+                            if (bgClass.includes('bg-[#4875EC]')) return '#4875EC'; // blue - matches old timeline
+                            if (bgClass.includes('bg-[#EA6A5E]')) return '#EA6A5E'; // red - matches old timeline
+                            if (bgClass.includes('bg-[#43B755]')) return '#43B755'; // green - matches old timeline
+                            if (bgClass.includes('bg-[#F3C4A2]')) return '#F3C4A2'; // peach - play activity
+                            if (bgClass.includes('border-red-500')) return '#EF4444'; // red - vaccine
+                            if (bgClass.includes('border-[#e11d48]')) return '#e11d48'; // rose - photo
+                            if (bgClass.includes('bg-[#BBD444]')) return '#BBD444'; // lime - food
+                            return '#9ca3af'; // default gray
+                          };
+                          
+                          const activityColor = getActivityColor(style.bg);
+                          
+                          // Determine activity type class for styling
+                          // Check play and pump FIRST since they also have duration and startTime
+                          let activityTypeClass = '';
+                          if ('photoLogId' in activity) activityTypeClass = 'photo';
+                          else if (isFoodLogActivity(activity)) activityTypeClass = 'food';
+                          else if ('activities' in activity && 'type' in activity && ['TUMMY_TIME', 'INDOOR_PLAY', 'OUTDOOR_PLAY', 'WALK', 'CUSTOM'].includes((activity as any).type)) activityTypeClass = 'play';
+                          else if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) activityTypeClass = 'breast-milk-adjustment';
+                          else if ('leftAmount' in activity || 'rightAmount' in activity) activityTypeClass = 'pump';
+                          else if ('duration' in activity && 'type' in activity) activityTypeClass = 'sleep';
+                          else if ('amount' in activity) activityTypeClass = 'feed';
+                          else if ('condition' in activity) activityTypeClass = 'diaper';
+                          else if ('content' in activity) activityTypeClass = 'note';
+                          else if ('soapUsed' in activity) activityTypeClass = 'bath';
+                          else if ('vaccineName' in activity) activityTypeClass = 'vaccine';
+                          else if ('title' in activity && 'category' in activity) activityTypeClass = 'milestone';
+                          else if ('value' in activity && 'unit' in activity) activityTypeClass = 'measurement';
+                          else if ('doseAmount' in activity && 'medicineId' in activity) {
+                            if ('medicine' in activity && activity.medicine && typeof activity.medicine === 'object' && 'isSupplement' in activity.medicine && (activity.medicine as any).isSupplement) {
+                              activityTypeClass = 'supplement';
+                            } else {
+                              activityTypeClass = 'medicine';
+                            }
+                          }
+                          
+                          return (
+                            <motion.div
+                              key={activity.id}
+                              className={`relative timeline-event ${activityTypeClass}`}
+                              initial={isAnimated ? { opacity: 0, x: -20 } : false}
+                              animate={isAnimated ? { opacity: 1, x: 0 } : false}
+                              transition={isAnimated ? {
+                                delay: (groupIndex * 0.1) + (activityIndex * 0.05),
+                                duration: 0.3,
+                                type: "tween",
+                                ease: "easeOut"
+                              } : { duration: 0 }}
+                              onClick={() => {
+                                setTimeout(() => onActivitySelect(activity), 0);
+                              }}
+                              style={{
+                                '--activity-color': activityColor,
+                              } as React.CSSProperties & { '--activity-color': string }}
+                            >
+                              {/* Event Icon */}
+                              <div className={`flex-shrink-0 event-icon ${activityTypeClass}`}>
+                                {getActivityIcon(activity)}
+                              </div>
+                              
+                              {/* Event Content */}
+                              <div className="flex-1 min-w-0 event-content">
+                                <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
+                                  <Label className="text-sm font-semibold text-gray-900 event-title truncate">
+                                    {description.type}
+                                  </Label>
+                                  {activity.caretakerName && (
+                                    <span
+                                      className="timeline-caretaker-badge"
+                                      style={caretakerBadgeStyle}
+                                    >
+                                      {activity.caretakerName}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-600 event-details">
+                                  {(() => {
+
+                                    // Food log (issue #203 / #247)
+                                    if (isFoodLogActivity(activity)) {
+                                      const foodLog = activity as any;
+                                      const enjoyment: unknown = foodLog.enjoyment;
+                                      const parts = [];
+                                      if (foodLog.amount) {
+                                        parts.push(`${foodLog.amount} ${unitSymbol(foodLog.unitAbbr)}`.trim());
+                                      }
+                                      if (isValidEnjoyment(enjoyment)) {
+                                        parts.push(t(FOOD_ENJOYMENT_LABELS[enjoyment]));
+                                      }
+                                      if (foodLog.isFirstTry) parts.push(t('First try!'));
+                                      if (foodLog.hadReaction) parts.push(t('Reaction'));
+                                      if (foodLog.notes) {
+                                        const notes = foodLog.notes.length > 30 ? foodLog.notes.substring(0, 30) + '...' : foodLog.notes;
+                                        parts.push(notes);
+                                      }
+                                      return parts.length > 0 ? parts.join(' • ') : t('Food');
+                                    }
+
+                                    // Breast milk adjustment before pump
+                                    if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) {
+                                      const amt = (activity as any).amount;
+                                      const unit = ((activity as any).unitAbbr || 'oz').toLowerCase();
+                                      const reason = (activity as any).reason || '';
+                                      const sign = amt >= 0 ? '+' : '';
+                                      return `${sign}${amt} ${unit}${reason ? ` (${t(reason)})` : ''}`;
+                                    }
+
+                                    // Pumping before duration check as it also has duration
+                                    if ('leftAmount' in activity || 'rightAmount' in activity || 'totalAmount' in activity) {
+                                      const amounts = [];
+                                      const unit = ((activity as any).unit || 'oz').toLowerCase();
+                                      if ((activity as any).totalAmount) amounts.push(`${(activity as any).totalAmount} ${unit}`);
+                                      if ((activity as any).leftAmount) amounts.push(`${t('L:')} ${(activity as any).leftAmount} ${unit}`);
+                                      if ((activity as any).rightAmount) amounts.push(`${t('R:')} ${(activity as any).rightAmount} ${unit}`);
+                                      if ('duration' in activity && activity.duration) {
+                                        amounts.push( `${activity.duration}m`);
+                                      }
+                                      return amounts.join(' • ');
+                                    }
+                                    
+                                    // Play activity - check before sleep/duration
+                                    if ('activities' in activity && 'type' in activity && ['TUMMY_TIME', 'INDOOR_PLAY', 'OUTDOOR_PLAY', 'WALK', 'CUSTOM'].includes((activity as any).type)) {
+                                      const parts = [];
+                                      if ((activity as any).duration) parts.push(`${(activity as any).duration} ${t('min')}`);
+                                      if ((activity as any).activities) parts.push(t((activity as any).activities));
+                                      return parts.length > 0 ? parts.join(' • ') : t('Activity');
+                                    }
+
+                                    if ('duration' in activity) {
+                                      const location = ('location' in activity && activity.location && activity.location !== 'OTHER') ?
+                                        activity.location.split('_').map((word: string) =>
+                                          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                                        ).join(' ') : '';
+                                      const duration = activity.duration ? `${Math.floor(activity.duration / 60)}h ${activity.duration % 60}m` : '';
+                                      const parts = [];
+                                      if (location) parts.push(localizeSleepLocation(location, t));
+                                      if (duration) parts.push(duration);
+                                      if (!('endTime' in activity)) parts.push(t('Still asleep'));
+                                      if ((activity as any).notes) {
+                                        const notes = translateNotes((activity as any).notes);
+                                        const truncatedNotes = notes.length > 30 ? notes.substring(0, 30) + '...' : notes;
+                                        parts.push(truncatedNotes);
+                                      }
+                                      return parts.length > 0 ? parts.join(' • ') : t('Sleep');
+                                    }
+                                    
+                                    if ('amount' in activity && 'type' in activity) {
+                                      if (activity.type === 'BREAST') {
+                                        const side = activity.side ? t(activity.side === 'LEFT' ? 'Left Side' : 'Right Side') : '';
+                                        let duration = '';
+                                        if (activity.feedDuration) {
+                                          const minutes = Math.floor(activity.feedDuration / 60);
+                                          const seconds = activity.feedDuration % 60;
+                                          duration = seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes} ${t('min')}`;
+                                        } else if (activity.amount) {
+                                          duration = `${activity.amount} ${t('min')}`;
+                                        }
+                                        const parts = [side, duration].filter(Boolean);
+                                        if ((activity as any).hadReaction) parts.push(t('Reaction'));
+                                        if ((activity as any).notes) {
+                                          const notes = translateNotes((activity as any).notes);
+                                          const truncatedNotes = notes.length > 30 ? notes.substring(0, 30) + '...' : notes;
+                                          parts.push(truncatedNotes);
+                                        }
+                                        return parts.join(' • ');
+                                      } else if (activity.type === 'BOTTLE') {
+                                        const unit = ((activity as any).unitAbbr || 'oz').toLowerCase();
+                                        const parts = [];
+                                        if ((activity as any).bottleType) {
+                                          parts.push(t((activity as any).bottleType));
+                                        }
+                                        parts.push(`${activity.amount} ${unit}`);
+                                        if ((activity as any).hadReaction) parts.push(t('Reaction'));
+                                        if ((activity as any).notes) {
+                                          const notes = translateNotes((activity as any).notes);
+                                          const truncatedNotes = notes.length > 30 ? notes.substring(0, 30) + '...' : notes;
+                                          parts.push(truncatedNotes);
+                                        }
+                                        return parts.join(' • ');
+                                      } else if (activity.type === 'SOLIDS') {
+                                        const unit = ((activity as any).unitAbbr || 'g').toLowerCase();
+                                        const food = activity.food ? activity.food : '';
+                                        const parts = [];
+                                        if (food) {
+                                          parts.push(`${activity.amount} ${unit} ${t('of')} ${food}`);
+                                        } else {
+                                          parts.push(`${activity.amount} ${unit}`);
+                                        }
+                                        if ((activity as any).hadReaction) parts.push(t('Reaction'));
+                                        if ((activity as any).notes) {
+                                          const notes = translateNotes((activity as any).notes);
+                                          const truncatedNotes = notes.length > 30 ? notes.substring(0, 30) + '...' : notes;
+                                          parts.push(truncatedNotes);
+                                        }
+                                        return parts.join(' • ');
+                                      }
+                                    }
+                                    
+                                    if ('condition' in activity) {
+                                      const details = [];
+                                      if (activity.condition) {
+                                        details.push(t(activity.condition.charAt(0) + activity.condition.slice(1).toLowerCase()));
+                                      }
+                                      if (activity.color) {
+                                        details.push(t(activity.color.charAt(0) + activity.color.slice(1).toLowerCase()));
+                                      }
+                                      if (activity.blowout) {
+                                        details.push(t('Blowout/Leakage'));
+                                      }
+                                      if (activity.creamApplied) {
+                                        details.push(t('Diaper Cream Applied'));
+                                      }
+                                      if ((activity as any).notes) {
+                                        const notes = translateNotes((activity as any).notes);
+                                        const truncatedNotes = notes.length > 30 ? notes.substring(0, 30) + '...' : notes;
+                                        details.push(truncatedNotes);
+                                      }
+                                      return details.length > 0 ? details.join(' • ') : t('Diaper');
+                                    }
+                                    
+                                    if ('content' in activity) {
+                                      return activity.content.length > 50 ? 
+                                        activity.content.substring(0, 50) + '...' : 
+                                        activity.content;
+                                    }
+                                    
+                                    if ('soapUsed' in activity) {
+                                      const details = [];
+                                      if (activity.soapUsed) details.push(t('Soap'));
+                                      if (activity.shampooUsed) details.push(t('Shampoo'));
+                                      if (details.length === 0) details.push(t('Water only'));
+                                      if (activity.notes) {
+                                        const translatedNotes = translateNotes(activity.notes);
+                                        const notes = translatedNotes.length > 30 ?
+                                          translatedNotes.substring(0, 30) + '...' :
+                                          translatedNotes;
+                                        details.push(notes);
+                                      }
+                                      return details.join(' • ');
+                                    }
+                                    
+                                    if ('vaccineName' in activity) {
+                                      const parts = [(activity as any).vaccineName];
+                                      if ((activity as any).doseNumber) parts.push(`${t('Dose')} #${(activity as any).doseNumber}`);
+                                      return parts.join(' • ');
+                                    }
+
+                                    if ('title' in activity && 'category' in activity) {
+                                      const title = activity.title.length > 40 ?
+                                        activity.title.substring(0, 40) + '...' :
+                                        activity.title;
+                                      return title;
+                                    }
+                                    
+                                    if ('value' in activity && 'unit' in activity) {
+                                      if ('type' in activity && activity.type === 'WEIGHT') {
+                                        return formatWeightDisplay(activity.value, activity.unit);
+                                      }
+                                      let unit = ('type' in activity && activity.type === 'TEMPERATURE') ?
+                                        activity.unit : activity.unit.toLowerCase();
+                                      return `${activity.value} ${unit}`;
+                                    }
+                                    
+                                    if ('doseAmount' in activity && 'medicineId' in activity) {
+                                      const unit = unitSymbol(activity.unitAbbr);
+                                      const dose = activity.doseAmount ? `${activity.doseAmount} ${unit}`.trim() : '';
+                                      let medName = t('Medicine');
+                                      if ('medicine' in activity && activity.medicine && typeof activity.medicine === 'object') {
+                                        if ('isSupplement' in activity.medicine && (activity.medicine as any).isSupplement) {
+                                          medName = t('Supplement');
+                                        }
+                                        if ('name' in activity.medicine && activity.medicine.name) {
+                                          medName = (activity.medicine as { name?: string }).name || medName;
+                                        }
+                                      }
+                                      return `${medName} - ${dose}`;
+                                    }
+                                    
+                                    return t('Activity logged');
+                                  })()}
+                                </div>
+                              </div>
+
+                              {/* Photo Thumbnails */}
+                              {!!activity.photos?.length && (
+                                <div className="flex-shrink-0">
+                                  <TimelinePhotoThumbs
+                                    photos={activity.photos}
+                                    onPhotoClick={(photoId) => onPhotoClick?.(photoId)}
+                                  />
+                                </div>
+                              )}
+
+                              {/* Event Time */}
+                              <div className="flex-shrink-0 text-xs text-gray-500 event-time">
+                                {timeStr}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </div>
+          ) : !isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center h-full">
+              <div className="text-center p-6">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <BabyIcon className="h-8 w-8 text-indigo-600" aria-hidden="true" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1 timeline-empty-state">{t('No activities recorded')}</h3>
+                <p className="text-sm text-gray-500 timeline-empty-description">
+                  {t('Activities will appear here once you start tracking')}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Loading State */}
+        {isLoading && activities.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center h-full">
+            <div className="text-center p-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100 flex items-center justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-1 timeline-empty-state">{t('Loading activities...')}</h3>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+};
+
+export default TimelineV2ActivityList;
+

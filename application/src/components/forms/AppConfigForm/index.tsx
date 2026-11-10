@@ -1,0 +1,1300 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/src/components/ui/button';
+import { Input } from '@/src/components/ui/input';
+import { Label } from '@/src/components/ui/label';
+import { Checkbox } from '@/src/components/ui/checkbox';
+import { 
+  FormPage, 
+  FormPageContent, 
+  FormPageFooter 
+} from '@/src/components/ui/form-page';
+import { Settings, Loader2, Save, X, Mail, ChevronDown, Bell, CheckCircle, AlertCircle, XCircle, RefreshCw, Key, Image } from 'lucide-react';
+import { Card, CardContent } from '@/src/components/ui/card';
+import { Badge } from '@/src/components/ui/badge';
+import { BackupRestore } from '@/src/components/BackupRestore';
+import { GuardianUpdate } from '@/src/components/GuardianUpdate';
+import { AdminPasswordResetModal } from '@/src/components/BackupRestore/AdminPasswordResetModal';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/src/components/ui/dropdown-menu';
+import { EmailProviderType } from '@prisma/client';
+import { useLocalization } from '@/src/context/localization';
+import { useTimezone } from '@/app/context/timezone';
+import { formatDateTimeDisplay } from '@/src/utils/dateFormat';
+
+interface AppConfigFormProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+interface AppConfigData {
+  id: string;
+  adminPass: string;
+  rootDomain: string;
+  enableHttps: boolean;
+  adminEmail: string | null;
+  enablePhotos: boolean;
+  defaultPhotoQuotaMB: number;
+  updatedAt: string;
+}
+
+interface EmailConfigData {
+  id: string;
+  providerType: EmailProviderType;
+  sendGridApiKey?: string;
+  smtp2goApiKey?: string;
+  serverAddress?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  enableTls: boolean;
+  allowSelfSignedCert: boolean;
+  updatedAt: string;
+  // Secrets are never sent from the API; these flags indicate whether one is configured.
+  hasSendGridApiKey?: boolean;
+  hasSmtp2goApiKey?: boolean;
+  hasPassword?: boolean;
+}
+
+interface NotificationConfigData {
+  id: string;
+  enabled: boolean;
+  vapidPublicKey: string | null;
+  vapidPrivateKey: string | null;
+  vapidSubject: string | null;
+  logRetentionDays: number;
+  // The private key is never sent from the API; this flag indicates whether one is configured.
+  hasVapidPrivateKey?: boolean;
+  updatedAt: string;
+}
+
+interface NotificationStatusData {
+  enabled: boolean;
+  vapidConfigured: boolean;
+  cronSecretConfigured: boolean;
+  lastCronRun: {
+    timestamp: string | null;
+    notificationsSent: number;
+    success: boolean;
+  } | null;
+  subscriptionCount: number;
+  failedSubscriptionCount: number;
+}
+
+export default function AppConfigForm({
+  isOpen, 
+  onClose 
+}: AppConfigFormProps) {
+  const { t } = useLocalization();
+  const { dateFormat, timeFormat } = useTimezone();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [appConfig, setAppConfig] = useState<AppConfigData | null>(null);
+  const [emailConfig, setEmailConfig] = useState<EmailConfigData | null>(null);
+  const [notificationStatus, setNotificationStatus] = useState<NotificationStatusData | null>(null);
+  const [notificationStatusLoading, setNotificationStatusLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    adminPass: '',
+    rootDomain: '',
+    enableHttps: false,
+    adminEmail: '',
+    enablePhotos: false,
+    defaultPhotoQuotaMB: 5120,
+  });
+  const [emailFormData, setEmailFormData] = useState({
+    providerType: 'SENDGRID' as EmailProviderType,
+    sendGridApiKey: '',
+    smtp2goApiKey: '',
+    serverAddress: '',
+    port: 587,
+    username: '',
+    password: '',
+    enableTls: true,
+    allowSelfSignedCert: false,
+  });
+  const [notificationConfig, setNotificationConfig] = useState<NotificationConfigData | null>(null);
+  const [notificationFormData, setNotificationFormData] = useState({
+    enabled: false,
+    vapidPublicKey: '',
+    vapidPrivateKey: '',
+    vapidSubject: '',
+    logRetentionDays: 30,
+  });
+  const [generatingVapid, setGeneratingVapid] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordStep, setPasswordStep] = useState<'verify' | 'new' | 'confirm'>('verify');
+  const [verifyPassword, setVerifyPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const closeTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const adminResetResolverRef = React.useRef<(() => void) | null>(null);
+
+  // Handle admin password reset notification
+  const handleAdminPasswordReset = () => {
+    console.log('Admin password was reset to default during restore');
+    setShowPasswordResetModal(true);
+  };
+
+  // Handle modal confirmation
+  const handlePasswordResetConfirm = () => {
+    console.log('User acknowledged password reset notification');
+    // Resolve the promise to allow BackupRestore to proceed
+    if (adminResetResolverRef.current) {
+      adminResetResolverRef.current();
+      adminResetResolverRef.current = null;
+    }
+  };
+
+  // Promise that resolves when user acknowledges the password reset
+  const handleAdminResetAcknowledged = () => {
+    return new Promise<void>((resolve) => {
+      adminResetResolverRef.current = resolve;
+    });
+  };
+
+  // Fetch app config data
+  const fetchAppConfig = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/app-config', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const data = await response.json();
+      
+      if (response.status === 401 || response.status === 403) {
+        setError(t('Authentication required. Please ensure you are logged in as a system administrator.'));
+        return;
+      }
+      
+      if (data.success) {
+        setAppConfig(data.data.appConfig);
+        setEmailConfig(data.data.emailConfig);
+        // Secrets (adminPass, API keys, SMTP password, VAPID private key) are never
+        // returned by the API — the fields start blank and a blank value on save means
+        // "keep the current value". Configured state is shown via the has* flags.
+        setFormData({
+          adminPass: '',
+          rootDomain: data.data.appConfig?.rootDomain || '',
+          enableHttps: data.data.appConfig?.enableHttps || false,
+          adminEmail: data.data.appConfig?.adminEmail || '',
+          enablePhotos: data.data.appConfig?.enablePhotos || false,
+          defaultPhotoQuotaMB: data.data.appConfig?.defaultPhotoQuotaMB || 5120,
+        });
+        setEmailFormData({
+          providerType: data.data.emailConfig?.providerType || 'SENDGRID',
+          sendGridApiKey: '',
+          smtp2goApiKey: '',
+          serverAddress: data.data.emailConfig?.serverAddress || '',
+          port: data.data.emailConfig?.port || 587,
+          username: data.data.emailConfig?.username || '',
+          password: '',
+          enableTls: data.data.emailConfig?.enableTls !== false,
+          allowSelfSignedCert: data.data.emailConfig?.allowSelfSignedCert || false,
+        });
+        setNotificationConfig(data.data.notificationConfig);
+        setNotificationFormData({
+          enabled: data.data.notificationConfig?.enabled || false,
+          vapidPublicKey: data.data.notificationConfig?.vapidPublicKey || '',
+          vapidPrivateKey: '',
+          vapidSubject: data.data.notificationConfig?.vapidSubject || '',
+          logRetentionDays: data.data.notificationConfig?.logRetentionDays || 30,
+        });
+        setShowPasswordChange(false);
+        setPasswordStep('verify');
+        setVerifyPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setError(data.error || 'Failed to fetch app configuration');
+      }
+    } catch (error) {
+      console.error('Error fetching app config:', error);
+        setError(t('Failed to fetch app configuration'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch notification system status
+  const fetchNotificationStatus = async () => {
+    try {
+      setNotificationStatusLoading(true);
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/notifications/status', {
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setNotificationStatus(data.data);
+      }
+      // Don't show error if status fails - it's optional info
+    } catch (error) {
+      console.error('Error fetching notification status:', error);
+    } finally {
+      setNotificationStatusLoading(false);
+    }
+  };
+
+  // Load data when form opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchAppConfig();
+      fetchNotificationStatus();
+    }
+  }, [isOpen]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Handle checkbox changes
+  const handleCheckboxChange = (name: string, checked: boolean) => {
+    setFormData(prev => ({ ...prev, [name]: checked }));
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Handle email input changes
+  const handleEmailInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type } = e.target;
+    setEmailFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value, 10) : value,
+    }));
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Handle email checkbox changes
+  const handleEmailCheckboxChange = (name: string, checked: boolean) => {
+    setEmailFormData(prev => ({ ...prev, [name]: checked }));
+    setError(null);
+    setSuccess(null);
+  };
+  
+  // Handle email provider change
+  const handleProviderChange = (provider: EmailProviderType) => {
+    setEmailFormData(prev => ({ ...prev, providerType: provider }));
+  };
+
+  // Handle notification input changes
+  const handleNotificationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type } = e.target;
+    setNotificationFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value, 10) : value,
+    }));
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Handle notification checkbox changes
+  const handleNotificationCheckboxChange = (name: string, checked: boolean) => {
+    setNotificationFormData(prev => ({ ...prev, [name]: checked }));
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Generate new VAPID keys
+  const handleGenerateVapidKeys = async () => {
+    try {
+      setGeneratingVapid(true);
+      setError(null);
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/notifications/generate-vapid', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setNotificationFormData(prev => ({
+          ...prev,
+          vapidPublicKey: data.data.publicKey,
+          vapidPrivateKey: data.data.privateKey,
+        }));
+        setSuccess(t('VAPID keys generated. Save configuration to apply. Warning: existing subscriptions will be invalidated.'));
+      } else {
+        setError(data.error || t('Failed to generate VAPID keys'));
+      }
+    } catch (error) {
+      console.error('Error generating VAPID keys:', error);
+      setError(t('Failed to generate VAPID keys'));
+    } finally {
+      setGeneratingVapid(false);
+    }
+  };
+
+  // Handle password step changes — verify the current password server-side
+  // (the client never receives the actual admin password).
+  const handleVerifyPassword = async () => {
+    try {
+      setVerifyingPassword(true);
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/app-config/verify-admin-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ password: verifyPassword }),
+      });
+      const data = await response.json();
+
+      if (response.ok && data.success && data.data?.valid) {
+        setPasswordStep('new');
+        setError(null);
+      } else {
+        setError('Incorrect current password');
+        setVerifyPassword('');
+      }
+    } catch (err) {
+      console.error('Error verifying admin password:', err);
+      setError(t('Unable to verify password. Please try again.'));
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
+  const handleNewPassword = () => {
+    if (newPassword.length < 6) {
+      setError(t('Password must be at least 6 characters'));
+      return;
+    }
+    setPasswordStep('confirm');
+    setError(null);
+  };
+
+  const handleConfirmPassword = async () => {
+    if (newPassword === confirmPassword) {
+      try {
+        setSaving(true);
+        setError(null);
+
+        // Update password in database immediately
+        const authToken = localStorage.getItem('authToken');
+        const response = await fetch('/api/app-config', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            appConfigData: { adminPass: newPassword }
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.status === 401 || response.status === 403) {
+          setError(t('Authentication required. Please ensure you are logged in as a system administrator.'));
+          return;
+        }
+
+        if (data.success) {
+          // Update local state; the API never returns the password, so keep the field blank.
+          setAppConfig(data.data.appConfig);
+          setFormData(prev => ({ ...prev, adminPass: '' }));
+
+          // Reset password form for potential next change
+          setShowPasswordChange(false);
+          setPasswordStep('verify');
+          setVerifyPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setError(null);
+          setSuccess(t('Password changed successfully'));
+          scheduleAutoClose();
+        } else {
+          setError(data.error || t('Failed to update password'));
+        }
+      } catch (error) {
+        console.error('Error updating password:', error);
+          setError(t('Failed to update password'));
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      setError(t('Passwords do not match'));
+      setConfirmPassword('');
+    }
+  };
+
+  const resetPasswordForm = () => {
+    setShowPasswordChange(false);
+    setPasswordStep('verify');
+    setVerifyPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setError(null);
+    setSuccess(null);
+  };
+
+  // Validate form
+  const validateForm = (): boolean => {
+    // adminPass is intentionally not required here: it's never pre-filled, and a blank
+    // value means "keep the current password" (changed via the dedicated verify flow).
+    if (!formData.rootDomain.trim()) {
+      setError(t('Root domain is required'));
+      return false;
+    }
+
+    // Flexible domain/IP validation - allows domain, IP, localhost, with optional port
+    const domainOrIpRegex = /^(?:(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?|(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|localhost)(?::[1-9][0-9]{0,4})?$/;
+    if (!domainOrIpRegex.test(formData.rootDomain)) {
+      setError('Please enter a valid domain, IP address, or localhost (with optional port)');
+      return false;
+    }
+
+    return true;
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    const payload = {
+      appConfigData: formData,
+      emailConfigData: emailFormData,
+      notificationConfigData: notificationFormData,
+    };
+
+    try {
+      setSaving(true);
+      setError(null);
+      setSuccess(null);
+
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/app-config', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.status === 401 || response.status === 403) {
+        setError(t('Authentication required. Please ensure you are logged in as a system administrator.'));
+        return;
+      }
+
+      if (data.success) {
+        setAppConfig(data.data.appConfig);
+        setEmailConfig(data.data.emailConfig);
+        if (data.data.notificationConfig) {
+          setNotificationConfig(data.data.notificationConfig);
+        }
+        setSuccess(t('App configuration updated successfully'));
+        scheduleAutoClose();
+      } else {
+        setError(data.error || t('Failed to update app configuration'));
+      }
+    } catch (error) {
+      console.error('Error updating app config:', error);
+        setError(t('Failed to update app configuration'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
+
+  // Auto-close form after successful save
+  const scheduleAutoClose = () => {
+    // Clear any existing timeout
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    
+    // Schedule auto-close after 500ms
+    closeTimeoutRef.current = setTimeout(() => {
+      handleClose();
+    }, 500);
+  };
+
+  // Handle form close
+  const handleClose = () => {
+    // Clear any pending auto-close timeout
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    
+    setError(null);
+    setSuccess(null);
+    resetPasswordForm();
+    onClose();
+  };
+
+  return (
+    <FormPage 
+      isOpen={isOpen} 
+      onClose={handleClose}
+      title={t("App Configuration")}
+      description={t("Manage global application settings")}
+    >
+      <form onSubmit={handleSubmit} className="h-full flex flex-col overflow-hidden">
+        <FormPageContent className="space-y-6 overflow-y-auto flex-1 pb-24">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" aria-hidden="true" />
+              <span className="ml-2 text-gray-600">{t('Loading configuration...')}</span>
+            </div>
+          ) : (
+            <>
+              {/* System Settings Section */}
+              <div className="space-y-4">
+                                 <div className="flex items-center space-x-2">
+                   <Settings className="h-5 w-5 text-teal-600" aria-hidden="true" />
+                   <Label className="text-lg font-semibold">
+                     {t('System Settings')}
+                   </Label>
+                 </div>
+
+                <div className="space-y-4">
+                  {/* Password Change Section */}
+                  <div className="space-y-2">
+                    <Label htmlFor={!showPasswordChange ? 'adminPassword' : undefined} className="text-sm font-medium">
+                      {t('Admin Password')}
+                    </Label>
+                    
+                    {!showPasswordChange ? (
+                      <div className="flex gap-2">
+                        <Input
+                          type="password"
+                          id="adminPassword"
+                          disabled
+                          value="••••••"
+                          className="flex-1 font-mono"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowPasswordChange(true)}
+                          disabled={loading}
+                        >
+                          {t('Change Password')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-center">
+                          <Label className="text-sm font-medium">
+                            {t('Change Admin Password')}
+                          </Label>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={resetPasswordForm}
+                          >
+                            {t('Cancel')}
+                          </Button>
+                        </div>
+
+                        {passwordStep === 'verify' && (
+                          <div className="space-y-2">
+                            <Label htmlFor="verifyPassword" className="text-sm">
+                              {t('Current Password')}
+                            </Label>
+                            <div className="flex space-x-2">
+                              <Input
+                                type="password"
+                                id="verifyPassword"
+                                value={verifyPassword}
+                                onChange={(e) => {
+                                  setVerifyPassword(e.target.value);
+                                  setError(null);
+                                  setSuccess(null);
+                                }}
+                                placeholder={t("Enter current password")}
+                                autoComplete="current-password"
+                              />
+                              <Button
+                                type="button"
+                                onClick={handleVerifyPassword}
+                                disabled={!verifyPassword.trim() || verifyingPassword}
+                              >
+                                Continue
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {passwordStep === 'new' && (
+                          <div className="space-y-2">
+                            <Label htmlFor="newPassword" className="text-sm">
+                              {t('New Password')}
+                            </Label>
+                            <div className="flex space-x-2">
+                              <Input
+                                type="password"
+                                id="newPassword"
+                                value={newPassword}
+                                onChange={(e) => {
+                                  setNewPassword(e.target.value);
+                                  setError(null);
+                                  setSuccess(null);
+                                }}
+                                placeholder={t("Enter new password")}
+                                autoComplete="new-password"
+                              />
+                              <Button 
+                                type="button" 
+                                onClick={handleNewPassword}
+                                disabled={!newPassword.trim()}
+                              >
+                                Continue
+                              </Button>
+                            </div>
+                            <p className="text-xs text-gray-500">
+                              {t('Password must be at least 6 characters')}
+                            </p>
+                          </div>
+                        )}
+
+                        {passwordStep === 'confirm' && (
+                          <div className="space-y-2">
+                            <Label htmlFor="confirmNewPassword" className="text-sm">
+                              {t('Confirm New Password')}
+                            </Label>
+                            <div className="flex space-x-2">
+                              <Input
+                                type="password"
+                                id="confirmNewPassword"
+                                value={confirmPassword}
+                                onChange={(e) => {
+                                  setConfirmPassword(e.target.value);
+                                  setError(null);
+                                  setSuccess(null);
+                                }}
+                                placeholder="Confirm new password"
+                                autoComplete="new-password"
+                              />
+                              <Button 
+                                type="button" 
+                                onClick={handleConfirmPassword}
+                                disabled={!confirmPassword.trim() || saving}
+                              >
+                                {saving ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                                    {t('Updating...')}
+                                  </>
+                                ) : (
+                                  t('Update')
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-gray-500">
+                      {t('This password is used for system-wide administrative access')}
+                    </p>
+                  </div>
+
+                  {/* Root Domain */}
+                  <div className="space-y-2">
+                    <Label htmlFor="rootDomain" className="text-sm font-medium">
+                      {t('Root Domain')}
+                      <span className="text-red-500 ml-1">*</span>
+                    </Label>
+                    <Input
+                      type="text"
+                      id="rootDomain"
+                      name="rootDomain"
+                      value={formData.rootDomain}
+                      onChange={handleInputChange}
+                      placeholder="example.com"
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      {t('The primary domain for this application instance')}
+                    </p>
+                  </div>
+
+                  {/* HTTPS Setting */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="enableHttps"
+                        checked={formData.enableHttps}
+                        onCheckedChange={(checked) => 
+                          handleCheckboxChange('enableHttps', checked as boolean)
+                        }
+                      />
+                      <Label htmlFor="enableHttps" className="text-sm font-medium cursor-pointer">
+                        {t('Enable HTTPS')}
+                      </Label>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-6">
+                      {t('Enable secure HTTPS connections for the application')}
+                    </p>
+                  </div>
+
+                  {/* Admin Email */}
+                  <div className="space-y-2">
+                    <Label htmlFor="adminEmail" className="text-sm font-medium">
+                      {t('Admin Email')}
+                    </Label>
+                    <Input
+                      type="email"
+                      id="adminEmail"
+                      name="adminEmail"
+                      value={formData.adminEmail}
+                      onChange={handleInputChange}
+                      placeholder={t("admin@example.com")}
+                    />
+                    <p className="text-xs text-gray-500">
+                      {t('Email address used for admin replies to feedback submissions')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Photos Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Image className="h-5 w-5 text-teal-600" aria-hidden="true" />
+                  <Label className="text-lg font-semibold">
+                    {t('Photos')}
+                  </Label>
+                </div>
+                <div className="space-y-4">
+                  {/* Enable Photos */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="enablePhotos"
+                        checked={formData.enablePhotos}
+                        onCheckedChange={(checked) =>
+                          handleCheckboxChange('enablePhotos', checked as boolean)
+                        }
+                      />
+                      <Label htmlFor="enablePhotos" className="text-sm font-medium cursor-pointer">
+                        {t('Enable photo functionality')}
+                      </Label>
+                    </div>
+                  </div>
+
+                  {/* Default Photo Storage Quota */}
+                  <div className="space-y-2">
+                    <Label htmlFor="defaultPhotoQuotaMB" className="text-sm font-medium">
+                      {t('Default photo storage quota (MB)')}
+                    </Label>
+                    <Input
+                      type="number"
+                      id="defaultPhotoQuotaMB"
+                      name="defaultPhotoQuotaMB"
+                      min={1}
+                      value={formData.defaultPhotoQuotaMB}
+                      onChange={(e) =>
+                        setFormData(prev => ({ ...prev, defaultPhotoQuotaMB: parseInt(e.target.value, 10) || 5120 }))
+                      }
+                    />
+                    <p className="text-xs text-gray-500">
+                      {t('Applies to families without a custom quota.')}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Email Configuration Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-5 w-5 text-teal-600" aria-hidden="true" />
+                  <Label className="text-lg font-semibold">
+                    {t('Email Configuration')}
+                  </Label>
+                </div>
+                <div className="space-y-4">
+                  {/* Email Provider Dropdown */}
+                  <div className="space-y-2">
+                    <Label htmlFor="providerType" className="text-sm font-medium">
+                      {t('Email Provider')}
+                    </Label>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button id="providerType" variant="outline" className="w-full justify-between">
+                          <span>{emailFormData.providerType.replace('_', ' ')}</span>
+                          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width]">
+                        <DropdownMenuItem onSelect={() => handleProviderChange('SENDGRID')}>
+                          {t('SendGrid')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleProviderChange('SMTP2GO')}>
+                          {t('SMTP2GO')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleProviderChange('MANUAL_SFTP')}>
+                          {t('Manual SMTP')}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {/* SendGrid API Key */}
+                  {emailFormData.providerType === 'SENDGRID' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="sendGridApiKey" className="text-sm font-medium">
+                        {t('SendGrid API Key')}
+                      </Label>
+                      <Input
+                        type="password"
+                        id="sendGridApiKey"
+                        name="sendGridApiKey"
+                        value={emailFormData.sendGridApiKey}
+                        onChange={handleEmailInputChange}
+                        placeholder={emailConfig?.hasSendGridApiKey ? t("Configured — leave blank to keep current") : t("Enter SendGrid API Key")}
+                      />
+                    </div>
+                  )}
+
+                  {/* SMTP2GO API Key */}
+                  {emailFormData.providerType === 'SMTP2GO' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="smtp2goApiKey" className="text-sm font-medium">
+                        {t('SMTP2GO API Key')}
+                      </Label>
+                      <Input
+                        type="password"
+                        id="smtp2goApiKey"
+                        name="smtp2goApiKey"
+                        value={emailFormData.smtp2goApiKey}
+                        onChange={handleEmailInputChange}
+                        placeholder={emailConfig?.hasSmtp2goApiKey ? t("Configured — leave blank to keep current") : "Enter SMTP2GO API Key"}
+                      />
+                    </div>
+                  )}
+
+                  {/* Manual SMTP Settings */}
+                  {emailFormData.providerType === 'MANUAL_SFTP' && (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="serverAddress" className="text-sm font-medium">
+                          {t('Server Address')}
+                        </Label>
+                        <Input
+                          type="text"
+                          id="serverAddress"
+                          name="serverAddress"
+                          value={emailFormData.serverAddress}
+                          onChange={handleEmailInputChange}
+                          placeholder={t("smtp.example.com")}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="port" className="text-sm font-medium">
+                          {t('Port')}
+                        </Label>
+                        <Input
+                          type="number"
+                          id="port"
+                          name="port"
+                          value={emailFormData.port}
+                          onChange={handleEmailInputChange}
+                          placeholder={t("587")}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="username" className="text-sm font-medium">
+                          {t('Username')}
+                        </Label>
+                        <Input
+                          type="text"
+                          id="username"
+                          name="username"
+                          value={emailFormData.username}
+                          onChange={handleEmailInputChange}
+                          autoComplete="username"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="password" className="text-sm font-medium">
+                          {t('Password')}
+                        </Label>
+                        <Input
+                          type="password"
+                          id="password"
+                          name="password"
+                          value={emailFormData.password}
+                          onChange={handleEmailInputChange}
+                          autoComplete="new-password"
+                          placeholder={emailConfig?.hasPassword ? t("Configured — leave blank to keep current") : undefined}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="enableTls"
+                          checked={emailFormData.enableTls}
+                          onCheckedChange={(checked) => handleEmailCheckboxChange('enableTls', checked as boolean)}
+                        />
+                        <Label htmlFor="enableTls" className="text-sm font-medium cursor-pointer">
+                          {t('Enable TLS')}
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="allowSelfSignedCert"
+                          checked={emailFormData.allowSelfSignedCert}
+                          onCheckedChange={(checked) => handleEmailCheckboxChange('allowSelfSignedCert', checked as boolean)}
+                        />
+                        <Label htmlFor="allowSelfSignedCert" className="text-sm font-medium cursor-pointer">
+                          {t('Allow Self-Signed Cert')}
+                        </Label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Push Notifications Configuration Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Bell className="h-5 w-5 text-teal-600" aria-hidden="true" />
+                  <Label className="text-lg font-semibold">
+                    {t('Push Notifications')}
+                  </Label>
+                </div>
+                <div className="space-y-4">
+                  {/* Enable Notifications */}
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="notificationEnabled"
+                        checked={notificationFormData.enabled}
+                        onCheckedChange={(checked) =>
+                          handleNotificationCheckboxChange('enabled', checked as boolean)
+                        }
+                      />
+                      <Label htmlFor="notificationEnabled" className="text-sm font-medium cursor-pointer">
+                        {t('Enable Push Notifications')}
+                      </Label>
+                    </div>
+                    <p className="text-xs text-gray-500 ml-6">
+                      {t('Enable push notification features for activity alerts and timer reminders')}
+                    </p>
+                  </div>
+
+                  {/* VAPID Keys */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">
+                        {t('VAPID Keys')}
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateVapidKeys}
+                        disabled={generatingVapid}
+                      >
+                        {generatingVapid ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" aria-hidden="true" />
+                            {t('Generating...')}
+                          </>
+                        ) : (
+                          <>
+                            <Key className="h-3 w-3 mr-1" aria-hidden="true" />
+                            {t('Generate New Keys')}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vapidPublicKey" className="text-xs text-gray-500">
+                        {t('Public Key')}
+                      </Label>
+                      <Input
+                        type="text"
+                        id="vapidPublicKey"
+                        value={notificationFormData.vapidPublicKey}
+                        readOnly
+                        placeholder={t('No public key configured')}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vapidPrivateKey" className="text-xs text-gray-500">
+                        {t('Private Key')}
+                      </Label>
+                      <Input
+                        type="password"
+                        id="vapidPrivateKey"
+                        name="vapidPrivateKey"
+                        value={notificationFormData.vapidPrivateKey}
+                        onChange={handleNotificationInputChange}
+                        placeholder={notificationConfig?.hasVapidPrivateKey ? t('Configured — leave blank to keep current') : t('No private key configured')}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {t('Generating new keys will invalidate all existing push subscriptions. Users will need to re-subscribe.')}
+                    </p>
+                  </div>
+
+                  {/* VAPID Subject */}
+                  <div className="space-y-2">
+                    <Label htmlFor="vapidSubject" className="text-sm font-medium">
+                      {t('VAPID Subject (Email)')}
+                    </Label>
+                    <Input
+                      type="text"
+                      id="vapidSubject"
+                      name="vapidSubject"
+                      value={notificationFormData.vapidSubject}
+                      onChange={handleNotificationInputChange}
+                      placeholder="mailto:notifications@example.com"
+                    />
+                    <p className="text-xs text-gray-500">
+                      {t('Contact email for push notification service identification (mailto: format)')}
+                    </p>
+                  </div>
+
+                  {/* Log Retention Days */}
+                  <div className="space-y-2">
+                    <Label htmlFor="logRetentionDays" className="text-sm font-medium">
+                      {t('Log Retention Days')}
+                    </Label>
+                    <Input
+                      type="number"
+                      id="logRetentionDays"
+                      name="logRetentionDays"
+                      value={notificationFormData.logRetentionDays}
+                      onChange={handleNotificationInputChange}
+                      min={1}
+                      max={365}
+                    />
+                    <p className="text-xs text-gray-500">
+                      {t('Number of days to retain notification logs (1-365)')}
+                    </p>
+                  </div>
+
+                  {/* Cron Secret Info */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      {t('Cron Secret')}
+                    </Label>
+                    <Card className="shadow-none">
+                      <CardContent className="p-3">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {t('Managed via NOTIFICATION_CRON_SECRET environment variable. Server restart required if changed.')}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notification System Status Section */}
+              {notificationStatus && (
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Bell className="h-5 w-5 text-teal-600" aria-hidden="true" />
+                    <Label className="text-lg font-semibold">
+                      {t('Notification System Status')}
+                    </Label>
+                  </div>
+                  <Card className="shadow-none">
+                    <CardContent className="p-4 space-y-3">
+                      {notificationStatusLoading ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="h-5 w-5 animate-spin text-teal-600" aria-hidden="true" />
+                          <Label className="ml-2 text-sm text-gray-600">{t('Loading...')}</Label>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Feature Enabled */}
+                          <div className="flex items-center justify-between">
+                            <Label className="text-gray-900 dark:text-gray-400">{t('Feature Enabled')}</Label>
+                            <Badge variant={notificationStatus.enabled ? 'success' : 'error'}>
+                              {notificationStatus.enabled ? t('Enabled') : t('Disabled')}
+                            </Badge>
+                          </div>
+
+                          {/* VAPID Keys */}
+                          <div className="flex items-center justify-between">
+                            <Label className="text-gray-900 dark:text-gray-400">{t('VAPID Keys')}</Label>
+                            <Badge variant={notificationStatus.vapidConfigured ? 'success' : 'error'}>
+                              {notificationStatus.vapidConfigured ? t('Configured') : t('Not Configured')}
+                            </Badge>
+                          </div>
+
+                          {/* Cron Secret */}
+                          <div className="flex items-center justify-between">
+                            <Label className="text-gray-900 dark:text-gray-400">{t('Cron Secret')}</Label>
+                            <Badge variant={notificationStatus.cronSecretConfigured ? 'success' : 'error'}>
+                              {notificationStatus.cronSecretConfigured ? t('Configured') : t('Not Configured')}
+                            </Badge>
+                          </div>
+
+                          {/* Subscriptions */}
+                          <div className="flex items-center justify-between">
+                            <Label className="text-gray-900 dark:text-gray-400">{t('Active Subscriptions')}</Label>
+                            {notificationStatus.subscriptionCount > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <Badge variant="success">
+                                  {notificationStatus.subscriptionCount}
+                                </Badge>
+                                {notificationStatus.failedSubscriptionCount > 0 && (
+                                  <Badge variant="warning">
+                                    {notificationStatus.failedSubscriptionCount} {t('with failures')}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <Badge variant="warning">{t('None')}</Badge>
+                            )}
+                          </div>
+
+                          {/* Last Cron Run */}
+                          <div className="flex items-center justify-between">
+                            <Label className="text-gray-900 dark:text-gray-400">{t('Last Cron Run')}</Label>
+                            {notificationStatus.lastCronRun ? (
+                              <div className="flex items-center gap-1">
+                                <Badge variant={notificationStatus.lastCronRun.success ? 'success' : 'warning'}>
+                                  {formatDateTimeDisplay(new Date(notificationStatus.lastCronRun.timestamp!), dateFormat, timeFormat)}
+                                </Badge>
+                                {notificationStatus.lastCronRun.notificationsSent > 0 && (
+                                  <Badge variant="info">
+                                    {notificationStatus.lastCronRun.notificationsSent} {t('sent')}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <Badge variant="warning">{t('Never')}</Badge>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* System Updates Section */}
+              <GuardianUpdate
+                isLoading={loading}
+                isSaving={saving}
+                onError={(error) => setError(error)}
+              />
+
+              {/* Database Management Section */}
+              <BackupRestore
+                isLoading={loading}
+                isSaving={saving}
+                onBackupError={(error) => setError(error)}
+                onRestoreError={(error) => setError(error)}
+                onAdminPasswordReset={handleAdminPasswordReset}
+                onAdminResetAcknowledged={handleAdminResetAcknowledged}
+              />
+
+              {/* Status Messages */}
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <div className="flex items-center">
+                    <X className="h-4 w-4 text-red-500 mr-2" aria-hidden="true" />
+                    <span className="text-sm text-red-700 dark:text-red-300">{error}</span>
+                  </div>
+                </div>
+              )}
+
+              {success && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md">
+                  <div className="flex items-center">
+                    <Save className="h-4 w-4 text-green-500 mr-2" aria-hidden="true" />
+                    <span className="text-sm text-green-700 dark:text-green-300">{success}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Last Updated Info */}
+              {appConfig && (
+                <div className="text-xs text-gray-500 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  {t('Last updated:')} {formatDateTimeDisplay(new Date(appConfig.updatedAt), dateFormat, timeFormat)}
+                </div>
+              )}
+            </>
+          )}
+        </FormPageContent>
+        
+        <FormPageFooter>
+          <div className="flex justify-end space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={saving}
+            >
+              {t('Cancel')}
+            </Button>
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-teal-600 to-emerald-600 text-white hover:from-teal-700 hover:to-emerald-700"
+              disabled={saving || loading}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                  {t('Saving...')}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" aria-hidden="true" />
+                  {t('Save Configuration')}
+                </>
+              )}
+            </Button>
+          </div>
+        </FormPageFooter>
+      </form>
+
+      {/* Admin Password Reset Modal */}
+      <AdminPasswordResetModal
+        open={showPasswordResetModal}
+        onOpenChange={setShowPasswordResetModal}
+        onConfirm={handlePasswordResetConfirm}
+      />
+    </FormPage>
+  );
+} 

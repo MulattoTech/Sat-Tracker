@@ -1,0 +1,46 @@
+/* Dark mode overrides for DateTimePicker component */
+html.dark .date-time-picker-container {
+  color: #e5e7eb ; /* gray-200 */
+  background-color: transparent ; /* transparent background */
+}
+
+html.dark .date-time-picker-button {
+  color: #e5e7eb ; /* gray-200 */
+  background-color: #1f2937 ; /* gray-800 */
+  border-color: #374151 ; /* gray-700 */
+}
+
+html.dark .date-time-picker-button:hover {
+  background-color: #374151 ; /* gray-700 */
+}
+
+html.dark .date-time-picker-popover {
+  background-color: #1f2937 ; /* gray-800 */
+  border-color: #374151 ; /* gray-700 */
+}
+
+html.dark .date-time-picker-footer {
+  border-color: #374151 ; /* gray-700 */
+}
+
+html.dark .date-time-picker-calendar-icon,
+html.dark .date-time-picker-clock-icon {
+  color: #9ca3af ; /* gray-400 */
+}
+
+/* Fix text rendering in dark mode */
+html.dark .date-time-picker-popover *,
+html.dark .date-time-picker-popover button,
+html.dark .date-time-picker-popover div {
+  text-rendering: optimizeLegibility ;
+  -webkit-font-smoothing: antialiased ;
+  -moz-osx-font-smoothing: grayscale ;
+  transform: none ; /* Prevent transforms that might cause blurry text */
+  backface-visibility: hidden ; /* Help with text rendering */
+  perspective: 1000px ; /* Help with text rendering */
+}
+
+/* Ensure calendar maintains its original size in dark mode */
+html.dark .date-time-picker-popover .react-calendar {
+  background-color: #1f2937 ;
+}

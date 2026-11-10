@@ -1,0 +1,159 @@
+'use client';
+
+import React from 'react';
+import { cn } from '@/src/lib/utils';
+import { Modal, ModalContent } from '@/src/components/ui/modal';
+import { growthChartStyles } from './growth-chart.styles';
+import { styles } from './reports.styles';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import { DateRange } from './reports.types';
+import { ChartDataTable } from '@/src/components/ui/chart-data-table';
+import { useLocalization } from '@/src/context/localization';
+import { useTimezone } from '@/app/context/timezone';
+import { formatDateDisplay } from '@/src/utils/dateFormat';
+
+export type SleepChartMetric = 'avgNapDuration' | 'dailyNapTotal' | 'nightSleep' | 'nightWakings';
+
+export interface SleepChartDataPoint {
+  date: string;
+  label: string;
+  value: number;
+}
+
+interface SleepChartModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  metric: SleepChartMetric | null;
+  data: SleepChartDataPoint[];
+  dateRange: DateRange;
+}
+
+// Helper function to format minutes into hours and minutes
+const formatMinutes = (minutes: number): string => {
+  if (minutes === 0) return '0m';
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+};
+
+const getChartTitle = (metric: SleepChartMetric | null, t: (key: string) => string): string => {
+  switch (metric) {
+    case 'avgNapDuration':
+      return t('Nap Duration Over Time');
+    case 'dailyNapTotal':
+      return t('Daily Total Nap Time');
+    case 'nightSleep':
+      return t('Night Sleep Over Time');
+    case 'nightWakings':
+      return t('Night Wakings Over Time');
+    default:
+      return t('Sleep Trends');
+  }
+};
+
+/**
+ * SleepChartModal Component
+ *
+ * Displays a line chart modal showing sleep trends over time.
+ * Supports different metrics: nap duration, daily nap total, night sleep, and night wakings.
+ */
+const SleepChartModal: React.FC<SleepChartModalProps> = ({
+  open,
+  onOpenChange,
+  metric,
+  data,
+  dateRange,
+}) => {
+  const { t } = useLocalization();
+  const { dateFormat } = useTimezone();
+  const title = getChartTitle(metric, t);
+  const description =
+    dateRange.from && dateRange.to
+      ? `${formatDateDisplay(dateRange.from, dateFormat)} -> ${formatDateDisplay(dateRange.to, dateFormat)}`
+      : undefined;
+
+  return (
+    <Modal
+      open={open && !!metric}
+      onOpenChange={onOpenChange}
+      title={title}
+      description={description}
+    >
+      <ModalContent>
+        {data.length === 0 ? (
+          <div className={cn(styles.emptyContainer, "reports-empty-container")}>
+            <p className={cn(styles.emptyText, "reports-empty-text")}>
+              {t('No sleep data available for the selected date range.')}
+            </p>
+          </div>
+        ) : (
+          <div className={cn(growthChartStyles.chartWrapper, "growth-chart-wrapper")}>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={data}
+                margin={{ top: 20, right: 24, left: 8, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" className="growth-chart-grid" />
+                <XAxis
+                  dataKey="label"
+                  tickMargin={6}
+                  label={{ value: t('Date'), position: 'insideBottom', offset: -10 }}
+                  className="growth-chart-axis"
+                />
+                <YAxis
+                  type="number"
+                  domain={['auto', 'auto']}
+                  tickMargin={6}
+                  tickFormatter={(value) =>
+                    metric === 'nightWakings' ? value.toFixed(0) : formatMinutes(value)
+                  }
+                  className="growth-chart-axis"
+                />
+                <RechartsTooltip
+                  formatter={(value: any) =>
+                    metric === 'nightWakings'
+                      ? [`${value}`, t('Wakings')]
+                      : [formatMinutes(value as number), t('Sleep')]
+                  }
+                  labelFormatter={(label: any) => `${t('Date:')} ${label}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#14b8a6"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: "#14b8a6" }}
+                  activeDot={{ r: 5, fill: "#0f766e" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <ChartDataTable
+              caption={title}
+              columns={[
+                { key: 'date', label: t('Date') },
+                { key: 'value', label: metric === 'nightWakings' ? t('Wakings') : t('Sleep') },
+              ]}
+              rows={data.map((point) => ({
+                date: point.label,
+                value: metric === 'nightWakings' ? point.value : formatMinutes(point.value),
+              }))}
+            />
+          </div>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+};
+
+export default SleepChartModal;
+

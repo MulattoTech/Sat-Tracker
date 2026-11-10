@@ -1,7 +1,7 @@
 # Read public upstream releases and create non-duplicated GitHub review issues.
 # Uses the existing GitHub CLI authentication on this PC. No Docker change is made.
 $ErrorActionPreference = 'Stop'
-$repo = 'MulattoTech/BabyTracker'
+$repo = 'MulattoTech/BabyTracker-Master'
 $upstreams = @('Oak-and-Sprout/sprout-track','babybuddy/babybuddy')
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $logs = Join-Path $root '.local'

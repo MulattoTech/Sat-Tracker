@@ -1,0 +1,26 @@
+/* Dark mode overrides for Input component */
+html.dark .input-dark {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .input-dark::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .input-dark:hover {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #6b7280 !important; /* gray-500 */
+}
+
+html.dark .input-dark:focus {
+  background-color: #1f2937 !important; /* gray-800 */
+  ring-color: rgba(99, 102, 241, 0.2) !important; /* indigo-500 with opacity */
+}
+
+html.dark .input-dark:disabled {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #9ca3af !important; /* gray-400 */
+}

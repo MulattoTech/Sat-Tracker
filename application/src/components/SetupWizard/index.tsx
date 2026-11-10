@@ -1,0 +1,618 @@
+'use client';
+
+import React, { useState } from 'react';
+import Image from 'next/image';
+import { Button } from '@/src/components/ui/button';
+import { cn } from '@/src/lib/utils';
+import { styles } from './setup-wizard.styles';
+import { SetupWizardProps } from './setup-wizard.types';
+import FamilySetupStage from './FamilySetupStage';
+import SecuritySetupStage from './SecuritySetupStage';
+import BabySetupStage from './BabySetupStage';
+import { Gender } from '@prisma/client';
+import { useLocalization } from '@/src/context/localization';
+import { FEED_TIMER_CATEGORIES, FeedTimerCategory } from '@/src/utils/feedTimerConfig';
+
+import './setup-wizard.css';
+
+/**
+ * SetupWizard Component
+ * 
+ * A multi-stage wizard component that guides users through the initial setup process
+ * for the Sprout Track application.
+ * 
+ * @example
+ * ```tsx
+ * <SetupWizard onComplete={(family) => console.log('Setup complete!', family)} />
+ * ```
+ */
+const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete, token, initialSetup = false, resumeStage, familyData }) => {
+  const { t } = useLocalization();
+
+  // Track the lowest stage the user can navigate back to
+  // Once a stage is saved to the DB, the user can't go back to it
+  const initialMinStage = familyData ? (resumeStage || 2) : 1;
+  const [minStage, setMinStage] = useState(initialMinStage);
+  const [stage, setStage] = useState(resumeStage || 1);
+  const [loading, setLoading] = useState(false);
+
+  // Stage 1: Family setup
+  const [familyName, setFamilyName] = useState(familyData?.name || '');
+  const [familySlug, setFamilySlug] = useState(familyData?.slug || '');
+  const [createdFamily, setCreatedFamily] = useState<{ id: string; name: string; slug: string } | null>(
+    familyData ? { id: familyData.id, name: familyData.name, slug: familyData.slug } : null
+  );
+
+  // Stage 2: Security setup. PINs are never sent back from the server, so on resume the
+  // PIN fields start blank and must be re-entered (they can't be pre-filled).
+  const [useSystemPin, setUseSystemPin] = useState(
+    familyData ? (familyData.authType !== 'CARETAKER') : true
+  );
+  const [systemPin, setSystemPin] = useState('');
+  const [confirmSystemPin, setConfirmSystemPin] = useState('');
+  const [caretakers, setCaretakers] = useState<Array<{
+    loginId: string;
+    name: string;
+    type: string;
+    role: 'ADMIN' | 'USER';
+    securityPin: string;
+  }>>((familyData?.caretakers || []).map(c => ({ ...c, securityPin: '' })));
+  const [newCaretaker, setNewCaretaker] = useState({
+    loginId: '',
+    name: '',
+    type: '',
+    role: 'ADMIN' as 'ADMIN' | 'USER', // Default to ADMIN for first caretaker
+    securityPin: '',
+  });
+  
+  // Stage 3: Baby setup
+  const [babyFirstName, setBabyFirstName] = useState('');
+  const [babyLastName, setBabyLastName] = useState('');
+  const [babyBirthDate, setBabyBirthDate] = useState<Date | null>(null);
+  const [babyGender, setBabyGender] = useState<Gender | ''>('');
+  const [feedWarningTime, setFeedWarningTime] = useState('02:00');
+  const [diaperWarningTime, setDiaperWarningTime] = useState('03:00');
+  const [feedTimerFrom, setFeedTimerFrom] = useState('start');
+  const [feedTimerTypes, setFeedTimerTypes] = useState<FeedTimerCategory[]>([...FEED_TIMER_CATEGORIES]);
+  
+  // Error handling
+  const [error, setError] = useState('');
+
+  // Get auth headers for API calls
+  const getAuthHeaders = () => {
+    const authToken = localStorage.getItem('authToken');
+    return {
+      'Content-Type': 'application/json',
+      ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+    };
+  };
+
+  // Check if this is account-based authentication
+  const isAccountAuth = () => {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return false;
+    
+    try {
+      // Decode token to check if it's account auth (without verifying signature)
+      const base64Url = authToken.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      
+      const decoded = JSON.parse(jsonPayload);
+      return decoded.isAccountAuth === true;
+    } catch (error) {
+      console.error('Error checking account auth:', error);
+      return false;
+    }
+  };
+
+  const handleNext = async () => {
+    setError('');
+    
+    if (stage === 1) {
+      // Validate family name and slug
+      if (!familyName.trim()) {
+        setError(t('Please enter a family name'));
+        return;
+      }
+
+      if (!familySlug.trim()) {
+        setError(t('Please enter a family URL'));
+        return;
+      }
+
+      // Basic slug validation
+      const slugPattern = /^[a-z0-9-]+$/;
+      if (!slugPattern.test(familySlug)) {
+        setError(t('Family URL can only contain lowercase letters, numbers, and hyphens'));
+        return;
+      }
+
+      if (familySlug.length < 3) {
+        setError(t('Family URL must be at least 3 characters long'));
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        // Create family using the setup/start endpoint
+        const response = await fetch('/api/setup/start', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            name: familyName,
+            slug: familySlug,
+            token: token, // Include token if this is invitation-based setup
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Store the created family for later use
+          setCreatedFamily(data.data);
+          setMinStage(2);
+          setStage(2);
+        } else {
+          setError(data.error || 'Failed to create family');
+        }
+      } catch (error) {
+        console.error('Error creating family:', error);
+        setError(t('Failed to create family. Please try again.'));
+      } finally {
+        setLoading(false);
+      }
+    } else if (stage === 2) {
+      // Validate security setup
+      if (useSystemPin) {
+        if (systemPin.length < 6 || systemPin.length > 10) {
+          setError(t('PIN must be between 6 and 10 digits'));
+          return;
+        }
+        
+        if (systemPin !== confirmSystemPin) {
+          setError(t('PINs do not match'));
+          return;
+        }
+        
+        try {
+          setLoading(true);
+
+          // Save system PIN to settings for all auth types
+          const settingsResponse = await fetch(`/api/settings?familyId=${createdFamily?.id}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              securityPin: systemPin,
+              authType: 'SYSTEM',
+            }),
+          });
+
+          if (!settingsResponse.ok) {
+            throw new Error('Failed to save security PIN to settings');
+          }
+
+          // Update system caretaker if we have a caretaker ID
+          const caretakerId = localStorage.getItem('caretakerId');
+          if (caretakerId) {
+            const caretakerResponse = await fetch(`/api/caretaker?familyId=${createdFamily?.id}`, {
+              method: 'PUT',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                id: caretakerId,
+                securityPin: systemPin,
+              }),
+            });
+
+            if (!caretakerResponse.ok) {
+              console.warn('Failed to update system caretaker PIN (non-fatal)');
+            }
+          }
+
+          // Update setup stage to 2
+          await fetch('/api/family/update-setup-stage', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ setupStage: 2, familyId: createdFamily?.id }),
+          });
+
+          setMinStage(3);
+          setStage(3);
+        } catch (error) {
+          console.error('Error saving security PIN:', error);
+          setError(t('Failed to save security PIN. Please try again.'));
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Validate caretakers
+        if (caretakers.length === 0) {
+          setError(t('Please add at least one caretaker'));
+          return;
+        }
+        
+        try {
+          setLoading(true);
+          // Save caretakers for the created family (all auth types)
+          for (const caretaker of caretakers) {
+            const response = await fetch(`/api/caretaker?familyId=${createdFamily?.id}`, {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({
+                ...caretaker,
+                familyId: createdFamily?.id,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Failed to save caretaker: ${caretaker.name}`);
+            }
+          }
+
+          // Set auth type to CARETAKER since individual caretakers were created
+          const authTypeResponse = await fetch(`/api/settings?familyId=${createdFamily?.id}`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+              authType: 'CARETAKER',
+            }),
+          });
+
+          if (!authTypeResponse.ok) {
+            console.warn('Failed to set auth type to CARETAKER (non-fatal)');
+          }
+
+          // Update setup stage to 2
+          await fetch('/api/family/update-setup-stage', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ setupStage: 2, familyId: createdFamily?.id }),
+          });
+
+          setMinStage(3);
+          setStage(3);
+        } catch (error) {
+          console.error('Error saving caretakers:', error);
+          setError('Failed to save caretakers. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    } else if (stage === 3) {
+      // Validate baby information
+      if (!babyFirstName.trim()) {
+        setError(t("Please enter baby's first name"));
+        return;
+      }
+      
+      if (!babyLastName.trim()) {
+        setError(t("Please enter baby's last name"));
+        return;
+      }
+      
+      if (!babyBirthDate) {
+        setError(t("Please enter baby's birth date"));
+        return;
+      }
+      
+      if (!babyGender) {
+        setError(t("Please select baby's gender"));
+        return;
+      }
+      
+      try {
+        setLoading(true);
+
+        // Save baby — security was already saved in Stage 2 for all auth types
+        const babyResponse = await fetch(`/api/baby?familyId=${createdFamily?.id}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            firstName: babyFirstName,
+            lastName: babyLastName,
+            birthDate: new Date(babyBirthDate),
+            gender: babyGender,
+            feedWarningTime,
+            diaperWarningTime,
+            feedTimerFrom,
+            // null = all feeds count (default)
+            feedTimerTypes: feedTimerTypes.length === FEED_TIMER_CATEGORIES.length
+              ? null
+              : JSON.stringify(feedTimerTypes),
+            familyId: createdFamily?.id,
+          }),
+        });
+
+        if (!babyResponse.ok) {
+          throw new Error('Failed to save baby information');
+        }
+
+        // For account auth, link the account to the appropriate caretaker
+        if (isAccountAuth()) {
+          try {
+            if (useSystemPin) {
+              // Link account to system caretaker
+              const systemCaretakerResponse = await fetch(`/api/caretaker/system?familyId=${createdFamily?.id}`, {
+                headers: getAuthHeaders(),
+              });
+
+              if (systemCaretakerResponse.ok) {
+                const systemCaretakerData = await systemCaretakerResponse.json();
+                if (systemCaretakerData.success && systemCaretakerData.data?.id) {
+                  await fetch('/api/accounts/link-caretaker', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ caretakerId: systemCaretakerData.data.id }),
+                  });
+                }
+              }
+            } else if (caretakers.length > 0) {
+              // Link account to the lowest-loginId caretaker — need to find its ID.
+              // /api/family/{id}/caretakers is sysadmin-gated and 403s for account JWTs, so use
+              // the account-accessible listing instead. That endpoint orders by name, so pick
+              // the lowest loginId rather than trusting list order.
+              const caretakerListResponse = await fetch(`/api/caretaker?familyId=${createdFamily?.id}`, {
+                headers: getAuthHeaders(),
+              });
+
+              if (caretakerListResponse.ok) {
+                const caretakerListData = await caretakerListResponse.json();
+                if (caretakerListData.success && caretakerListData.data?.length > 0) {
+                  // Find the non-system caretaker with the lowest loginId
+                  const lowestCaretaker = caretakerListData.data
+                    .filter((c: { loginId: string }) => c.loginId !== '00')
+                    .reduce((min: { loginId: string } | undefined, c: { loginId: string }) =>
+                      (!min || c.loginId < min.loginId) ? c : min, undefined);
+                  if (lowestCaretaker) {
+                    await fetch('/api/accounts/link-caretaker', {
+                      method: 'POST',
+                      headers: getAuthHeaders(),
+                      body: JSON.stringify({ caretakerId: lowestCaretaker.id }),
+                    });
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error linking account to caretaker:', error);
+          }
+        }
+        
+        // Setup complete - pass the family data to the callback
+        if (createdFamily) {
+          const accountAuth = isAccountAuth();
+
+          console.log('Setup completion - account auth check:', accountAuth);
+
+          // For account authentication, refresh the token to include family info
+          if (accountAuth) {
+            console.log('Refreshing token for account auth with family info');
+            try {
+              const refreshResponse = await fetch('/api/auth/refresh-token', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+              });
+
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                if (refreshData.success && refreshData.data?.token) {
+                  // Update the token in localStorage
+                  localStorage.setItem('authToken', refreshData.data.token);
+                  console.log('Token refreshed successfully with family info');
+                } else {
+                  console.error('Failed to refresh token:', refreshData.error);
+                }
+              } else {
+                console.error('Token refresh request failed:', refreshResponse.status);
+              }
+            } catch (error) {
+              console.error('Error refreshing token:', error);
+            }
+          } else {
+            // For non-account authentication, clear tokens to force re-login with new family context
+            console.log('Clearing tokens for non-account auth');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('unlockTime');
+            localStorage.removeItem('caretakerId');
+          }
+
+          onComplete(createdFamily);
+        }
+      } catch (error) {
+        console.error('Error completing setup:', error);
+        setError(error instanceof Error ? error.message : 'Failed to complete setup. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handlePrevious = () => {
+    if (stage > minStage) {
+      setStage(stage - 1);
+      setError('');
+    }
+  };
+
+  const addCaretaker = () => {
+    // Validate caretaker
+    if (newCaretaker.loginId.length !== 2) {
+      setError(t('Login ID must be exactly 2 digits'));
+      return;
+    }
+    
+    // Check if login ID contains only digits
+    if (!/^\d+$/.test(newCaretaker.loginId)) {
+      setError(t('Login ID must contain only digits'));
+      return;
+    }
+    
+    // Check if login ID is "00" (reserved)
+    if (newCaretaker.loginId === '00') {
+      setError(t('Login ID "00" is reserved for system use'));
+      return;
+    }
+    
+    // Check if login ID is already taken
+    if (caretakers.some(c => c.loginId === newCaretaker.loginId)) {
+      setError(t('This Login ID is already taken'));
+      return;
+    }
+    
+    if (!newCaretaker.name.trim()) {
+      setError(t('Please enter caretaker name'));
+      return;
+    }
+    
+    if (newCaretaker.securityPin.length < 6 || newCaretaker.securityPin.length > 10) {
+      setError(t('PIN must be between 6 and 10 digits'));
+      return;
+    }
+    
+    // Add caretaker to list
+    setCaretakers([...caretakers, { ...newCaretaker }]);
+    
+    // Reset form
+    setNewCaretaker({
+      loginId: '',
+      name: '',
+      type: '',
+      role: 'USER',
+      securityPin: '',
+    });
+    
+    setError('');
+  };
+
+  const removeCaretaker = (index: number) => {
+    const updatedCaretakers = [...caretakers];
+    updatedCaretakers.splice(index, 1);
+    setCaretakers(updatedCaretakers);
+  };
+
+  return (
+    <div className={cn(styles.container, "setup-wizard-container")}>
+      <div className={cn(styles.formContainer, "setup-wizard-form-container")}>
+        {/* Stage-specific image and Header */}
+        <div className={cn(styles.headerContainer, "setup-wizard-header-container")}>
+          <Image
+            src={
+              stage === 1 
+                ? "/SetupFamily-1024.png" 
+                : stage === 2 
+                  ? "/SetupSecurity-1024.png" 
+                  : "/SetupBaby-1024.png"
+            }
+            alt={
+              stage === 1
+                ? t('Family Setup')
+                : stage === 2
+                  ? t('Security Setup')
+                  : t('Baby Setup')
+            }
+            width={128}
+            height={128}
+            className={cn(styles.stageImage, "setup-wizard-stage-image")}
+          />
+          <h1 className={cn(styles.title, "setup-wizard-title")}>{t('Sprout Track')}</h1>
+          {familyData && (
+            <p className="text-sm text-teal-700 font-medium mt-1">
+              {t('Completing setup for')} <strong>{familyData.name}</strong>
+            </p>
+          )}
+          <div className={cn(styles.progressBar, "setup-wizard-progress-bar")} aria-hidden="true">
+            <div 
+              className={cn(styles.progressIndicator, "setup-wizard-progress-indicator")}
+              style={{ width: `${(stage / 3) * 100}%` }}
+            ></div>
+          </div>
+          <p className={cn(styles.stepIndicator, "setup-wizard-step-indicator")} aria-live="polite">
+            {t('Step')} {stage} {t('of 3')}
+          </p>
+        </div>
+
+        {/* Stage 1: Family Setup */}
+        {stage === 1 && (
+          <FamilySetupStage
+            familyName={familyName}
+            setFamilyName={setFamilyName}
+            familySlug={familySlug}
+            setFamilySlug={setFamilySlug}
+            token={token}
+            initialSetup={initialSetup}
+          />
+        )}
+
+        {/* Stage 2: Security Setup */}
+        {stage === 2 && (
+          <SecuritySetupStage
+            useSystemPin={useSystemPin}
+            setUseSystemPin={setUseSystemPin}
+            systemPin={systemPin}
+            setSystemPin={setSystemPin}
+            confirmSystemPin={confirmSystemPin}
+            setConfirmSystemPin={setConfirmSystemPin}
+            caretakers={caretakers}
+            setCaretakers={setCaretakers}
+            newCaretaker={newCaretaker}
+            setNewCaretaker={setNewCaretaker}
+            addCaretaker={addCaretaker}
+            removeCaretaker={removeCaretaker}
+          />
+        )}
+
+        {/* Stage 3: Baby Setup */}
+        {stage === 3 && (
+          <BabySetupStage
+            babyFirstName={babyFirstName}
+            setBabyFirstName={setBabyFirstName}
+            babyLastName={babyLastName}
+            setBabyLastName={setBabyLastName}
+            babyBirthDate={babyBirthDate}
+            setBabyBirthDate={setBabyBirthDate}
+            babyGender={babyGender}
+            setBabyGender={setBabyGender}
+            feedWarningTime={feedWarningTime}
+            setFeedWarningTime={setFeedWarningTime}
+            diaperWarningTime={diaperWarningTime}
+            setDiaperWarningTime={setDiaperWarningTime}
+            feedTimerFrom={feedTimerFrom}
+            setFeedTimerFrom={setFeedTimerFrom}
+            feedTimerTypes={feedTimerTypes}
+            setFeedTimerTypes={setFeedTimerTypes}
+          />
+        )}
+
+        {/* Error message */}
+        {error && (
+          <div className={cn(styles.errorContainer, "setup-wizard-error-container")}>
+            {error}
+          </div>
+        )}
+
+        {/* Navigation buttons */}
+        <div className={cn(styles.navigationContainer, "setup-wizard-navigation-container")}>
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={stage <= minStage || loading}
+            className={cn(styles.previousButton, "setup-wizard-previous-button")}
+          >
+            {stage <= minStage ? t('Cancel') : t('Previous')}
+          </Button>
+          <Button
+            onClick={handleNext}
+            disabled={loading}
+            className={cn(styles.nextButton, "setup-wizard-next-button")}
+          >
+            {loading ? 'Processing...' : stage === 3 ? t('Complete Setup') : t('Next')}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SetupWizard;

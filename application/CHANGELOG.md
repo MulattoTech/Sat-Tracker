@@ -1,0 +1,913 @@
+# Sprout Track Changelog
+
+## v1.6.7 - Postgres recovery and first party SaaS analytics
+
+### Changes
+
+#### Postgres
+
+- Fixed PostgreSQL crashing on startup (one image now serves both SQLite and PostgreSQL).
+- Fixed backup restore failing on PostgreSQL during the migration step.
+
+#### SaaS Analytics
+
+- Added first party non-invasive analytics to the Sprout Track home page
+- Added short-links with link usage analytics
+
+## v1.6.6 - Security Patches and Package Updates
+
+### Changes
+
+#### Patches
+- Upgraded all package handles due to CSV vulnerabilities found in Next and Sharp
+- Added HEIC/AVIF conversion in browser to close vulnerability gaps on compromised image uploads
+- Fixed build issues and tests from updated packages
+- Fixed a couple of bugs in stripe for dead code, and transaction history being broken
+- Fixed database resolver paths after new prisma update on bare metal
+- Added scripts for datetime conversation for all sqlite database migrating from prisma 6 -> prisma 7
+- Removed a duplicated call on the timeline that could error out in slow network conditions
+
+## v1.6.5 - Small Fixes, Smoother Tracking, Hindi Support
+
+### Changes
+
+#### QoL Updates
+- Add "yesterday\today" to Nursery Mode last entries
+- Added 24h time to Nursery mode
+- Set food form to close on save
+- Added functionality to data import for Baby Buddy's medication model
+- Added selector for which baby you import data for
+- Improved growth chart scaling - Thank you **philzx**!
+- Added sorting and proper language translation to sleep locations
+
+#### Bugfixes
+- Fixed a blank space issue on focus in nursery mode
+
+#### Localization
+- Added Hindi
+
+## v1.6.4 - Quality of Life Updates and the Native App Layer
+
+### Changes
+
+#### QoL Updates
+- Added ability to log multiple foods in the food logs
+- Added ability to notate a dry diaper change and updated imports to support dry diaper updates
+- Added notes to diaper and sleep logs
+- Added last side used for breast feed on the feed form
+- Added 24h falloff for last activities shown in nursery mode
+- Added activity icons and user badges to the timeline
+- On sprout-track.com you can now buy Sprout Track as a gift!
+- Adjust Android and iOS icons
+
+#### Bugfixes
+- Fixed a photo favorite bug for family system pins
+- Fixed an idle time reset issue seen in Firefox and Waterfox
+- Hardened app around family token setup
+- Fixed all email endpoints to properly use admin email in settings, or default to sprout-track specific emails (when in SaaS mode and using SendGrid)
+
+#### Native App Layer
+- Added non-invasive native app layer in preparation for the iOS and Android app
+
+## v1.6.3 - Hotfix: WHO data in Docker and Breast Feed Link Time Fix
+
+### Changes
+
+#### Hotfix
+- Added WHO data to include list when creating docker containers - Thank you **t-dhruv**!
+- Fixed linked time for breast feed sessions - Thanks for the heads up **tannermeade**!
+
+## v1.6.2 - Breastfeeding Pause Tracking, Webhook Edit/Delete, Security Hardening
+
+### Changes
+
+#### Breastfeeding Timer Improvements (Thank you **philzx**!)
+- Pauses during a nursing session (burping, a quick break) are now tracked and shown in the feed's details
+- Each side's start and end times now reflect when that side was actually in use — the second side no longer appears to start at the beginning of the session
+- Fixed the pause display so short pauses read naturally (e.g. "17 sec" instead of "0 min 17 sec")
+
+#### Webhook API - Edit & Delete (Thank you **urbushey**!)
+- Activities can now be edited and deleted through the webhook API (`PUT`/`DELETE`), so integrations like Home Assistant can correct or remove entries — see the webhook documentation for details
+- The API now rejects unknown fields and invalid values instead of silently dropping them, so a typo in an automation can't quietly lose data
+- Field values (diaper condition/color, sleep quality, bottle type, units, and more) are validated case-insensitively and stored consistently with the app, and the reference endpoint now lists all valid values
+- Pump totals can be logged without splitting between sides, diaper cream is now supported, medicine/supplement notes are saved, and a misspelled caretaker name now returns a clear error instead of logging the activity as nobody
+
+#### Security
+- Fixed a security vulnerability and strengthened family-level access controls across the app — updating is recommended
+
+#### Bugfixes & Localization (Thank you **tionkje**!)
+- Mixed Formula/Breast bottles now display translated everywhere (the stored value was aligned with its translation key, with an automatic data migration)
+- Baby age labels ("18 weeks", "3 months old") are now translated instead of always showing in English
+- Filled in the new translations across all supported languages
+
+## v1.6.1 - WHO Data, QoL Additions, Photo Functionality Cleanup, New Landing Page
+
+### Changes
+
+#### WHO Data (Thank you **t-dhruv**!)
+- Added WHO data and fallback to CDC data after 21 months of age
+- This can be changed in the settings page and shows up in the growth charts
+
+#### QoL Additions:
+- Added ability to backdate timers for breastfeeding - if you started feeding a few minutes ago, adjust the time and timer starts from the time you selected) - Thank you **philzx**!
+- Support for weight measurement in grams added back - Thank you **t-dhruv**!
+- Added per-baby feed timer resets (added in baby settings) - this gives you the ability to set which feed types reset the feed timer - Thank you **philzx**!
+
+#### Photo Functionality Updates
+- Fixed bug on delete that didn't remove log entries when all photos are removed
+- Adjusted the gallery page for better mobile viewing
+- Fixed bug where multi-select download did not bundle pictures together for download
+
+#### New Landing Page (sprout-track.com)
+- Updated the Sprout-Track.com landing page
+- Themed account management pages to match landing page
+
+## v1.6.0 - Food & Allergens, PWA Improvements, Bugfixes
+
+### Changes
+
+#### Foods & Allergens
+- Solid feeds have been broken out from bottle and breast feeds as a dedicated food activity
+- You can dynamically track foods, whether your child liked the food, and link allergens to foods
+- There is now a tracker for your first 100 unique foods so you can track how many foods your little one has had
+- There is a dedicated allergen window in the Baby Info Screen (click on the baby name in the top right) - Here you can add allergens for more than just food (medicine, environment, etc...)
+- Added foods-tried reporting to the stats tab and the monthly report card, plus a dedicated allergens section on the report card
+- Solid feed logs are automatically converted to food logs during upgrades and migrations (always keep a backup of your database)
+
+#### Nursery Mode Updates
+- A dedicated food activity has been added (it's disabled by default - go to the settings page in Nursery mode to enable)
+- Visual updates and QoL fixes for PWA usage and when on mobile
+
+#### Localization
+- Added Polish - Thank you **rlesniak**!
+
+#### Bugfixes
+- Scrollbar styling now consistent across the app
+- Proper PWA spacing for Nursery Mode and main Sprout Track page
+- Fixed '/' redirect in some instances in PWA installed apps
+- Fixed Android PWA manifest, icon, and installation issues - Thank you **rlesniak**!
+- Fixed bottle units not persisting when the PWA resumes - Thank you **philzx**!
+
+## v1.5.0 - Nursery Mode Redesign, Photos, and Baby Buddy Import
+
+### Changes
+
+#### Nursery Mode Redesign
+- Redesigned Nursery Mode with immersive, full-screen scenes — pick from Ambient, Starlit, Tapestry, or one of your own photos
+- New Photo scene: choose a photo and the whole nursery screen automatically tints to match its colors
+- Added a personalization drawer to customize scenes, background patterns, color palettes, activity icons, and which activities show up
+- Added new quick-log layouts — switch between cards and big tiles for comfortable one-tap logging
+- One-tap undo if you log an activity by accident
+- Active timers now display large and legible right on the nursery screen (breastfeeding sides and sleep)
+- Everything you personalize is saved per device, and honors your system's reduced-motion setting
+- The in-progress pump timer now survives a page reload or switching babies and back without losing your place
+
+#### Photos
+- Added a new Photos gallery page to browse all of a baby's photos, grouped by month
+- Attach photos directly to feed, milestone, bath, activity, and measurement entries
+- Photo entries appear in the timeline with thumbnails, plus a new "Photos Today" daily stat and a Photo tile on the log-entry screen
+- Added a full-screen photo viewer with favorites, multi-select, and a trash/restore view
+- Added a per-family photo storage quota with a visual usage meter that admins can manage
+- Photos are stored encrypted, the same as vaccine documents
+- In the family-manager/settings page Photo functionality can be turned on and off and global\per family quotas can be set
+
+#### Baby Buddy Import
+- Added the ability to import historical data from a Baby Buddy CSV export (family admins only), found in Settings. Thank you **bachjessen**!
+- Preview your import first and choose whether each exported child is added as a new baby or mapped to an existing one
+- Non-destructive and safe to re-run — your existing data is never modified or replaced, and already-imported records are automatically skipped
+
+#### Other Enhancements
+- Added ability to globally adjust sleep locations with rename, merge, and hide functionality (in settings page)
+
+#### Bugfixes
+- Fixed breast milk inventory balance so pump sessions you fed directly no longer incorrectly reduce your stored milk count. Thank you **philzx**!
+- Pump entries now validate their unit and keep it consistent to prevent inventory miscalculations
+
+#### Localization
+- Added and updated translations across all supported languages for the new features
+
+
+
+## v1.4.0 - Screen Reader Accessibility, Bath Types, and Feed Timer Controls
+
+### Changes
+
+#### Accessibility
+- Overhauled the app for screen reader and keyboard accessibility. Thank you **stefanhalus** for kicking this off!
+- Logging activities, reviewing timelines, filling out forms, and logging in now work fully with VoiceOver and other screen readers
+- The time picker, calendar, and activity tile reordering are now fully keyboard operable
+- Report charts now include screen reader friendly data tables
+
+#### Enhancements
+- Added bath types to bath tracking (full bath, sponge bath, wipe down, or your own custom types)
+- Added a per baby setting to count the feed timer from the start or the end of the previous feeding. Thank you **philzx**!
+- Breast feeds in the same nursing session are now linked together in the log, with link and unlink controls in the edit form
+- Started a breast feed on the wrong side? Active sessions now have a fix it button to swap sides
+
+#### Bugfixes
+- Report card averages now divide by days since birth instead of calendar days for babies born mid month
+- Left plus right nursing sessions now count as one feed everywhere (stats, charts, heatmaps, report card, and daily stats)
+- Fixed French breastfeeding side labels
+- Added a delete button to the vaccine tracker history
+- Fixed PostgreSQL Docker deployments so runtime database settings are respected
+- Fixed pump average per side showing a broken unit label
+
+#### Webhook API
+- The breastfeed timer can now be controlled through the API (start, switch, pause, resume, end) and stays in sync with the in app timer
+- Feed entries returned by the API now include start time, end time, and duration; bath entries include the bath type
+
+#### Localization
+- Added Norwegian. Thank you **Andlar94**!
+- Filled in missing translations across all supported languages
+
+## v1.3.5 - Security and Privacy Patch
+
+### Changes
+
+#### Security & Privacy
+- Fixed security vulnerability that allowed users to forge authentication - Thank you **myoann**!
+- Strengthened authentication and session security across the app
+- Improved protection of sensitive information in system pages - PINs, and configuration secrets are no longer sent to the browser
+- Sensitive fields (PINs, passwords, API keys) are now hidden when editing; leave them blank to keep the current value, or enter a new value to change it
+- Tightened access controls on administrative and family-management features
+- Added extra logging for administrative actions
+- Self-hosted deployments now automatically generate a unique JWT security key during setup and upgrades
+
+#### Bugfixes
+- Fixed an issue that prevented the family System PIN from being changed while individual caretakers were configured
+
+## v1.3.4 - Community Language additions and Better Translations
+
+### Changes
+
+#### Enhancements
+- Updated contrast to main activity log - Thank you **Crunchy244**!
+- Added Portuguese (Brazil and Portugal) - Thank you **Philx** and **Crunchy244**!
+- Added Dutch - Thank you **Tionkje**!
+- Improved language translations and sentence conversion - Thank you **Crunchy244**!
+- Added notifications for updates when upgrades occur at the user level
+
+## v1.3.3 - QoL Bug Fixes for PWA, Activity Tiles, and Messages
+
+### Changes
+
+#### Enhancements
+- Updated to allow one decimal place for weight measurement
+- Added user facing feedback message bubble count for new messages
+
+#### Bugfixes
+- Fixed PWA Manifest to properly start on slug page
+- Fixed account counts on initial load in family-manager page
+- Fixed message ownership for both users and admin
+- Fixed log data loading properly on initial login
+- Fixed translation issues for breast feeding on activity log
+- Fixed text clipping in activity group for translated text
+
+## v1.3.2 - Time Picker Updates, Keyboard bugfixes, PWA Theming, Romanian language addition
+
+### Changes
+
+#### Enhancements
+- Time picker now has a 24h version
+
+#### Bugfixes
+- Fixed graphical glitch in time picker when hour or minute hand passes 6
+- Fixed inconsistent keyboard entry on pin login pages
+- Fixed PWA graphics to properly show colors in top status bar for android and iOS
+
+#### Localization
+- Added Romanian language (thank you stefanhalus!)
+
+## v1.3.1 - Timezone Context Error in Setup
+
+### Changes
+
+#### Bugfixes
+
+- Fixed timezone context error on baby birthday input field
+- Added missing translations throwing warnings in console
+
+## v1.3.0 - Family Manager Overhaul, Date\Time Settings, Timeline Export
+
+### Changes
+
+#### Enhancements
+
+- Added date\time settings to the Settings > Config tab. This will allow family admins the ability to adjust date\time formats for the family
+- Overhauled family manager pages to be mobile friendly
+- Overhauled feedback forms to be a chat and include ability for users to upload screenshots
+- Added csv\xlsx export to the full log page
+
+#### Bugfixes
+
+- Fixed overlapping chart issues in some conditions
+
+
+## v1.2.4 - Bugfixes for Timeline Refactor & Breast Feed Time Edits, Improved Weight Inputs
+
+### Changes
+
+- Fixed night sleep records so they show over midnight
+- Fixed activity tray status bubbles so they correctly show time since last activity and not last activity on active log date
+- Overhauled measurement form to include lb/oz entry and enhanced data view in the activity timeline
+- Removed naps from the heatmap tab to consolidate into "Sleep" to match log entry heatmap
+- Fixed breast feed start time saving behavior when editing previous entries
+- Fixed feedback bugs when users submitted feedback showing as admin
+- Re-worked feedback view so users know when admins have reviewed messages
+- Added push notifications for admin messages if user has active web push subscription
+
+## v1.2.3 - Dedicated Breast Feed Section for Report Card
+
+### Changes
+
+- Added a dedicated breastfeeding section in report card that appears if breastfeeding entries exist for the month
+
+## v1.2.2 - Hotfix Pass for Webhook Status, Report Card, and Timeline
+
+### Changes
+
+- Applied fix for status API to pull in sleep and count sleep minutes based on supplied timezone
+- Fixed report card only showing solids for feeding
+- Fixed and refactored timeline pulling in too much data in background
+
+## v1.2.1 - Docker Build Fix
+
+### Changes
+
+- Added dummy database locations to fix build process
+
+## v1.2.0 - Postgres, Report Cards, Bug Fixes, Activity Timers, oh my!
+
+### Changes
+
+#### Enhancements
+- Added activity timer for play activities
+- Updated translation management to be dynamic based on the translation files and supported-languages.json
+- Added Italian translation (thank you gianfma!)
+- Added German translation
+- Added a report card you can export from the reports tab that shows progress up to the month selected compared against the previous month
+- Updated diaper, bath, and settings forms to have consistent checkboxes
+- Added family setting (**settings > config**) to configure whether or not solid foods impact the feed timer (defaulted to on, but may be turned off for transitions into solids where a family may not want to have it impact bottle/breast feed times)
+- Added logic to have last feed side show up first in the activity list
+- Streamlined the setup wizard to have persistent steps allowing the user to continue setup where they left off
+- Enabled scroll-wheel support on activity tray from desktop devices where activities clip off screen
+
+#### Bug Fixes
+- Fixed API bug where data was reported back incorrectly due to server time returned as UTC
+- Fixed activity tray feed bubble so time shows from start of previous feed not end
+- Fixed lines not rendering between measurements in growth chart
+- Added caching bugfixes for charts preventing some data elements from not showing properly
+- Fixed a condition where family slugs are not available after importing a backup
+- Added fixes for better handling of legacy sleep locations from showing in hide list and dropdown
+- Fixed a bug where editing feed entries pulled in the last value instead of the value for the entry the user is editing
+- Fixed a condition during setup that allows users to create additional family slugs in the setup page when setup is incomplete
+- Fixed a bug where caretaker name was not showing for medicines or supplements when viewing activity details
+
+#### Webhook Updates
+- Changed sleep location to be optional when ending sleep in the activity API
+- Updated activity API to trigger notifications when activities are posted
+
+#### PostgreSQL Support
+- Added full postgres support with data import updates for smooth migrations
+- Updated env database connection properties to be persistent on import from backup (database type, database path, and API log path)
+- Updated routes to ensure all queries will work in sqlite and postgres
+
+## v1.1.0 - Breast Milk Storage Enhancement, Supplement API, and Caching Bug Fix
+
+### Changes
+
+- Added ability to disable breast milk storage for the family in the settings > config area. This can be managed by family admins. This turns of all storage questions and storage cards.
+- Added supplement type to API, documentation, and enhanced testing scripts
+- Added caching fixes to charts not always updating properly
+- Updated environment file handling in docker and local installations for consistency
+
+## v1.0.0 - The Official, Official Release of Sprout Track
+
+### Changes
+
+#### Webhooks for Home Assistant and Other Tools
+- Added webhook support for Home Assistant and other integrations, manageable from the settings page
+- Webhooks fire on activity events (feedings, naps, etc.) to trigger automations
+- Requires HTTPS and an API key for secure access
+- Added in-app API documentation for webhook setup
+
+#### Nursery Mode
+- Added a dedicated tablet/phone interface for quick activity logging without navigating the full app
+- Includes device color changing, adjustable dim and saturation settings, keep-awake, and full-screen support on supported devices
+- Doubles as a night light for the nursery
+
+#### Medicine vs Supplements
+- Separated supplement tracking from medicine tracking since supplements are typically daily and don't require minimum safe dose period tracking
+- Added reports for medicine and supplement history over time
+
+#### Vaccines
+- Added dedicated vaccine activity tracking with 50 preloaded common vaccines for quick search
+- Added encrypted document storage for vaccine records
+- Added vaccine record export to Excel format for daycares or other providers
+
+#### Activity Tracking and Reports
+- Added activity logging for tummy time, indoor time, outdoor time, and walks
+- Added reports and charts for activity data
+
+#### st-guardian Maintenance Page
+- Added st-guardian, a lightweight Node.js sidecar for reverse proxying, version tracking, updates, and serving a health/uptime/maintenance page
+- Includes slug reservations and in-app deployment sync
+- Not active in Docker (use docker pull to update)
+
+#### Persistent Breastfeed Status
+- Breastfeed timer now persists if you leave the app, with an easy-to-use banner showing the active session
+
+#### Refresh Token for Authentication
+- Added refresh token flow so sessions don't expire unexpectedly
+- Applies to all authentication types including PIN-based auth
+- Third-party integrations can use rolling refresh tokens to stay authorized
+
+#### Heatmap Overhaul
+- Added icons to the log entry heatmap
+- Consolidated reports heatmap into a single mobile-friendly view
+
+#### Various QoL Fixes
+- Componentized the settings menu and added the ability for regular users to adjust push notification settings and unit defaults
+- Added daily stats conversion based on user's preferred unit
+- Dark mode theming fixes for when a device is in dark mode but the app is set to light mode
+- Added diaper cream checkbox to diaper tracking
+- Added sleep location masking to hide unused sleep locations
+- Regional decimal format fixes to allow comma input with automatic conversion for data storage
+- Fixed a bug causing the Android keyboard to pop up during the login screen
+- Added GitHub Actions to automate amd64/arm64 builds (thanks Beadsworth)
+- Fixed all missing UTC conversion issues in reports (thanks Beadsworth)
+- Updated notification descriptions to be more detailed
+- Updated theme toggle to use correct colors
+- Cleaned up theming to properly use correct components
+- Fixed background process and baby context issues
+- Fixed config dropdown extending past the screen
+
+## v0.98.0 - Push Notifications and Localization
+
+### Changes
+
+- Added push notification capability for hosted and SaaS versions.  Notifications can be enabled and managed in the family-manager page.
+- Added localization support for Spanish and French (thank you WRobertson2, and ebihappy for assistance and feedback)
+- Applied bugfixes for pumping numbers and charts values that are represented (thank you tionkje)
+- Added bugfix for some modals showing up blurry
+- Added bugfix for auth mode to be caretaker auth if user sets up additional caretakers during the setup wizard
+## v0.97.2 - Breastfeed timer hotfix
+
+### Changes
+
+- Fixed a bug where the timer duration was not properly saved by the display timer correctly when a user did not hit pause before saving
+
+## v0.97.1 - Timeline sleep hotfix
+
+### Changes
+
+- Fixed timeline erroneously displaying sleep records from previous and next days (logic used for reporting)
+
+## v0.97.0 - The Reports Update
+
+### Changes
+
+#### The Reports Page
+
+Added a reports page that includes:
+- Stats - with nested graphs for sleep, feeding, diapers and more!: Click on any Stats tile :)
+- Milestones - See all milestones grouped by month
+- Growth Trends - Based on CDC data and intelligently scaled to your babies age
+- Activities - See patterns, spot trends, or find anomalies within your desired date range
+- Heatmap - See when your child is most likely to fall asleep, wake up, nap, feed, or need a diaper change... or just confirm your own feelings about it
+
+#### The Timeline
+
+- Added the heatmap to the timeline which pulls data from the previous 30 days
+
+#### Other Fixes and QoL
+
+- Hid sleep, feed, and diaper status bubbles if time exceeds 24 hours
+- Fixed night mode styles in date range calendar
+- Fixed sysadmin context in new streamlined family slug pages
+
+## v0.96.94 - PWA Update to Streamline Login
+
+### Changes
+
+- Removed /login and streamlined family slug to facilitate clean PWA usage
+- Cleaned up the login page night mode theme
+
+## v0.96.77 - December 2025 Rollup
+
+### Changes
+
+#### Updated Nextjs to version 16.0.10
+
+- Patched Next.js and upgraded packages for security updates
+
+#### Feed Log Updates
+
+- Added notes and separate bottle types to feed logs
+
+#### Sleep Log Updates
+
+- New default sleep areas (Bassinets and Strollers)
+- Users can now specify custom locations and on future sleep logs custom locations show in sleep location list
+
+#### Daily Stats and Timeline Updates
+
+- Daily Stats: added details around feeding, added details by bottle types, and breast feeding counts by side
+- Daily Stats: Wet and Dirty Diapers now count separately
+- Daily Stats: Medicines track separately and tally total dose for the day
+- Daily Stats: Active sleep counts towards sleep and not wake time
+- Log Timeline: Fixed pumping so it has proper coloring and does not count towards sleep
+- Log Timeline: Added inline details for new bottle details, notes, and other formatting cleanup
+- Full Log: Added inline details for new bottle details, notes, milestones, breast feeding, pumping
+- Full Log: Enhanced search to look at more fields for activities for easier filtering\searching
+
+#### Optimizations
+
+- Login Page: Made in more PWA friendly by condensing family name, logo, and share button
+- Login Page: Made more PWA friendly by condensing ID and Pin for caretakers
+- Removed excess Stripe calls for self hosted versions
+- Minor performance optimizations in main app, and family-manager
+
+## v0.96.30 - Update to Nextjs for [CVE-2025-66478](https://nextjs.org/blog/CVE-2025-66478)
+
+### Changes
+
+- Patched Next.js and upgraded packages
+- Fixed type errors generated from upgrade for data downloads and buffer handling
+
+## v0.96.28 - Bug Fixes For Timeilne, Daily Stats and Forms
+
+### Changes
+
+- Updated the timeline to include an "Early Morning" sort area
+- Added dates to sleep logs that span over midnight
+- Updated the daily stats to include feed unit counts \ time, and added poopy diaper counter
+- Updated activity forms so that time did not auto increment on background refreshes overriding user entry
+- Added additional logic during database restoration to refresh environment variables across the app once restored
+
+## v0.96.7 - Fixes for Stripe API's
+
+### Changes
+
+- Added safe Stripe handling for self-hosted apps.  The Stripe API's no longer fail during build and are disabled when the app is not in SaaS mode.
+
+## v0.96.0 - Timeline Overhaul V2 & Account Payments
+
+### Changes
+
+#### Timeline Overhaul
+- Added a more streamlined version of the timeline
+- Made daily summary the filter for activities that exist within the day selected
+
+#### Account Expiration & Payments
+- Added functionality for expired accounts to have a soft read-only user experience
+- Added in subscription and full license payment management with Stripe
+- Overhauled account usage to not affect self hosted versions of the app
+
+## v0.94.95 - Calendar Hotfix for Accounts
+
+### Changes
+
+#### Calendar\Account Auth Failures
+- Fixed account authorization failures on the calendar the caused auto log out in the event an account called an api without the proper context
+
+#### Performance Optimizations
+- Removed unnecessary calls from the CalendarEventForm
+- Fixed an error that gets generated when a user tries to save a calendar event when a new contact created during the event creation or edit
+
+## v0.94.90 - Docker Entrypoint Script Update
+
+### Changes
+
+#### Docker Startup Script
+- Updated entry point script to properly seed databases on startup
+
+## v0.94.89 - API Logging, Account Management, and QoL Improvements - October 28, 2025
+
+### Changes
+
+#### Mandatory Admin Password Reset (Docker Environment File Improvements)
+- **IMPORTANT - Only For Self Hosting Family's:** When upgrading from v0.94.24 or earlier, admin passwords will be automatically reset to default "admin" for compatibility
+- Added automatic admin password reset to default "admin" when importing older database backups
+- Implemented modal notification system to inform users when admin password has been reset
+- Improved database restore workflow in both Setup Wizard and Family Manager with password reset notifications
+
+#### API Logging System
+- Added comprehensive API logging system with dedicated api-logs.db database
+- Implemented authentication logging for security auditing
+- Added configuration flag to enable/disable logging
+- Created documentation for API logging features and usage
+
+#### Account & Subscription Management
+- Added account status tracking for trials and subscriptions
+- Implemented account expiration handling with automatic logout for expired accounts
+- Added subscription type management in database schema
+- Enhanced family-manager and account pages to display account status information correctly
+- Updated setup wizard to check for deployment mode, beta participation, and plan limits
+- Added security checks to prevent brute force login attempts on expired accounts
+- Fixed account family context to ensure smooth family setup process
+
+#### Authentication Improvements
+- Updated schema to support storing authentication mode at family level
+- Added ability to switch between authentication modes (PIN/password)
+- Enhanced security login page to work based on family authentication mode
+- Updated caretaker API to use sysadmin context properly
+- Fixed authentication mode switching to handle sysadmin context and reset stale data
+- Updated settings form to group authentication settings with toggle for auth mode
+
+#### User Interface Enhancements
+- Added family name and share button to side navigation for easy URL sharing
+- Enhanced login component with keyboard input support on desktop devices
+- Added visual highlighting for active PIN/password input fields
+- Updated share button with toast message notification
+- Switched green colors throughout app for better visual consistency
+- Removed emojis from interface
+
+#### Activity Tracking Improvements
+- Added blowout/leakage flag to diaper tracking model and forms
+- Added blowout/leakage indicator to timeline views
+- Fixed hardcoded feed amount in stats tab to use dynamic values
+- Enhanced time selector to auto-switch between minutes and hours based on input
+- Added QoL improvement for AM/PM auto-switching when crossing 12 on time selector
+
+#### System Administration
+- Added utility to reset administrator password for family-manager page
+- Created documentation for system administrator password reset tool
+- Enhanced family upgrade context checks
+- Added expired account component to block login for expired accounts
+
+#### Bug Fixes & Technical Improvements
+- Made .env files persistent in docker images
+- Updated backup\restore functioanlity to include environment files in with the database backup (now in a zip file)
+- Removed timeline console logging that was accidently left on for debugging
+- Added generic units to database seeds
+- Updated formatting for drops unit display
+- Fixed tab functionality to properly populate family slug
+- Fixed type errors in account expiration handling
+- Updated API to allow expired accounts with valid JWTs limited access
+- Added migration to nullify authType system defaults from previous versions
+- Adjusted caretaker counting logic to account for single '00' system caretaker
+- Fixed account expiration status appearing incorrectly on family login page
+- Added documentation on expiration validation logic
+
+---
+
+## v0.94.24 - Breastfeed Timer Patch - August, 24 2025
+
+### Changes
+
+#### Breastfeed Timer Fixes
+- Broke out the timer into seperate component to make more modular and easier to service
+- Fixed logic on touch or click to clear placeholder 00 and allow two digit input in all scenarios
+
+---
+
+## v0.94.22 - QoL, Enhancemens, Bugfixes - August, 13 2025
+
+### Changes
+
+#### QoL, Enhancements, Bugfixes
+- Updated log entry timeline to have an actual timeline
+- Removed indigo colors around input forms, text areas, drop downs, and other components to match the rest of the app
+- Added the ability to select the month and year from the calendar widget
+- Fixed the time select widget so that if on mobile and drag the time bubble down the web browser doesn't refresh
+- Fixed the calnedar page on mobile so it properly renders to device height
+- Fixed the medicine form tabs to match the new form-page tab arcitecture
+- Fixed the medicine forms to properly allow for decimal points in the dose entry
+
+#### SaaS Updates
+- Fixed spelling for spourt-256.png -> sprout-256.png and fixed references
+- Replaced coming-soon with home and removed sphome \ fixed references in app to the new home location in SaaS mode
+- SEO updates for home page
+- Fixed registration and login modal sizes for mobile screens when they extend past max screen size
+---
+
+## v0.94.11 - Feedback Additions and Family Manager Enhancements\Refactor
+
+### Changes
+
+#### Account Management
+- Added the ability for accounts and users to provide feedback when the app is in saas mode
+- Added account and feedback management into the family-manager screen
+- Refactored family-manager page to use deployment context and componentize tabs
+
+---
+
+## v0.94.8 - Live Beta Edition, Bugfixes, Enhancements
+
+### Changes
+
+#### Account Management
+- In the account-button we added the ability to manage accounts.  Users can now do the following:
+  - Manage the account (name, email address, password), family settings (name and slug), download their family data, and delete their account
+  - Manage babies, caretakers, and contacts
+- Added flair for beta users because you are special and we care about you
+
+#### Bugfixes and Enhancements
+- Cleaned up the breast feed forms to have new side by side timers
+- Timers are directly editable now without pressing the "edit" button
+- Timers now have more visual indication that the timer is running for a specific side
+- Cleaned up the breast feed edit forms to represent the side you are editing for (right versus left)
+- Fixed a bug where timers "pause" when leaving the browser tab or the phone is locked
+- Overhauled URL slug validation to create system reserved list
+
+---
+
+## v0.94.0 - Live Beta Edition
+
+### Changes
+
+#### Beta Functionality
+- Added ability for SaaS version to have accounts, link accounts to new families, and a caretaker that allows pass-through permissions
+- Added account workflow for SaaS mode
+- Removed access to certain screens and settings in SaaS mode
+- Added complete account management workflow, account verification, password resets
+- Overhauled email communications
+- Added Sprout Track terms and privacy policy
+
+#### Demo Enhancements
+- Added new demo scripts to overhaul the demo to be more realistic
+- Added functionality to clean up demo data every hour
+- Streamlined the demo in the app so it is single tenant instead of needing multiple apps running for the demo environment
+
+#### Bug Fixes
+- Added deployment context to minimize API calls
+- Calendar fixes for baby context
+- Added a close button to the calendar day view
+- Adjusted calendar event form to provide enough space at the bottom of the form
+- Bug fixes to API handling of permissions in elevated contexts for accounts and admins
+
+---
+
+## v0.92.32 - Beta Subscriber Management & Email Integration
+
+### Changes
+
+- Added a new "Beta Subscribers" tab to the Family Manager page for viewing and managing beta subscribers, visible only in SaaS deployment mode.
+- Created a new API route for fetching, updating, and deleting beta subscribers.
+- Added the ability to opt-out and delete beta subscribers from the Family Manager page.
+- Improved the empty table message for beta subscribers to be more descriptive.
+- Added email integrations for manual SMTP setup, SMTP2GO, and SendGrid.
+- Added email test scripts.
+- Added server configuration to application config settings pages.
+
+---
+
+## v0.92.19 - Calendar Bugfixes and Small Enhancements - July 2025
+
+### Changes
+
+- Updated the main calendar view and calendar day view to ensure events are displayed based on the user's timezone rather than the server timezone
+- Replaced event dots with event titles in the main calendar view to make the calendar more readable
+- Fixed an issue where the calendar event form would not reset properly when adding multiple events for the same day in succession
+
+---
+
+## v0.92.16 - Bugfixes - July 2025
+
+### Changes
+
+- Updated Calendar view page to use this months date instead of hardcoding April 2025 on page load
+- Fixed issue in Log-Entry timeline view so that it pulls records in users timezone and not server timezone
+- Refactored status bubbles to work better with mobile and tablet browsers
+
+---
+
+## v0.92.13 - Critical fix for token setup - July 2025
+
+### Changes
+
+- Bugfix for caretakers not being associated to families properly
+- Bugfix for system account context for family not working correctly during setup (user would get error during setup)
+
+---
+
+## v0.92.11 - Multi-family Edition Enhancements and Bugfixs - July 2025
+
+### Changes
+
+#### Enhancements and Bugfixes
+- Fixed sysadmin level authentication for the session and timezone debug tools
+- Fixed sysadmin level authenciation for settings and baby API's in settings forms and setup pages
+- Fixed bugs where duplicate medicines would get generated when editing a medicine dose from the timeline
+- Enhanced the Medicine activities to streamline giving doses with active doses, removing an uneccessary tab
+- Streamlined the Medicine form so the user does not have to enter DD:HH:MM for the minimum dose time
+- Added correct light\dark mode theming to the Medicine activity forms
+- Fixes for docker builds with enviornment files in both arm64 and x64 architectures
+- Fixed local env file generation when building the app for the first time
+- Fixed styling for calendar components in baby form and setup forms so that they do not look disabled
+- Added new select baby pages when a user logs in with multiple babies tied to the family
+- **Security Fix** Fixed the Docker build process to not generate the hash until the container starts of when the image is built
+
+---
+
+## v0.92.0 - Multi-family Edition - July 2025
+
+### Changes
+
+#### Multi-family Support
+- Added family-level access by link/slug for independent family management
+- Overhauled data schema to support multiple families with isolated data
+- Updated all API endpoints to use family context for secure data access
+- Updated authentication system with family-level users, admin roles, and global system administrator role
+- Added ability for system administrators to manage existing families, invite new families (by link), and manually add new families
+- Overhauled settings and forms for family-specific configuration
+- Updated database migration scripts, including family migration script for existing databases
+- Updated login screens with family information and URL sharing capabilities
+
+#### Authentication & Security Enhancements
+- Added system caretaker security lockout - system accounts (loginId '00') are automatically disabled when regular caretakers exist for a family
+- Implemented on-demand creation of system caretakers and settings for families without configured users
+- Added JWT-based authentication with family context embedded in tokens
+- Enhanced admin authentication to support family-level, system caretaker, and global system administrator access
+
+#### User Interface Improvements
+- Updated login screens to display family information and support URL sharing
+- Added family selection interface for users with access to multiple families
+- Improved family management interface for system administrators
+- Enhanced forms and settings pages for family-specific configuration
+
+#### Backup and Restore Enhancements
+- Added automatic post-restore database migration system to ensure compatibility with older backup versions
+- Implemented initial setup database import capability - users can now import existing data during setup wizard
+- Added real-time migration progress indicators with detailed step-by-step feedback
+- Enhanced error handling for migration failures, authentication issues, and database compatibility problems
+
+#### Other Fixes and Improvements
+- Updated API calls to provide more real-time feel while minimizing bandwidth when app not actively used
+- Fixed time that loads when opening most activities to be now instead of the the of the last page refresh
+- Updated pump log so end time is now and start time defaults to 15 minutes in the past
+- Removed solid foods from feed timer calculations
+- Updated activity timeline descriptions to show units correctly
+- Fixed visual bugs for light/dark mode consistency
+- Improved error handling and user feedback across the application
+- Fixed the caretaker form so that users can only correctly enter in numbers instead of characters
+
+---
+
+## v0.91.4 - Added Medicine Tracker - (Beta) - April 2025
+
+### Changes
+
+#### Fixes and Improvements
+
+- Removed duplicate scripts directory (thanks, [@need4swede](https://github.com/need4swede))
+- Added fixes so that new activities show up if config doesn't exist
+- Updated the prisma/seed.ts script to add units for medicines and update units with activity groups when they do not exist
+- Updated the scripts/update.sh script to add seed step after migrations
+
+#### Medicine Tracker
+- Added ability to add medicines and link contacts to medicines
+- Ability to track the dose given
+- Ability to see doses, and when a new dose is safe to administer
+- Added medicine tracking to log-entry and full-log views
+
+---
+
+## v0.9.3 (Beta Patch) - April 2025
+
+### Changes
+
+  - Fixed an issue where etc/timezones isn't available in docker images
+  - Added the ability to set cookie auth to require HTTPS or not.  This is added to the .env file.  When enabled the cookie will only be valid and sent when the app is accessed over HTTPS.  When set to false the cookie will be valid and sent over HTTP or HTTPS.  IMPORTANT: When setting this to true you must have an SSL certificate in place otherwise all main API's will be blocked.
+  - Added the ability to disable Next.js telemetry collection in the setup scripts
+
+---
+
+## v0.9.0 (Beta Release) - April 2025
+
+The beta release of Sprout Track as a self-hostable baby tracking application.
+
+### Features
+
+#### Activity Tracking
+  - Sleep logs
+  - Feed logs (bottle and solids)
+  - Diaper logs
+  - Bath logs
+  - Notes
+  - Measurements
+  - Milestones
+
+#### Reporting & Analysis
+  - High-level reporting and statistics
+  - Full log with date range filtering
+  - Quick search functionality for specific items
+
+#### Multi-user Support
+  - Multiple caretaker accounts
+  - Role-based permissions
+
+#### Calendar & Planning
+  - Calendar events for caretaker schedules
+  - Appointment reminders
+  - Custom event creation
+
+### Technical Details
+
+- Built with Next.js (App Router)
+- TypeScript for type safety
+- Prisma with SQLite database
+- TailwindCSS for styling
+- Responsive design for mobile and desktop use
+- Dark mode support

@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "installationPolicy": "Reviewed build-time modules only. No runtime remote-code downloads.",
+  "modules": [
+    {"id":"core","name":"Sprout-based care tracking","status":"available","required":true,"toggle":null,"dataOnDisable":"preserve"},
+    {"id":"ocr","name":"Reviewed local OCR import","status":"available","required":false,"toggle":{"env":"BABYTRACKER_OCR_ENABLED","default":true},"dataOnDisable":"preserve","limitations":["Printed-text baseline; messy handwriting not certified","Human review required before saving"]},
+    {"id":"babybuddy-import","name":"Baby Buddy data import","status":"available","required":false,"toggle":null,"dataOnDisable":"preserve","limitations":["Import adapter, not the full Baby Buddy application"]},
+    {"id":"advanced-sleep","name":"Advanced sleep tools","status":"planned","required":false,"toggle":null,"dataOnDisable":"preserve"},
+    {"id":"camera","name":"Camera integration","status":"planned","required":false,"toggle":null,"dataOnDisable":"preserve"}
+  ]
+}

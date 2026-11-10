@@ -1,0 +1,714 @@
+import prisma from '../../../app/api/db';
+import { NotificationEventType } from '@prisma/client';
+import { NotificationPayload } from './push';
+import { dispatchTimerPush } from './timerDispatch';
+import { t, formatTimeElapsed, DEFAULT_LANGUAGE } from './i18n';
+import { isNotificationsEnabled } from './config';
+import { routeForNotification } from './routes';
+import { parseFeedTimerTypes, buildFeedTimerWhere, foodCountsForTimer } from '@/src/utils/feedTimerConfig';
+import { resolvePreferenceOwner, PreferenceOwner } from './preferenceOwner';
+
+/**
+ * Parse warning time string (format: "HH:mm") to total minutes
+ * @param warningTime - Time string in "HH:mm" format (e.g., "03:00" = 3 hours)
+ * @returns Total minutes, or -1 if invalid format (to distinguish from valid 0)
+ */
+function parseWarningTime(warningTime: string): number {
+  if (!warningTime || typeof warningTime !== 'string') {
+    console.error(`[TimerCheck] Invalid warning time: value is empty or not a string`);
+    return -1;
+  }
+
+  const parts = warningTime.split(':');
+  if (parts.length !== 2) {
+    console.error(`[TimerCheck] Invalid warning time format "${warningTime}": expected "HH:mm" format`);
+    return -1;
+  }
+
+  const [hours, minutes] = parts.map(Number);
+  if (isNaN(hours) || isNaN(minutes) || hours < 0 || minutes < 0 || minutes > 59) {
+    console.error(`[TimerCheck] Invalid warning time values "${warningTime}": hours=${hours}, minutes=${minutes}`);
+    return -1;
+  }
+
+  return hours * 60 + minutes;
+}
+
+/**
+ * Parse dose minimum time string (format: "DD:HH:MM") to total minutes
+ * Used for medicine doseMinTime field (different from baby warning times which use "HH:MM")
+ * @param doseMinTime - Time string in "DD:HH:MM" format (e.g., "00:04:00" = 4 hours)
+ * @returns Total minutes, or -1 if invalid format
+ */
+function parseDoseMinTime(doseMinTime: string): number {
+  if (!doseMinTime || typeof doseMinTime !== 'string') {
+    return -1;
+  }
+
+  const parts = doseMinTime.split(':');
+
+  // Support both DD:HH:MM and HH:MM formats
+  if (parts.length === 3) {
+    const [days, hours, minutes] = parts.map(Number);
+    if (isNaN(days) || isNaN(hours) || isNaN(minutes) || days < 0 || hours < 0 || minutes < 0 || hours > 23 || minutes > 59) {
+      console.error(`[TimerCheck] Invalid doseMinTime values "${doseMinTime}": days=${days}, hours=${hours}, minutes=${minutes}`);
+      return -1;
+    }
+    return (days * 24 * 60) + (hours * 60) + minutes;
+  }
+
+  if (parts.length === 2) {
+    const [hours, minutes] = parts.map(Number);
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || minutes < 0 || minutes > 59) {
+      console.error(`[TimerCheck] Invalid doseMinTime values "${doseMinTime}": hours=${hours}, minutes=${minutes}`);
+      return -1;
+    }
+    return (hours * 60) + minutes;
+  }
+
+  console.error(`[TimerCheck] Invalid doseMinTime format "${doseMinTime}": expected "DD:HH:MM" or "HH:MM" format`);
+  return -1;
+}
+
+/**
+ * Get the most recent activity time for a baby
+ * @param babyId - The baby ID
+ * @param activityType - Type of activity ('feed' or 'diaper')
+ * @returns Date of last activity, or null if no activity found
+ */
+async function getLastActivityTime(
+  babyId: string,
+  activityType: 'feed' | 'diaper'
+): Promise<Date | null> {
+  try {
+    if (activityType === 'feed') {
+      // Issue #225: only feeds in the baby's configured categories reset the timer
+      const baby = await prisma.baby.findUnique({
+        where: { id: babyId },
+        select: { feedTimerTypes: true },
+      });
+      const categories = parseFeedTimerTypes(baby?.feedTimerTypes);
+      const feedTimerWhere = buildFeedTimerWhere(categories);
+      const lastFeed = await prisma.feedLog.findFirst({
+        where: {
+          babyId,
+          deletedAt: null,
+          ...feedTimerWhere,
+        },
+        orderBy: {
+          time: 'desc',
+        },
+        select: {
+          time: true,
+          type: true,
+          startTime: true,
+        },
+      });
+      // For breast feeds, use startTime (session start) instead of time (session end)
+      let lastTime: Date | null = lastFeed
+        ? ((lastFeed.type === 'BREAST' && lastFeed.startTime) ? lastFeed.startTime : lastFeed.time)
+        : null;
+      // Issue #203: solids are logged in FoodLog, not FeedLog. When the FOOD
+      // category counts, the latest food entry can also reset the timer.
+      if (foodCountsForTimer(categories)) {
+        const lastFood = await prisma.foodLog.findFirst({
+          where: { babyId, deletedAt: null },
+          orderBy: { time: 'desc' },
+          select: { time: true },
+        });
+        if (lastFood && (!lastTime || lastFood.time.getTime() > lastTime.getTime())) {
+          lastTime = lastFood.time;
+        }
+      }
+      return lastTime;
+    } else if (activityType === 'diaper') {
+      const lastDiaper = await prisma.diaperLog.findFirst({
+        where: {
+          babyId,
+          deletedAt: null,
+        },
+        orderBy: {
+          time: 'desc',
+        },
+        select: {
+          time: true,
+        },
+      });
+      return lastDiaper?.time || null;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error getting last ${activityType} activity for baby ${babyId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Check if a notification is eligible to be sent
+ * @param lastTimerNotifiedAt - When the last timer notification was sent (null = never)
+ * @param timerIntervalMinutes - Minutes between repeat notifications (null = once per expiration)
+ * @param lastActivityTime - When the last activity occurred
+ * @param thresholdMinutes - Threshold in minutes before timer expires
+ * @returns true if notification should be sent
+ */
+function isNotificationEligible(
+  lastTimerNotifiedAt: Date | null,
+  timerIntervalMinutes: number | null,
+  lastActivityTime: Date | null,
+  thresholdMinutes: number
+): boolean {
+  // If no last activity, don't notify (shouldn't happen, but safety check)
+  if (!lastActivityTime) {
+    return false;
+  }
+
+  const now = new Date();
+  const timeSinceActivity = (now.getTime() - lastActivityTime.getTime()) / (1000 * 60);
+
+  // Check if threshold is exceeded
+  if (timeSinceActivity < thresholdMinutes) {
+    return false; // Timer hasn't expired yet
+  }
+
+  // If never notified before, eligible for first notification
+  if (!lastTimerNotifiedAt) {
+    return true;
+  }
+
+  // If timerIntervalMinutes is null, only notify once per expiration
+  // Since we already notified once, don't notify again until timer resets
+  if (timerIntervalMinutes === null) {
+    return false;
+  }
+
+  // Check if interval has passed since last notification
+  const timeSinceLastNotification =
+    (now.getTime() - lastTimerNotifiedAt.getTime()) / (1000 * 60);
+  return timeSinceLastNotification >= timerIntervalMinutes;
+}
+
+/**
+ * Get user language preference from subscription
+ * @param accountId - Account ID (if subscription belongs to an account)
+ * @param caretakerId - Caretaker ID (if subscription belongs to a caretaker)
+ * @returns Language code (e.g., 'en', 'es', 'fr')
+ */
+async function getUserLanguage(
+  accountId: string | null,
+  caretakerId: string | null
+): Promise<string> {
+  if (accountId) {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      select: { language: true },
+    });
+    return account?.language || DEFAULT_LANGUAGE;
+  }
+  if (caretakerId) {
+    const caretaker = await prisma.caretaker.findUnique({
+      where: { id: caretakerId },
+      select: { language: true },
+    });
+    return caretaker?.language || DEFAULT_LANGUAGE;
+  }
+  return DEFAULT_LANGUAGE;
+}
+
+/**
+ * Send timer expiration notification
+ * @param preference - Notification preference (subscription is null for native-only preferences)
+ * @param owner - Resolved owner (subscription when present, else the preference's own columns)
+ * @param baby - Baby information
+ * @param eventType - Event type (FEED_TIMER_EXPIRED or DIAPER_TIMER_EXPIRED)
+ * @param lastActivityTime - When the last activity occurred
+ * @param thresholdMinutes - Threshold in minutes
+ * @param nativeSent - Owner keys already sent a native push for this timer
+ *   check (one Set per feed/diaper timer pass across all preferences for
+ *   that baby+eventType) — a web preference and a native preference for the
+ *   same owner must not double-push the same device.
+ */
+async function sendTimerNotification(
+  preference: {
+    id: string;
+    subscription: {
+      id: string;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+      accountId: string | null;
+      caretakerId: string | null;
+    } | null;
+  },
+  owner: PreferenceOwner,
+  baby: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    familyId: string | null;
+    family: { slug: string } | null;
+  },
+  eventType: NotificationEventType,
+  lastActivityTime: Date,
+  thresholdMinutes: number,
+  nativeSent: Set<string>
+): Promise<void> {
+  const babyName = baby.firstName;
+  const now = new Date();
+  const timeSinceActivity = (now.getTime() - lastActivityTime.getTime()) / (1000 * 60);
+
+  // Get user's language preference
+  const userLanguage = await getUserLanguage(owner.accountId, owner.caretakerId);
+
+  // Format time elapsed using localized strings
+  const timeElapsed = formatTimeElapsed(timeSinceActivity, userLanguage);
+
+  // Get localized title based on event type
+  const titleKey =
+    eventType === NotificationEventType.FEED_TIMER_EXPIRED
+      ? 'notification.timer.feed.title'
+      : 'notification.timer.diaper.title';
+  const activityType =
+    eventType === NotificationEventType.FEED_TIMER_EXPIRED ? 'feed' : 'diaper';
+
+  const payload: NotificationPayload = {
+    title: t(titleKey, userLanguage),
+    body: t('notification.timer.body', userLanguage, {
+      babyName,
+      activityType,
+      timeElapsed,
+    }),
+    icon: '/sat-tracker-192.png',
+    badge: '/sat-tracker-192.png',
+    tag: `timer-${baby.id}-${eventType}`, // Same tag for deduplication
+    data: {
+      eventType,
+      babyId: baby.id,
+      familySlug: baby.family?.slug,
+      route: routeForNotification(activityType),
+    },
+  };
+
+  await dispatchTimerPush({
+    subscription: preference.subscription,
+    payload,
+    eventType,
+    activityType: null, // No activity type for timer events
+    babyId: baby.id,
+    familyId: baby.familyId,
+    owner,
+    nativeSent,
+  });
+}
+
+/**
+ * Check timer expirations and send notifications
+ * @returns Number of notifications sent
+ */
+export async function checkTimerExpirations(): Promise<number> {
+  // Check if notifications are enabled
+  if (!(await isNotificationsEnabled())) {
+    console.log('[TimerCheck] Notifications disabled, skipping timer check');
+    return 0; // No-op if disabled
+  }
+
+  console.log('[TimerCheck] Starting timer expiration check...');
+  const startTime = Date.now();
+
+  try {
+    // Query all enabled timer-type notification preferences
+    console.log('[TimerCheck] Querying enabled timer preferences...');
+    const timerPreferences = await prisma.notificationPreference.findMany({
+      where: {
+        eventType: {
+          in: [
+            NotificationEventType.FEED_TIMER_EXPIRED,
+            NotificationEventType.DIAPER_TIMER_EXPIRED,
+            NotificationEventType.MEDICINE_TIMER_EXPIRED,
+          ],
+        },
+        enabled: true,
+      },
+      include: {
+        subscription: {
+          select: {
+            id: true,
+            endpoint: true,
+            p256dh: true,
+            auth: true,
+            accountId: true,
+            caretakerId: true,
+          },
+        },
+        baby: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            feedWarningTime: true,
+            diaperWarningTime: true,
+            familyId: true,
+            family: { select: { slug: true } },
+          },
+        },
+      },
+    });
+
+    if (timerPreferences.length === 0) {
+      console.log('[TimerCheck] No enabled timer preferences found');
+      return 0;
+    }
+
+    console.log(`[TimerCheck] Found ${timerPreferences.length} enabled timer preference(s)`);
+
+    // Group preferences by baby and event type
+    const babyEventMap = new Map<
+      string,
+      Map<NotificationEventType, typeof timerPreferences>
+    >();
+
+    for (const preference of timerPreferences) {
+      // subscription may be null (native-only preferences) — baby is the
+      // only hard requirement to be actionable.
+      if (!preference.baby) {
+        continue;
+      }
+
+      const babyId = preference.baby.id;
+      if (!babyEventMap.has(babyId)) {
+        babyEventMap.set(babyId, new Map());
+      }
+
+      const eventMap = babyEventMap.get(babyId)!;
+      if (!eventMap.has(preference.eventType)) {
+        eventMap.set(preference.eventType, []);
+      }
+
+      eventMap.get(preference.eventType)!.push(preference);
+    }
+
+    let notificationsSent = 0;
+    console.log(`[TimerCheck] Processing ${babyEventMap.size} unique baby/baby-event combination(s)`);
+
+    // Process each baby - convert Map entries to array for ES5 compatibility
+    const babyEventEntries = Array.from(babyEventMap.entries());
+    for (const [babyId, eventMap] of babyEventEntries) {
+      console.log(`[TimerCheck] Processing baby ${babyId}...`);
+      const baby = timerPreferences.find((p) => p.baby?.id === babyId)?.baby;
+      if (!baby) {
+        continue;
+      }
+
+      // Check feed timer
+      if (eventMap.has(NotificationEventType.FEED_TIMER_EXPIRED)) {
+        // Skip feed timer if baby has an active breastfeed session
+        const activeBreastFeed = await prisma.activeBreastFeed.findUnique({ where: { babyId } });
+        if (activeBreastFeed) {
+          console.log(`[TimerCheck] Feed timer check skipped for baby ${babyId}: active breastfeed session in progress`);
+        } else {
+        const feedPreferences = eventMap.get(NotificationEventType.FEED_TIMER_EXPIRED)!;
+        const thresholdMinutes = parseWarningTime(baby.feedWarningTime);
+        console.log(`[TimerCheck] Checking feed timer for baby ${babyId} (threshold: ${thresholdMinutes} minutes)`);
+        const lastFeedTime = await getLastActivityTime(babyId, 'feed');
+
+        if (thresholdMinutes < 0) {
+          console.warn(`[TimerCheck] Feed timer check skipped for baby ${babyId}: invalid warning time configuration`);
+        } else if (lastFeedTime && thresholdMinutes > 0) {
+          const timeSinceLastFeed = (Date.now() - lastFeedTime.getTime()) / (1000 * 60);
+          console.log(`[TimerCheck] Last feed: ${timeSinceLastFeed.toFixed(1)} minutes ago (threshold: ${thresholdMinutes} minutes)`);
+          
+          const nativeSentFeed = new Set<string>();
+          for (const preference of feedPreferences) {
+            const owner = resolvePreferenceOwner(preference);
+            // Only skip when there's truly nothing to send to. A web
+            // preference whose subscription has no owner ids at all (an
+            // edge case, but one the pre-existing code tolerated) must still
+            // get its web push — only a subscription-less native preference
+            // with no owner at all is genuinely actionless.
+            if (!preference.subscription && !owner.caretakerId && !owner.accountId) {
+              console.warn(`[TimerCheck] Preference ${preference.id} has no subscription and no owner, skipping`);
+              continue;
+            }
+
+            const eligible = isNotificationEligible(
+              preference.lastTimerNotifiedAt,
+              preference.timerIntervalMinutes,
+              lastFeedTime,
+              thresholdMinutes
+            );
+
+            console.log(`[TimerCheck] Feed timer preference ${preference.id}: eligible=${eligible}, lastNotified=${preference.lastTimerNotifiedAt}, interval=${preference.timerIntervalMinutes}`);
+
+            if (eligible) {
+              try {
+                console.log(`[TimerCheck] Sending feed timer notification for preference ${preference.id}...`);
+
+                // Update lastTimerNotifiedAt BEFORE sending to prevent duplicate notifications
+                // if the app crashes between send and update (race condition fix)
+                const previousNotifiedAt = preference.lastTimerNotifiedAt;
+                const newNotifiedAt = new Date();
+                await prisma.notificationPreference.update({
+                  where: { id: preference.id },
+                  data: { lastTimerNotifiedAt: newNotifiedAt },
+                });
+
+                try {
+                  await sendTimerNotification(
+                    {
+                      id: preference.id,
+                      subscription: preference.subscription,
+                    },
+                    owner,
+                    baby,
+                    NotificationEventType.FEED_TIMER_EXPIRED,
+                    lastFeedTime,
+                    thresholdMinutes,
+                    nativeSentFeed
+                  );
+                  notificationsSent++;
+                  console.log(`[TimerCheck] Feed timer notification sent successfully (total: ${notificationsSent})`);
+                } catch (sendError) {
+                  // Rollback lastTimerNotifiedAt if send fails
+                  console.error(`[TimerCheck] Send failed, rolling back lastTimerNotifiedAt for preference ${preference.id}`);
+                  await prisma.notificationPreference.update({
+                    where: { id: preference.id },
+                    data: { lastTimerNotifiedAt: previousNotifiedAt },
+                  });
+                  throw sendError;
+                }
+              } catch (error) {
+                console.error(
+                  `[TimerCheck] Error sending feed timer notification for preference ${preference.id}:`,
+                  error
+                );
+              }
+            }
+          }
+        } else {
+          console.log(`[TimerCheck] Feed timer check skipped: lastFeedTime=${lastFeedTime}, threshold=${thresholdMinutes}`);
+        }
+        } // end active breastfeed else
+      }
+
+      // Check diaper timer
+      if (eventMap.has(NotificationEventType.DIAPER_TIMER_EXPIRED)) {
+        const diaperPreferences = eventMap.get(NotificationEventType.DIAPER_TIMER_EXPIRED)!;
+        const thresholdMinutes = parseWarningTime(baby.diaperWarningTime);
+        console.log(`[TimerCheck] Checking diaper timer for baby ${babyId} (threshold: ${thresholdMinutes} minutes)`);
+        const lastDiaperTime = await getLastActivityTime(babyId, 'diaper');
+
+        if (thresholdMinutes < 0) {
+          console.warn(`[TimerCheck] Diaper timer check skipped for baby ${babyId}: invalid warning time configuration`);
+        } else if (lastDiaperTime && thresholdMinutes > 0) {
+          const timeSinceLastDiaper = (Date.now() - lastDiaperTime.getTime()) / (1000 * 60);
+          console.log(`[TimerCheck] Last diaper: ${timeSinceLastDiaper.toFixed(1)} minutes ago (threshold: ${thresholdMinutes} minutes)`);
+          
+          const nativeSentDiaper = new Set<string>();
+          for (const preference of diaperPreferences) {
+            const owner = resolvePreferenceOwner(preference);
+            if (!preference.subscription && !owner.caretakerId && !owner.accountId) {
+              console.warn(`[TimerCheck] Preference ${preference.id} has no subscription and no owner, skipping`);
+              continue;
+            }
+
+            const eligible = isNotificationEligible(
+              preference.lastTimerNotifiedAt,
+              preference.timerIntervalMinutes,
+              lastDiaperTime,
+              thresholdMinutes
+            );
+
+            console.log(`[TimerCheck] Diaper timer preference ${preference.id}: eligible=${eligible}, lastNotified=${preference.lastTimerNotifiedAt}, interval=${preference.timerIntervalMinutes}`);
+
+            if (eligible) {
+              try {
+                console.log(`[TimerCheck] Sending diaper timer notification for preference ${preference.id}...`);
+
+                // Update lastTimerNotifiedAt BEFORE sending to prevent duplicate notifications
+                // if the app crashes between send and update (race condition fix)
+                const previousNotifiedAt = preference.lastTimerNotifiedAt;
+                const newNotifiedAt = new Date();
+                await prisma.notificationPreference.update({
+                  where: { id: preference.id },
+                  data: { lastTimerNotifiedAt: newNotifiedAt },
+                });
+
+                try {
+                  await sendTimerNotification(
+                    {
+                      id: preference.id,
+                      subscription: preference.subscription,
+                    },
+                    owner,
+                    baby,
+                    NotificationEventType.DIAPER_TIMER_EXPIRED,
+                    lastDiaperTime,
+                    thresholdMinutes,
+                    nativeSentDiaper
+                  );
+                  notificationsSent++;
+                  console.log(`[TimerCheck] Diaper timer notification sent successfully (total: ${notificationsSent})`);
+                } catch (sendError) {
+                  // Rollback lastTimerNotifiedAt if send fails
+                  console.error(`[TimerCheck] Send failed, rolling back lastTimerNotifiedAt for preference ${preference.id}`);
+                  await prisma.notificationPreference.update({
+                    where: { id: preference.id },
+                    data: { lastTimerNotifiedAt: previousNotifiedAt },
+                  });
+                  throw sendError;
+                }
+              } catch (error) {
+                console.error(
+                  `[TimerCheck] Error sending diaper timer notification for preference ${preference.id}:`,
+                  error
+                );
+              }
+            }
+          }
+        } else {
+          console.log(`[TimerCheck] Diaper timer check skipped: lastDiaperTime=${lastDiaperTime}, threshold=${thresholdMinutes}`);
+        }
+      }
+
+      // Check medicine timer
+      if (eventMap.has(NotificationEventType.MEDICINE_TIMER_EXPIRED)) {
+        const medicinePreferences = eventMap.get(NotificationEventType.MEDICINE_TIMER_EXPIRED)!;
+        console.log(`[TimerCheck] Checking medicine timers for baby ${babyId}`);
+
+        if (!baby.familyId) {
+          console.warn(`[TimerCheck] Baby ${babyId} has no familyId, skipping medicine timer check`);
+        } else {
+          // Find all active medicines with doseMinTime set for this family
+          const medicines = await prisma.medicine.findMany({
+            where: {
+              familyId: baby.familyId,
+              active: true,
+              doseMinTime: { not: null },
+              deletedAt: null,
+            },
+            select: {
+              id: true,
+              name: true,
+              doseMinTime: true,
+            },
+          });
+
+          for (const medicine of medicines) {
+            const thresholdMinutes = parseDoseMinTime(medicine.doseMinTime!);
+            if (thresholdMinutes <= 0) continue;
+
+            // Find the last dose of this medicine for this baby
+            const lastDose = await prisma.medicineLog.findFirst({
+              where: {
+                babyId,
+                medicineId: medicine.id,
+                deletedAt: null,
+              },
+              orderBy: { time: 'desc' },
+              select: { time: true },
+            });
+
+            if (!lastDose) continue;
+
+            const timeSinceLastDose = (Date.now() - lastDose.time.getTime()) / (1000 * 60);
+            if (timeSinceLastDose < thresholdMinutes) continue;
+
+            console.log(`[TimerCheck] Medicine "${medicine.name}" eligible: ${timeSinceLastDose.toFixed(1)}min since last dose (threshold: ${thresholdMinutes}min)`);
+
+            // Fresh per medicine: this is a distinct notification per dose,
+            // so dedup must not carry over between medicines — only within
+            // the preference rows for this one medicine's eligibility check.
+            const nativeSentMedicine = new Set<string>();
+            for (const preference of medicinePreferences) {
+              const owner = resolvePreferenceOwner(preference);
+              if (!preference.subscription && !owner.caretakerId && !owner.accountId) {
+                console.warn(`[TimerCheck] Preference ${preference.id} has no subscription and no owner, skipping`);
+                continue;
+              }
+
+              const eligible = isNotificationEligible(
+                preference.lastTimerNotifiedAt,
+                preference.timerIntervalMinutes,
+                lastDose.time,
+                thresholdMinutes
+              );
+
+              console.log(`[TimerCheck] Medicine timer preference ${preference.id} for "${medicine.name}": eligible=${eligible}, lastNotified=${preference.lastTimerNotifiedAt}, interval=${preference.timerIntervalMinutes}`);
+
+              if (eligible) {
+                try {
+                  console.log(`[TimerCheck] Sending medicine timer notification for preference ${preference.id}, medicine "${medicine.name}"...`);
+
+                  const userLanguage = await getUserLanguage(owner.accountId, owner.caretakerId);
+
+                  const timeElapsed = formatTimeElapsed(timeSinceLastDose, userLanguage);
+
+                  const payload: NotificationPayload = {
+                    title: t('notification.timer.medicine.title', userLanguage),
+                    body: t('notification.timer.medicine.body', userLanguage, {
+                      babyName: baby.firstName,
+                      medicineName: medicine.name,
+                      timeElapsed,
+                    }),
+                    icon: '/sat-tracker-192.png',
+                    badge: '/sat-tracker-192.png',
+                    tag: `timer-${baby.id}-medicine-${medicine.id}`,
+                    data: {
+                      eventType: NotificationEventType.MEDICINE_TIMER_EXPIRED,
+                      babyId: baby.id,
+                      familySlug: baby.family?.slug,
+                      route: routeForNotification('medicine'),
+                    },
+                  };
+
+                  // Update lastTimerNotifiedAt BEFORE sending (race condition fix)
+                  const previousNotifiedAt = preference.lastTimerNotifiedAt;
+                  const newNotifiedAt = new Date();
+                  await prisma.notificationPreference.update({
+                    where: { id: preference.id },
+                    data: { lastTimerNotifiedAt: newNotifiedAt },
+                  });
+
+                  try {
+                    await dispatchTimerPush({
+                      subscription: preference.subscription,
+                      payload,
+                      eventType: NotificationEventType.MEDICINE_TIMER_EXPIRED,
+                      activityType: null,
+                      babyId: baby.id,
+                      familyId: baby.familyId,
+                      owner,
+                      nativeSent: nativeSentMedicine,
+                    });
+
+                    notificationsSent++;
+                    console.log(`[TimerCheck] Medicine timer notification sent successfully for "${medicine.name}" (total: ${notificationsSent})`);
+                  } catch (sendError) {
+                    console.error(`[TimerCheck] Send failed, rolling back lastTimerNotifiedAt for preference ${preference.id}`);
+                    await prisma.notificationPreference.update({
+                      where: { id: preference.id },
+                      data: { lastTimerNotifiedAt: previousNotifiedAt },
+                    });
+                    throw sendError;
+                  }
+                } catch (error) {
+                  console.error(
+                    `[TimerCheck] Error sending medicine timer notification for preference ${preference.id}, medicine "${medicine.name}":`,
+                    error
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const duration = Date.now() - startTime;
+    console.log(`[TimerCheck] Timer check completed: ${notificationsSent} notification(s) sent in ${duration}ms`);
+    return notificationsSent;
+  } catch (error) {
+    console.error('[TimerCheck] Error in checkTimerExpirations:', error);
+    // Don't throw - this should never block cron execution
+    return 0;
+  }
+}

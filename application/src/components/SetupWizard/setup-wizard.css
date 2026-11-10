@@ -1,0 +1,150 @@
+/* Dark mode overrides for SetupWizard component */
+
+/* Container styles */
+html.dark .setup-wizard-container {
+  background: linear-gradient(to bottom, #1f2937, #111827) !important; /* dark gradient from gray-800 to gray-900 */
+}
+
+html.dark .setup-wizard-form-container {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Header styles */
+html.dark .setup-wizard-title {
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .setup-wizard-progress-bar {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .setup-wizard-progress-indicator {
+  background-color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .setup-wizard-step-indicator {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Stage styles */
+html.dark .setup-wizard-stage-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .setup-wizard-stage-description {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Stage image */
+html.dark .setup-wizard-stage-image {
+  filter: drop-shadow(0 20px 20px rgba(0, 0, 0, 0.7)) !important; /* Darker shadow for dark mode */
+  opacity: 0.9 !important; /* Slightly reduce opacity for better dark mode appearance */
+}
+
+/* Form elements */
+html.dark .setup-wizard-form-label {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .setup-wizard-form-input,
+html.dark .setup-wizard-form-select {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .setup-wizard-form-input:focus,
+html.dark .setup-wizard-form-select:focus {
+  border-color: #5eead4 !important; /* teal-300 */
+  box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.2) !important; /* teal-300 with opacity */
+}
+
+html.dark .setup-wizard-form-input::placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+html.dark .setup-wizard-form-radio-label {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .setup-wizard-form-helper-text {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .setup-wizard-form-warning-text {
+  color: #fcd34d !important; /* amber-300 */
+}
+
+/* Security setup specific */
+html.dark .setup-wizard-security-option {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+/* Caretaker specific */
+html.dark .setup-wizard-caretaker-container {
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .setup-wizard-caretaker-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .setup-wizard-caretaker-item {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .setup-wizard-caretaker-name {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .setup-wizard-caretaker-info {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Date picker button */
+html.dark .setup-wizard-date-picker-button {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .setup-wizard-date-picker-placeholder {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+/* Error message */
+html.dark .setup-wizard-error-container {
+  background-color: rgba(220, 38, 38, 0.1) !important; /* red-600 with opacity */
+  border-color: rgba(220, 38, 38, 0.2) !important; /* red-600 with opacity */
+  color: #ef4444 !important; /* red-500 */
+}
+
+/* Navigation buttons */
+html.dark .setup-wizard-previous-button {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .setup-wizard-previous-button:hover {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .setup-wizard-next-button {
+  background-color: #0d9488 !important; /* teal-600 */
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+html.dark .setup-wizard-next-button:hover {
+  background-color: #0f766e !important; /* teal-700 */
+}
+
+html.dark .setup-wizard-next-button:disabled,
+html.dark .setup-wizard-previous-button:disabled {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  color: #6b7280 !important; /* gray-500 */
+}

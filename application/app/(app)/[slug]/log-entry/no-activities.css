@@ -1,0 +1,21 @@
+/* Dark mode overrides for No Activities section */
+html.dark .no-activities-container {
+  background-color: #1F2937 !important;
+  border-color: #374151 !important; /* gray-700 for dark mode border */
+}
+
+html.dark .no-activities-icon-container {
+  background-color: #312E81 !important;
+}
+
+html.dark .no-activities-icon {
+  color: #818CF8 !important;
+}
+
+html.dark .no-activities-title {
+  color: #F9FAFB !important;
+}
+
+html.dark .no-activities-text {
+  color: #9CA3AF !important;
+}

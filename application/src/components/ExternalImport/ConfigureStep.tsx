@@ -1,0 +1,439 @@
+'use client';
+
+import { Input } from '@/src/components/ui/input';
+import { Label } from '@/src/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/src/components/ui/select';
+import { useLocalization } from '@/src/context/localization';
+import {
+  ChildDestinationState,
+  ExistingBaby,
+  ExternalImportPreviewResponse,
+  ExternalImportUiConfiguration,
+} from './external-import.types';
+import { findSharedChildDestinations } from './destination-utils';
+import { warningLabels } from './warning-labels';
+
+interface ConfigureStepProps {
+  readonly preview: ExternalImportPreviewResponse;
+  readonly babies: readonly ExistingBaby[];
+  readonly isLoadingBabies: boolean;
+  readonly configuration: ExternalImportUiConfiguration;
+  readonly onConfigurationChange: (
+    configuration: ExternalImportUiConfiguration,
+  ) => void;
+}
+
+const unitLabels: Record<string, string> = {
+  feeding: 'Bottle feeding amount unit',
+  pumping: 'Pumping amount unit',
+  height: 'Height unit',
+  weight: 'Weight unit',
+  'head-circumference': 'Head circumference unit',
+  temperature: 'Temperature unit',
+};
+
+function childLabel(
+  child: { firstName: string; lastName: string; sourceId: string },
+  t: (key: string) => string,
+): string {
+  const name = `${child.firstName} ${child.lastName}`.trim();
+  return name || `${t('Child')} ${child.sourceId}`;
+}
+
+export default function ConfigureStep({
+  preview,
+  babies,
+  isLoadingBabies,
+  configuration,
+  onConfigurationChange,
+}: ConfigureStepProps) {
+  const { t } = useLocalization();
+
+  const sharedDestinations = findSharedChildDestinations(
+    configuration.childDestinations,
+  );
+
+  const findBabyName = (babyId: string) => {
+    const baby = babies.find(
+      candidate => candidate.id === babyId,
+    );
+
+    return baby
+      ? `${baby.firstName} ${baby.lastName}`
+      : babyId;
+  };
+
+  const updateChildDestination = (
+    sourceId: string,
+    destination: ChildDestinationState,
+  ) => {
+    onConfigurationChange({
+      ...configuration,
+      childDestinations: {
+        ...configuration.childDestinations,
+        [sourceId]: destination,
+      },
+    });
+  };
+
+  const updateUnit = (
+    entityType: string,
+    unit: string,
+  ) => {
+    onConfigurationChange({
+      ...configuration,
+      units: {
+        ...configuration.units,
+        [entityType]: unit,
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {preview.preview.files.some(
+        file => file.status !== 'detected',
+      ) && (
+        <section className="rounded-lg border border-amber-700 bg-amber-950/40 p-4">
+          <h3 className="font-medium text-amber-100">
+            {t('Files that will be skipped')}
+          </h3>
+
+          <ul className="mt-3 space-y-2 text-sm text-amber-200">
+            {preview.preview.files
+              .filter(file => file.status !== 'detected')
+              .map(file => (
+                <li key={file.fileName}>
+                  {file.fileName} —{' '}
+                  {file.error || t('This file will be skipped')}
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="rounded-lg border border-slate-600 p-4">
+        <h3 className="font-medium text-slate-100">
+          {t('Child destination')}
+        </h3>
+
+        <p className="mt-1 text-sm text-slate-300">
+          {t(
+            'Choose whether each exported child should be added or mapped to an existing baby',
+          )}
+        </p>
+
+        <div className="mt-4 space-y-5">
+          {preview.details.children.map(child => {
+            const destination =
+              configuration.childDestinations[
+                child.sourceId
+              ];
+
+            return (
+              <div
+                key={child.sourceId}
+                className="rounded-md border border-slate-600 p-3"
+              >
+                <div className="font-medium text-slate-100">
+                  {childLabel(child, t)}
+                </div>
+
+                {child.birthDate && (
+                  <div className="mt-1 text-sm text-slate-400">
+                    {t('Birth date')}: {child.birthDate}
+                  </div>
+                )}
+
+                <div className="mt-3 space-y-3">
+                  {child.activityOnly ? (
+                    <p className="text-sm text-slate-300">
+                      {t(
+                        'No child export was included for this child, so records can only be added to an existing baby',
+                      )}
+                    </p>
+                  ) : (
+                    <div>
+                      <Label>
+                        {t('Destination')}
+                      </Label>
+
+                      <Select
+                        value={destination?.mode || 'new'}
+                        onValueChange={value => {
+                          if (value === 'existing') {
+                            updateChildDestination(
+                              child.sourceId,
+                              {
+                                mode: 'existing',
+                                targetBabyId:
+                                  babies[0]?.id || '',
+                              },
+                            );
+                          } else {
+                            updateChildDestination(
+                              child.sourceId,
+                              {
+                                mode: 'new',
+                                gender: '',
+                              },
+                            );
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="new">
+                            {t('Add as a new baby')}
+                          </SelectItem>
+                          <SelectItem
+                            value="existing"
+                            disabled={
+                              babies.length === 0
+                            }
+                          >
+                            {t(
+                              'Add records to an existing baby',
+                            )}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {child.activityOnly &&
+                    babies.length === 0 && (
+                      <p className="text-sm text-amber-300">
+                        {t(
+                          'Create a baby in Sprout Track first, or include the Child export file',
+                        )}
+                      </p>
+                    )}
+
+                  {destination?.mode === 'new' && (
+                    <div>
+                      <Label>{t('Gender')}</Label>
+                      <Select
+                        value={destination.gender}
+                        onValueChange={value =>
+                          updateChildDestination(
+                            child.sourceId,
+                            {
+                              mode: 'new',
+                              gender:
+                                value as
+                                  | 'MALE'
+                                  | 'FEMALE',
+                            },
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t('Select gender')}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="FEMALE">
+                            {t('Female')}
+                          </SelectItem>
+                          <SelectItem value="MALE">
+                            {t('Male')}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {destination?.mode ===
+                    'existing' && (
+                    <div>
+                      <Label>
+                        {t('Existing baby')}
+                      </Label>
+                      <Select
+                        value={
+                          destination.targetBabyId
+                        }
+                        disabled={isLoadingBabies}
+                        onValueChange={value =>
+                          updateChildDestination(
+                            child.sourceId,
+                            {
+                              mode: 'existing',
+                              targetBabyId: value,
+                            },
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={t(
+                              'Select a baby',
+                            )}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {babies.map(baby => (
+                            <SelectItem
+                              key={baby.id}
+                              value={baby.id}
+                            >
+                              {baby.firstName}{' '}
+                              {baby.lastName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {sharedDestinations.length > 0 && (
+        <section className="rounded-lg border border-amber-700 bg-amber-950/40 p-4">
+          <h3 className="font-medium text-amber-100">
+            {t('Same destination selected for multiple children')}
+          </h3>
+
+          <p className="mt-1 text-sm text-amber-200">
+            {t(
+              'Their records will all be added to the same baby. Change the destinations if this is not intended.',
+            )}
+          </p>
+
+          <ul className="mt-3 space-y-1 text-sm text-amber-200">
+            {sharedDestinations.map(shared => (
+              <li key={shared.targetBabyId}>
+                {findBabyName(shared.targetBabyId)} —{' '}
+                {shared.count} {t('imported children')}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="rounded-lg border border-slate-600 p-4">
+        <h3 className="font-medium text-slate-100">
+          {t('Source timezone')}
+        </h3>
+
+        <p className="mt-1 text-sm text-slate-300">
+          {t(
+            'Timestamps without a UTC offset use this timezone. Feeding timestamps with an offset keep their exact time.',
+          )}
+        </p>
+
+        <Input
+          className="mt-3"
+          value={configuration.sourceTimezone}
+          onChange={event =>
+            onConfigurationChange({
+              ...configuration,
+              sourceTimezone: event.target.value,
+            })
+          }
+        />
+      </section>
+
+      {preview.details.unitRequirements.length >
+        0 && (
+        <section className="rounded-lg border border-slate-600 p-4">
+          <h3 className="font-medium text-slate-100">
+            {t('Units')}
+          </h3>
+
+          <div className="mt-4 space-y-4">
+            {preview.details.unitRequirements.map(
+              requirement => (
+                <div key={requirement.entityType}>
+                  <Label>
+                    {t(
+                      unitLabels[
+                        requirement.entityType
+                      ] ||
+                        requirement.entityType,
+                    )}
+                  </Label>
+
+                  <Select
+                    value={
+                      configuration.units[
+                        requirement.entityType
+                      ] || ''
+                    }
+                    onValueChange={value =>
+                      updateUnit(
+                        requirement.entityType,
+                        value,
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {requirement.allowedUnits.map(
+                        unit => (
+                          <SelectItem
+                            key={unit}
+                            value={unit}
+                          >
+                            {unit === 'SKIP'
+                              ? t(
+                                  'Do not import amounts',
+                                )
+                              : unit}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+
+                  <p className="mt-1 text-xs text-slate-400">
+                    {requirement.populatedRows}{' '}
+                    {t('records use this unit')}
+                  </p>
+                </div>
+              ),
+            )}
+          </div>
+        </section>
+      )}
+
+      {preview.warnings.length > 0 && (
+        <section className="rounded-lg border border-amber-700 bg-amber-950/40 p-4">
+          <h3 className="font-medium text-amber-100">
+            {t('Import warnings')}
+          </h3>
+
+          <ul className="mt-3 space-y-2 text-sm text-amber-200">
+            {preview.warnings.map(warning => (
+              <li
+                key={`${warning.code}-${warning.entityType}`}
+              >
+                {t(
+                  warningLabels[warning.code] ||
+                    warning.code,
+                )}{' '}
+                ({warning.affectedRows})
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}

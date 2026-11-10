@@ -1,0 +1,127 @@
+/* Dark mode overrides for FullLogTimeline component */
+
+/* Main container */
+html.dark .full-log-timeline-container {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+/* Search bar */
+html.dark .full-log-timeline-search-bar {
+  background-color: #4b5563 !important; /* gray-600 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .full-log-timeline-search-container {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .full-log-timeline-search-input {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .full-log-timeline-search-input::placeholder {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Filter dropdown */
+html.dark [role="menuitem"] {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark [role="menuitem"]:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+/* Date range display */
+html.dark button.text-white {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark button.text-white:hover {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Calendar popover */
+html.dark [role="dialog"] {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+/* Activity list */
+html.dark .full-log-timeline-content {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+html.dark .full-log-timeline-activity-list {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+html.dark .full-log-timeline-activity-item {
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .full-log-timeline-activity-item:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .full-log-timeline-activity-type {
+  background-color: #374151 !important; /* gray-700 */
+  color: #e5e7eb !important; /* gray-200 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .full-log-timeline-activity-info {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Empty state */
+html.dark .full-log-timeline-empty-state-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .full-log-timeline-empty-state-description {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Pagination */
+html.dark .full-log-timeline-pagination-container {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .full-log-timeline-pagination-select {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .full-log-timeline-pagination-text {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Loading state */
+html.dark .full-log-timeline-loading-container {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+html.dark .full-log-timeline-loading-text {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Dark mode overrides for FullLogActivityDetails component */
+html.dark .full-log-timeline-details-label {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .full-log-timeline-details-value {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Activity rows that render a PNG illustration instead of a lucide glyph: the
+   art carries its own colored background, so drop the tinted box, padding and
+   border around it. The image sizes itself (36px, set in Timeline/utils.tsx). */
+.full-log-timeline-activity-icon:has(.timeline-png-icon) {
+  background: none;
+  padding: 0;
+  border: 0;
+}

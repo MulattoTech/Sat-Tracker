@@ -1,0 +1,485 @@
+import { Settings } from '@prisma/client';
+import { CardHeader } from '@/src/components/ui/card';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import SleepForm from '@/src/components/forms/SleepForm';
+import FeedForm from '@/src/components/forms/FeedForm';
+import DiaperForm from '@/src/components/forms/DiaperForm';
+import NoteForm from '@/src/components/forms/NoteForm';
+import BathForm from '@/src/components/forms/BathForm';
+import PumpForm from '@/src/components/forms/PumpForm';
+import MilestoneForm from '@/src/components/forms/MilestoneForm';
+import MeasurementForm from '@/src/components/forms/MeasurementForm';
+import GiveMedicineForm from '@/src/components/forms/GiveMedicineForm';
+import ActivityForm from '@/src/components/forms/ActivityForm';
+import VaccineForm from '@/src/components/forms/VaccineForm';
+import DailyStats from '@/src/components/DailyStats';
+import { ActivityType, FilterType, LegacyTimelineProps } from './types';
+import TimelineFilter from './TimelineFilter';
+import TimelineActivityList from './TimelineActivityList';
+import TimelineActivityDetails from './TimelineActivityDetails';
+import { getActivityEndpoint, getActivityTime } from './utils';
+import { PumpLogResponse, BreastMilkAdjustmentResponse, PlayLogResponse, VaccineLogResponse } from '@/app/api/types';
+import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
+
+const Timeline = ({ activities, onActivityDeleted }: LegacyTimelineProps) => {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [defaultBottleUnit, setDefaultBottleUnit] = useState(() => readCachedDefaultBottleUnit());
+  const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>(null);
+  const [editModalType, setEditModalType] = useState<'sleep' | 'feed' | 'diaper' | 'medicine' | 'note' | 'bath' | 'pump' | 'breast-milk-adjustment' | 'milestone' | 'measurement' | 'play' | 'vaccine' | 'food' | 'photo' | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  const [dateFilteredActivities, setDateFilteredActivities] = useState<ActivityType[]>([]);
+
+  const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(false);
+  const [isFetchAnimated, setIsFetchAnimated] = useState<boolean>(true);
+  const [breastMilkBalance, setBreastMilkBalance] = useState<string | undefined>(undefined);
+  const lastRefreshTimestamp = useRef<number>(Date.now());
+  const wasIdle = useRef<boolean>(false);
+
+  const babyId = useMemo(() => (activities.length > 0 ? activities[0].babyId : undefined), [activities]);
+
+  const fetchActivitiesForDate = async (babyId: string, date: Date, isAnimated: boolean) => {
+    setIsFetchAnimated(isAnimated);
+    if (isAnimated) {
+      setIsLoadingActivities(true);
+    }
+
+    try {
+      const timestamp = new Date().getTime();
+
+      // Calculate start of day in user's timezone
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const startDateISO = startOfDay.toISOString();
+
+      // Calculate end of day in user's timezone
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+      const endDateISO = endOfDay.toISOString();
+      
+      const urlPath = window.location.pathname;
+      const familySlugMatch = urlPath.match(/^\/([^\/]+)\//);
+      const familySlug = familySlugMatch ? familySlugMatch[1] : null;
+      
+      let url = `/api/timeline?babyId=${babyId}&startDate=${encodeURIComponent(startDateISO)}&endDate=${encodeURIComponent(endDateISO)}&_t=${timestamp}`;
+      
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Expires': '0',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setDateFilteredActivities(data.data);
+          lastRefreshTimestamp.current = Date.now();
+        } else {
+          setDateFilteredActivities([]);
+        }
+      } else {
+        console.error('Failed to fetch activities:', await response.text());
+        setDateFilteredActivities([]);
+      }
+    } catch (error) {
+      console.error('Error fetching activities for date:', error);
+      setDateFilteredActivities([]);
+    } finally {
+      if (isAnimated) {
+        setIsLoadingActivities(false);
+      }
+    }
+  };
+
+  const fetchBreastMilkBalance = async (babyId: string) => {
+    if ((settings as any)?.enableBreastMilkTracking === false) {
+      setBreastMilkBalance(undefined);
+      return;
+    }
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const unit = settings?.defaultBottleUnit || defaultBottleUnit;
+      const response = await fetch(`/api/breast-milk-balance?babyId=${babyId}&unit=${unit}`, {
+        headers: {
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.balance > 0) {
+          setBreastMilkBalance(`${data.data.balance} ${data.data.unit.toLowerCase()}`);
+        } else {
+          setBreastMilkBalance(undefined);
+        }
+      }
+    } catch (error) {
+      // Silently fail - balance is a nice-to-have
+    }
+  };
+
+  const handleFormSuccess = () => {
+    setEditModalType(null);
+    setSelectedActivity(null);
+
+    if (babyId) {
+      fetchActivitiesForDate(babyId, selectedDate, true);
+      fetchBreastMilkBalance(babyId);
+    }
+
+    if (onActivityDeleted) {
+      onActivityDeleted();
+    }
+  };
+
+  const handleDateSelection = (newDate: Date) => {
+    setSelectedDate(newDate);
+    if (babyId) {
+      fetchActivitiesForDate(babyId, newDate, true);
+      if (onActivityDeleted) {
+        onActivityDeleted(newDate);
+      }
+    }
+  };
+
+  const handleDateChange = (days: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    handleDateSelection(newDate);
+  };
+  
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/settings', {
+        cache: 'no-store',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : '',
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setSettings(data.data);
+          const unit = cacheDefaultBottleUnit(data.data?.defaultBottleUnit);
+          if (unit) setDefaultBottleUnit(unit);
+        }
+      }
+    };
+    fetchSettings();
+  }, []);
+  
+  useEffect(() => {
+    if (babyId) {
+      fetchActivitiesForDate(babyId, selectedDate, true);
+    } else {
+      setDateFilteredActivities(activities);
+    }
+  }, [activities, selectedDate, babyId]);
+
+  useEffect(() => {
+    if (babyId) {
+      fetchBreastMilkBalance(babyId);
+    }
+  }, [babyId, settings?.defaultBottleUnit, defaultBottleUnit]);
+
+  useEffect(() => {
+    if (!babyId) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User came back to the tab, refresh immediately
+        fetchActivitiesForDate(babyId, selectedDate, false);
+      }
+    };
+
+    const poll = setInterval(() => {
+      const idleThreshold = 5 * 60 * 1000; // 5 minutes
+      const activeRefreshRate = 30 * 1000; // 30 seconds
+
+      const idleTime = Date.now() - parseInt(localStorage.getItem('unlockTime') || `${Date.now()}`);
+      const isCurrentlyIdle = idleTime >= idleThreshold;
+      const timeSinceLastRefresh = Date.now() - lastRefreshTimestamp.current;
+
+      // Case 1: User just came back from an idle state (was idle, now is not)
+      if (wasIdle.current && !isCurrentlyIdle) {
+        fetchActivitiesForDate(babyId, selectedDate, false);
+      }
+      // Case 2: User is active and the regular refresh interval has passed
+      else if (!isCurrentlyIdle && timeSinceLastRefresh > activeRefreshRate) {
+        fetchActivitiesForDate(babyId, selectedDate, false);
+      }
+
+      // Update the idle state for the next check
+      wasIdle.current = isCurrentlyIdle;
+    }, 10000); // Check status every 10 seconds
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [babyId, selectedDate]);
+
+  const breastMilkTrackingEnabled = (settings as any)?.enableBreastMilkTracking ?? true;
+
+  const sortedActivities = useMemo(() => {
+    // Filter out breast-milk-adjustment activities when tracking is disabled
+    const baseActivities = !breastMilkTrackingEnabled
+      ? dateFilteredActivities.filter(activity => !('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)))
+      : dateFilteredActivities;
+
+    const filtered = !activeFilter || activeFilter === null
+      ? baseActivities
+      : baseActivities.filter(activity => {
+          switch (activeFilter) {
+            case 'sleep':
+              return 'duration' in activity;
+            case 'feed':
+              return 'amount' in activity && !('foodId' in activity);
+            case 'diaper':
+              return 'condition' in activity;
+            case 'medicine':
+              return 'doseAmount' in activity && 'medicineId' in activity;
+            case 'note':
+              return 'content' in activity;
+            case 'bath':
+              return 'soapUsed' in activity;
+            case 'pump':
+              return 'leftAmount' in activity || 'rightAmount' in activity;
+            case 'breast-milk-adjustment':
+              return 'reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity);
+            case 'milestone':
+              return 'title' in activity && 'category' in activity;
+            case 'measurement':
+              return 'value' in activity && 'unit' in activity;
+            case 'vaccine':
+              return 'vaccineName' in activity;
+            default:
+              return true;
+          }
+        });
+
+    const sorted = [...filtered].sort((a, b) => {
+      const timeA = new Date(getActivityTime(a));
+      const timeB = new Date(getActivityTime(b));
+      return timeB.getTime() - timeA.getTime();
+    });
+
+    return sorted;
+  }, [dateFilteredActivities, activeFilter, breastMilkTrackingEnabled]);
+
+  const handleDelete = async (activity: ActivityType) => {
+    // Note: confirm dialog is browser-native and cannot be localized easily
+    // Consider replacing with a custom modal in the future
+    if (!confirm('Are you sure you want to delete this activity?')) return;
+
+    const endpoint = getActivityEndpoint(activity);
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`/api/${endpoint}?id=${activity.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : '',
+        },
+      });
+
+      if (response.ok) {
+        setSelectedActivity(null);
+        onActivityDeleted?.();
+      }
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+    }
+  };
+
+  const handleEdit = (activity: ActivityType, type: 'sleep' | 'feed' | 'diaper' | 'medicine' | 'note' | 'bath' | 'pump' | 'breast-milk-adjustment' | 'milestone' | 'measurement' | 'play' | 'vaccine' | 'food' | 'photo') => {
+    setSelectedActivity(activity);
+    setEditModalType(type);
+  };
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-199px)]">
+      {/* Header */}
+      <CardHeader className="bg-gradient-to-r from-teal-600 to-teal-700 p-0">
+        <TimelineFilter
+          selectedDate={selectedDate}
+          activeFilter={activeFilter}
+          onDateChange={handleDateChange}
+          onDateSelection={handleDateSelection}
+          onFilterChange={setActiveFilter}
+          enableBreastMilkTracking={breastMilkTrackingEnabled}
+        />
+      </CardHeader>
+
+      {/* Daily Stats Banner */}
+      <DailyStats
+        activities={dateFilteredActivities}
+        date={selectedDate}
+        isLoading={isLoadingActivities}
+        breastMilkBalance={breastMilkBalance}
+      />
+
+      {/* Activity List */}
+      <TimelineActivityList
+        activities={sortedActivities}
+        settings={settings}
+        isLoading={isLoadingActivities}
+        isAnimated={isFetchAnimated}
+        selectedDate={selectedDate}
+        onActivitySelect={(activity) => setSelectedActivity(activity)}
+        onSwipeLeft={() => handleDateChange(1)}
+        onSwipeRight={() => handleDateChange(-1)}
+      />
+
+      {/* Activity Details */}
+      <TimelineActivityDetails
+        activity={selectedActivity}
+        settings={settings}
+        isOpen={!!selectedActivity}
+        onClose={() => setSelectedActivity(null)}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+      />
+
+          {/* Edit Forms */}
+      {selectedActivity && editModalType && (
+        <>
+          <SleepForm
+            isOpen={editModalType === 'sleep'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'duration' in selectedActivity && 'type' in selectedActivity && !('activities' in selectedActivity) ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+            isSleeping={false}
+            onSleepToggle={() => {}}
+          />
+          <FeedForm
+            isOpen={editModalType === 'feed'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'amount' in selectedActivity && !('foodId' in selectedActivity) ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <DiaperForm
+            isOpen={editModalType === 'diaper'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'condition' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <NoteForm
+            isOpen={editModalType === 'note'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'content' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <BathForm
+            isOpen={editModalType === 'bath'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'soapUsed' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <PumpForm
+            isOpen={editModalType === 'pump' || editModalType === 'breast-milk-adjustment'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'startTime' in selectedActivity && selectedActivity.startTime ? String(selectedActivity.startTime) : getActivityTime(selectedActivity)}
+            activity={
+              ('leftAmount' in selectedActivity || 'rightAmount' in selectedActivity) ?
+                (selectedActivity as unknown as PumpLogResponse) :
+                undefined
+            }
+            adjustmentActivity={
+              editModalType === 'breast-milk-adjustment' && 'reason' in selectedActivity
+                ? (selectedActivity as unknown as BreastMilkAdjustmentResponse)
+                : undefined
+            }
+            onSuccess={handleFormSuccess}
+          />
+          <MilestoneForm
+            isOpen={editModalType === 'milestone'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'date' in selectedActivity && selectedActivity.date ? String(selectedActivity.date) : getActivityTime(selectedActivity)}
+            activity={'title' in selectedActivity && 'category' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <MeasurementForm
+            isOpen={editModalType === 'measurement'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'date' in selectedActivity && selectedActivity.date ? String(selectedActivity.date) : getActivityTime(selectedActivity)}
+            activity={'value' in selectedActivity && 'unit' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <GiveMedicineForm
+            isOpen={editModalType === 'medicine'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'doseAmount' in selectedActivity && 'time' in selectedActivity ? String(selectedActivity.time) : getActivityTime(selectedActivity)}
+            activity={'doseAmount' in selectedActivity && 'medicineId' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+            isSupplement={
+              'medicine' in selectedActivity &&
+              selectedActivity.medicine && typeof selectedActivity.medicine === 'object' &&
+              'isSupplement' in selectedActivity.medicine
+                ? !!(selectedActivity.medicine as any).isSupplement
+                : false
+            }
+          />
+          <ActivityForm
+            isOpen={editModalType === 'play'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'startTime' in selectedActivity && selectedActivity.startTime ? String(selectedActivity.startTime) : getActivityTime(selectedActivity)}
+            activity={'activities' in selectedActivity && 'type' in selectedActivity ?
+              (selectedActivity as unknown as PlayLogResponse) : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <VaccineForm
+            isOpen={editModalType === 'vaccine'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'time' in selectedActivity && selectedActivity.time ? String(selectedActivity.time) : getActivityTime(selectedActivity)}
+            activity={'vaccineName' in selectedActivity ? (selectedActivity as unknown as VaccineLogResponse) : undefined}
+            onSuccess={handleFormSuccess}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
+export default Timeline;

@@ -1,0 +1,173 @@
+'use client';
+
+import React from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/src/components/ui/table";
+import type { SortDirection } from "@/src/components/ui/table";
+import { Button } from "@/src/components/ui/button";
+import { 
+  Loader2,
+  Trash2,
+  Clock,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+import { ShareButton } from '@/src/components/ui/share-button';
+import { useLocalization } from '@/src/context/localization';
+
+interface FamilySetupInvite {
+  id: string;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  isExpired: boolean;
+  isUsed: boolean;
+  familyId: string | null;
+  createdBy: string;
+  creator: {
+    id: string;
+    name: string;
+    loginId: string;
+  } | null;
+  family: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+}
+
+interface ActiveInviteViewProps {
+  paginatedData: FamilySetupInvite[];
+  onDeleteInvite: (inviteId: string) => void;
+  deletingInviteId: string | null;
+  appConfig: { rootDomain: string; enableHttps: boolean } | null;
+  formatDateTime: (dateString: string | null) => string;
+  sortColumn: string | null;
+  sortDirection: SortDirection;
+  onSort: (column: string) => void;
+}
+
+export default function ActiveInviteView({
+  paginatedData,
+  onDeleteInvite,
+  deletingInviteId,
+  appConfig,
+  formatDateTime,
+  sortColumn,
+  sortDirection,
+  onSort,
+}: ActiveInviteViewProps) {
+  const { t } = useLocalization();
+  
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead variant="bold" sortable sortDirection={sortColumn === 'token' ? sortDirection : null} onSort={() => onSort('token')}>{t('Token')}</TableHead>
+          <TableHead variant="bold" sortable sortDirection={sortColumn === 'creator' ? sortDirection : null} onSort={() => onSort('creator')}>{t('Created By')}</TableHead>
+          <TableHead variant="bold" sortable sortDirection={sortColumn === 'createdAt' ? sortDirection : null} onSort={() => onSort('createdAt')}>{t('Created')}</TableHead>
+          <TableHead variant="bold" sortable sortDirection={sortColumn === 'expiresAt' ? sortDirection : null} onSort={() => onSort('expiresAt')}>{t('Expires')}</TableHead>
+          <TableHead variant="bold" sortable sortDirection={sortColumn === 'status' ? sortDirection : null} onSort={() => onSort('status')}>{t('Status')}</TableHead>
+          <TableHead variant="bold" sortable sortDirection={sortColumn === 'family' ? sortDirection : null} onSort={() => onSort('family')}>{t('Family')}</TableHead>
+          <TableHead variant="bold" className="text-right">{t('Actions')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {paginatedData.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+              {t('No invites found.')}
+            </TableCell>
+          </TableRow>
+        ) : (
+          paginatedData.map((invite) => (
+            <TableRow key={invite.id}>
+              <TableCell className="font-mono text-sm">
+                {invite.token.substring(0, 16)}...
+              </TableCell>
+              <TableCell>
+                {invite.creator ? (
+                  <div>
+                    <div className="font-medium">{invite.creator.name}</div>
+                    <div className="text-xs text-gray-500">{t('ID:')} {invite.creator.loginId}</div>
+                  </div>
+                ) : (
+                  'Unknown'
+                )}
+              </TableCell>
+              <TableCell className="text-sm">{formatDateTime(invite.createdAt)}</TableCell>
+              <TableCell className="text-sm">{formatDateTime(invite.expiresAt)}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  {invite.isUsed ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <CheckCircle className="h-3 w-3 mr-1" aria-hidden="true" />
+                      {t('Used')}
+                    </span>
+                  ) : invite.isExpired ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      <XCircle className="h-3 w-3 mr-1" aria-hidden="true" />
+                      {t('Expired')}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+                      {t('Active')}
+                    </span>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                {invite.family ? (
+                  <div>
+                    <div className="font-medium">{invite.family.name}</div>
+                    <div className="text-xs text-gray-500">/{invite.family.slug}</div>
+                  </div>
+                ) : (
+                  'Not created yet'
+                )}
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  {!invite.isUsed && (
+                    <>
+                      <ShareButton
+                        familySlug={`setup/${invite.token}`}
+                        familyName="Family Setup Invitation"
+                        appConfig={appConfig || undefined}
+                        urlSuffix=""
+                        variant="outline"
+                        size="sm"
+                        showText={false}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onDeleteInvite(invite.id)}
+                        disabled={deletingInviteId === invite.id}
+                        title="Revoke invite"
+                      >
+                        {deletingInviteId === invite.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
+  );
+}

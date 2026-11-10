@@ -1,0 +1,252 @@
+@import "tailwindcss";
+
+/* Mountain background */
+html {
+  height: 100%;
+}
+
+/* Scrollbars: transparent track everywhere (scrollbar-color inherits to all
+   scroll containers; component-specific rules still override) */
+html {
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* gray-400 thumb */
+}
+
+html.dark {
+  scrollbar-color: rgba(75, 85, 99, 0.6) transparent; /* gray-600 thumb */
+}
+
+body {
+  min-height: 100vh;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  position: relative;
+  margin: 0;
+  padding: 0;
+  background-color: #ffffff;
+}
+
+html.dark .body {
+  background-color: #374151 !important;
+}
+
+html.dark .slug-page-content {
+  background-color: #1f2937;
+}
+
+@keyframes formulaRipple {
+  0% {
+    clip-path: polygon(
+      0 0,
+      15% 4%,
+      33% 0,
+      66% 5%,
+      85% 0,
+      100% 3%,
+      100% 100%,
+      0 100%
+    );
+  }
+  50% {
+    clip-path: polygon(
+      0 2%,
+      20% 0,
+      40% 4%,
+      60% 1%,
+      80% 3%,
+      100% 0,
+      100% 100%,
+      0 100%
+    );
+  }
+  100% {
+    clip-path: polygon(
+      0 0,
+      15% 4%,
+      33% 0,
+      66% 5%,
+      85% 0,
+      100% 3%,
+      100% 100%,
+      0 100%
+    );
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.8); }
+}
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+@layer components {
+  /* Baby Selection Section */
+  .baby-select-container {
+    @apply bg-white/95 backdrop-blur-sm rounded-2xl border border-slate-200 shadow-lg p-6 transition-all duration-200;
+  }
+
+  /* Action Buttons */
+  .action-button {
+    @apply h-36 sm:h-40 flex flex-col items-center justify-center gap-4 text-white shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-200;
+  }
+
+  .action-button-icon {
+    @apply w-16 h-16 rounded-xl flex items-center justify-center backdrop-blur-sm;
+  }
+
+  /* Timeline Styles */
+  .timeline-item {
+    @apply flex items-center px-6 py-4 hover:bg-slate-50/50 transition-colors duration-200;
+  }
+
+  .timeline-icon {
+    @apply p-3 rounded-xl mr-4 flex-shrink-0;
+  }
+
+  .timeline-content {
+    @apply min-w-0 flex-1 flex items-center justify-between;
+  }
+
+  .timeline-text {
+    @apply text-sm font-medium text-slate-800;
+  }
+
+  .timeline-time {
+    @apply text-sm text-slate-500 flex-shrink-0 ml-4;
+  }
+
+  /* Dialog/Modal Styles */
+  .dialog-content {
+    @apply bg-white/95 backdrop-blur-sm border border-slate-200 shadow-xl p-8 rounded-2xl;
+  }
+
+  .dialog-header {
+    @apply mb-8;
+  }
+
+  .dialog-title {
+    @apply text-2xl font-semibold text-slate-800;
+  }
+
+  .dialog-description {
+    @apply text-slate-500 mt-2;
+  }
+
+  .dialog-overlay {
+    @apply bg-black/50 backdrop-blur-sm fixed inset-0;
+  }
+
+  .dialog-close {
+    @apply absolute right-4 top-4 rounded-full p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 transition-colors;
+  }
+
+  /* Form Styles */
+  .form-label {
+    @apply block text-sm font-medium text-slate-700 mb-2;
+  }
+
+  .form-input {
+    @apply w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-sm transition-all duration-200;
+    @apply hover:border-slate-300 hover:bg-slate-50;
+    @apply focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:ring-offset-2;
+  }
+
+  .form-select {
+    @apply w-full rounded-xl border-2 border-slate-200 bg-white;
+    @apply hover:border-slate-300 hover:bg-slate-50;
+    @apply focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:ring-offset-2;
+  }
+
+  .sleep-button {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .star {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.3);
+    z-index: 0;
+  }
+
+  .star.twinkle {
+    animation: twinkle 2s ease-in-out infinite;
+  }
+
+  .poop-emoji {
+    position: absolute;
+    opacity: 0;
+    z-index: 0;
+    animation-fill-mode: both;
+  }
+
+  .poop-emoji.animate {
+    animation: 
+      fadeInOut var(--duration, 4s) ease-in-out var(--delay, 0s) infinite,
+      spin var(--spin-duration, 8s) linear var(--delay, 0s) infinite;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 173 80% 40%;
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    --accent: 199 89% 48%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 173 80% 40%;
+
+    /* Alpine theme colors */
+    --pine: 173 80% 40%;
+    --snow: 210 40% 98%;
+    --stone: 220 14% 96%;
+    --slate: 215 16% 47%;
+    --lake: 199 89% 48%;
+    --moss: 150 80% 40%;
+  }
+
+}

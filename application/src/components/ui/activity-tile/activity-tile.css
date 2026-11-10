@@ -1,0 +1,14 @@
+/* Dark mode overrides for ActivityTile component */
+html.dark .activity-tile-title {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .activity-tile-label {
+  background-color: #374151; /* gray-700 */
+  color: #e5e7eb; /* gray-200 */
+  border-color: #4b5563; /* gray-600 */
+}
+
+html.dark .activity-tile-description {
+  color: #e5e7eb; /* gray-200 */
+}

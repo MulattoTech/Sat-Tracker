@@ -1,0 +1,72 @@
+/* Dark mode overrides for NoteForm component */
+
+/* Make dropdown trigger input look better in dark mode */
+html.dark .note-form-dropdown-trigger {
+  background-color: transparent !important;
+  border-color: #374151 !important; /* gray-700 */
+}
+
+/* Style for dropdown trigger icon in dark mode */
+html.dark .note-form-dropdown-icon {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Style for dropdown trigger on hover in dark mode */
+html.dark .note-form-dropdown-trigger:hover {
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+/* Style for dropdown trigger when focused in dark mode */
+html.dark .note-form-dropdown-trigger:focus {
+  border-color: #5eead4 !important; /* teal-300 */
+  outline: none !important;
+  ring-color: rgba(94, 234, 212, 0.5) !important; /* teal-300 with opacity */
+}
+
+/* Custom dropdown styles */
+.category-dropdown-item {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.category-dropdown-item:hover {
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+html.dark .category-dropdown-item:hover {
+  background-color: #374151; /* dark:gray-700 */
+}
+
+/* Dropdown item text color in dark mode */
+html.dark .category-dropdown-item {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Dropdown container */
+.category-dropdown-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+html.dark .category-dropdown-container {
+  background-color: #1f2937; /* dark:gray-800 */
+  border-color: #374151; /* dark:gray-700 */
+}
+
+/* Dropdown item highlighted state in dark mode */
+html.dark .category-dropdown-item-highlighted {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+/* No matching categories text in dark mode */
+html.dark .category-dropdown-no-match {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* No categories found text in dark mode */
+html.dark .category-dropdown-no-categories {
+  color: #9ca3af !important; /* gray-400 */
+}

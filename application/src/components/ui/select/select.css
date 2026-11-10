@@ -1,0 +1,52 @@
+/* Dark mode overrides for Select component */
+html.dark .select-trigger {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .select-trigger:hover {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #6b7280 !important; /* gray-500 */
+}
+
+html.dark .select-trigger:focus {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #10b981 !important; /* emerald-500 */
+  ring-color: rgba(16, 185, 129, 0.2) !important; /* emerald-500 with opacity */
+}
+
+html.dark .select-content {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .select-item {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .select-item:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+/* Make focus state match hover state in dark mode */
+html.dark .select-item:focus {
+  background-color: #374151 !important; /* gray-700 - same as hover */
+  outline: none !important;
+}
+
+html.dark .select-label {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .select-separator {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .select-icon {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .select-check-icon {
+  color: #10b981 !important; /* emerald-500 */
+}

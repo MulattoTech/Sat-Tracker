@@ -1,0 +1,316 @@
+# Authentication and Authorization
+
+## Overview
+
+Sprout Track supports two authentication paths: PIN-based caretaker auth (for self-hosted/simple setups) and account-based email/password auth (for SaaS mode). Both produce JWT tokens. All API authorization flows through middleware wrappers in `app/api/utils/auth.ts`, with family-level data scoping as the foundational security principle.
+
+## Authentication Paths
+
+### 1. PIN-Based (Caretaker Auth)
+Used for self-hosted deployments and families without accounts.
+
+**Flow:**
+1. User enters family slug + two-digit login ID + security PIN
+2. `POST /api/auth` validates credentials against `Caretaker` table
+3. Server returns JWT containing: caretaker ID, name, type, role, familyId, familySlug, authType (`CARETAKER` or `SYSTEM`), plus subscription metadata (`betaparticipant`, `trialEnds`, `planExpires`, `planType`) when the family has a linked account
+4. Client stores JWT in `localStorage` as `authToken`
+
+**System Caretaker (loginId '00'):**
+- Auto-created per family when no regular caretakers exist
+- Authenticated via the family's `Settings.securityPin`
+- Once regular caretakers are configured, the system caretaker is automatically disabled (login is also denied when the family's `Settings.authType` is `CARETAKER`)
+- Granted admin-level access (`withAdminAuth` allows system caretakers)
+
+### 2. Account-Based (Email/Password Auth)
+Used for SaaS mode with individual user accounts.
+
+**Flow:**
+1. User registers via `/api/accounts/register` (email, password, name)
+2. Verification email sent; user verifies via `/api/accounts/verify`
+3. Login via `/api/accounts/login` with email + password
+4. Server returns JWT with `isAccountAuth: true`, accountId, accountEmail
+5. On each request, server fetches fresh account + linked caretaker from database
+
+**Key difference:** Account JWTs trigger a database lookup on every request to get current family/caretaker associations, since these can change after the JWT was issued (e.g., during initial family setup).
+
+### 3. Setup Authentication
+Token-based auth for invited users creating a new family:
+- Admin creates setup invite via `/api/family/create-setup-link`
+- `FamilySetup` record created with token, hashed password, expiration
+- Invited user authenticates with token + password
+- JWT includes `isSetupAuth: true` and `setupToken`
+- Grants admin privileges for family creation only
+
+## Token Architecture
+
+### Access Token (JWT)
+- Stored in `localStorage` as `authToken`
+- Sent via `Authorization: Bearer <token>` header
+- Lifetime: `AUTH_LIFE` env var (default 1800 seconds / 30 minutes)
+- Signed with `JWT_SECRET` env var
+- Legacy fallback: if no Bearer token is present, a `caretakerId` cookie is accepted for backward compatibility (`getAuthenticatedUser` verifies the caretaker against the database)
+
+### Refresh Token
+- Stored as HTTP-only cookie (`refreshToken`)
+- Lifetime: `REFRESH_TOKEN_LIFE` env var (default 604800 seconds / 7 days) — sliding window: a fresh refresh cookie is issued on each refresh, so it caps the maximum inactivity gap before re-login
+- Signed with separate secret (JWT_SECRET + '-refresh')
+- Endpoint: `POST /api/auth/refresh-token`
+- Contains minimal claims: userId, authType, familyId, accountId, tokenType
+
+### Token Blacklist
+- In-memory `Map<string, number>` (token → expiry timestamp)
+- Populated on logout via `invalidateToken()`
+- Cleaned up hourly (removes expired entries)
+- Checked on every authenticated request
+
+## Auth Middleware Wrappers
+
+Every API route uses one of these wrappers. They are defined in `app/api/utils/auth.ts`.
+
+### `withAuth(handler)`
+**Use when:** Any authenticated user should have access.
+```typescript
+export const GET = withAuth(async (req) => { ... });
+```
+- Verifies authentication only
+- Does not pass auth context to handler
+- Returns 401 if not authenticated
+
+### `withAuthContext(handler)`
+**Use when:** Handler needs to know who the user is and which family they belong to. This is the most commonly used wrapper.
+```typescript
+export const GET = withAuthContext(async (req, authContext) => {
+  const { familyId, caretakerId, isSysAdmin } = authContext;
+  // ...
+});
+```
+- Passes `AuthResult` object to handler
+- Handles special cases:
+  - **Setup auth:** Extracts familyId from query params and validates it against the setup token via `setupTokenMayTarget()` (`app/api/utils/setup-token-scope.ts`): a token bound to a family requires an exact match; an unbound token may name a family only on `/api/setup/start`. Anything else fails closed with 403.
+  - **System admin:** Extracts family context from URL path, query params, or referer header
+- Returns 401 if not authenticated
+
+### `withAdminAuth(handler)`
+**Use when:** Only admins, system caretakers, or system administrators should access.
+```typescript
+export const DELETE = withAdminAuth(async (req) => { ... });
+```
+- Allows: `caretakerRole === 'ADMIN'`, system caretakers (loginId '00'), or `isSysAdmin`
+- Returns 403 if authenticated but not admin
+- Writes a metadata-only audit log entry (who/when/endpoint/status, no bodies) for every call — including denied 401/403 attempts — when `ENABLE_LOG=true`
+
+### `withSysAdminAuth(handler)`
+**Use when:** Only the system administrator should access (family manager operations).
+- Requires `isSysAdmin: true` in JWT
+- Returns 403 for all other users
+- Also writes metadata-only audit log entries when `ENABLE_LOG=true`
+
+### `withAccountOwner(handler)`
+**Use when:** Only the account owner (or system admin) should access.
+```typescript
+export const PUT = withAccountOwner(async (req, authContext) => { ... });
+```
+- Requires `isAccountOwner: true` or `isSysAdmin: true`
+- Passes auth context to handler
+
+## AuthResult Interface
+
+The `AuthResult` object passed to handlers by `withAuthContext`:
+
+```typescript
+interface AuthResult {
+  authenticated: boolean;
+  caretakerId?: string | null;  // Who is making the request
+  caretakerType?: string | null; // parent, nanny, daycare, etc.
+  caretakerRole?: string;       // USER or ADMIN
+  familyId?: string | null;     // THE source of truth for data scoping
+  familySlug?: string | null;   // URL slug for the family
+  isSysAdmin?: boolean;         // System administrator flag
+  isSetupAuth?: boolean;        // Setup token authentication
+  setupToken?: string;          // Setup token (if setup auth)
+  authType?: string;            // CARETAKER, SYSTEM, ACCOUNT, or SYSADMIN
+  isAccountAuth?: boolean;      // Account-based authentication
+  accountId?: string;           // Account ID (if account auth)
+  accountEmail?: string;        // Account email
+  isAccountOwner?: boolean;     // Account owns the family
+  verified?: boolean;           // Email verified
+  betaparticipant?: boolean;    // Beta participant (exempt from expiration)
+  isExpired?: boolean;          // Account subscription expired (soft expiration)
+  trialEnds?: string | null;    // Trial end date (ISO)
+  planExpires?: string | null;  // Plan expiration date (ISO)
+  planType?: string | null;     // Subscription plan type
+  error?: string;               // Error message if not authenticated
+}
+```
+
+Expiration is **soft**: `getAuthenticatedUser()` never rejects an expired account — it computes `isExpired` (SaaS mode only, non-beta accounts) and attaches it as metadata. This applies to account auth *and* PIN-based tokens whose family has a linked account. Enforcement happens via write protection (below). Closed accounts, by contrast, are hard-rejected with 401.
+
+## Family-Level Authorization (The Golden Rule)
+
+**Never trust client-sent family context.** The only source of truth for a user's family is `authContext.familyId` from the middleware.
+
+Routes that accept an optional client-sent `familyId` (query param or body) resolve it through `resolveFamilyScope()` in `app/api/utils/family-scope.ts` rather than ad-hoc checks:
+
+```typescript
+const scope = resolveFamilyScope(authContext, requestedFamilyId);
+if (!scope.ok) {
+  return NextResponse.json({ success: false, error: scope.error }, { status: scope.status });
+}
+const targetFamilyId = scope.familyId;
+```
+
+For non-sysadmins the requested id may only *confirm* `authContext.familyId` — a mismatch returns 403, as does a missing family context. Sysadmins may target the requested family (cross-family access preserved). The setup-flow routes (`baby`, `caretaker`, `caretaker/system`, `settings`, `settings/verify-pin`) all use this helper.
+
+### CRUD Authorization Patterns
+
+**List (GET all):**
+```typescript
+const items = await prisma.feedLog.findMany({
+  where: { familyId: userFamilyId, deletedAt: null }
+});
+```
+
+**Read/Update/Delete (by ID):**
+```typescript
+const item = await prisma.feedLog.findUnique({ where: { id } });
+if (!item || item.familyId !== userFamilyId) {
+  return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+}
+```
+
+**Create:**
+```typescript
+// Verify parent resource belongs to family
+const baby = await prisma.baby.findFirst({
+  where: { id: babyId, familyId: userFamilyId }
+});
+if (!baby) return NextResponse.json({ success: false, error: 'Baby not found' }, { status: 404 });
+
+// Explicitly set familyId on new record
+const log = await prisma.feedLog.create({
+  data: { ...input, familyId: userFamilyId }
+});
+```
+
+## System Administrator
+
+System administrators authenticate with a sitewide admin password and get `isSysAdmin: true` in their JWT. They can operate on any family's data.
+
+**Family context resolution for sysAdmin (in order):**
+1. `?familyId=` query parameter
+2. URL path slug → database lookup by slug
+3. `Referer` header → extract slug → database lookup
+
+## Unauthenticated & Sysadmin-Global Endpoints
+
+The SaaS analytics and short-link feature (see [SaaS Analytics and Short Links](./SaasAnalyticsAndShortLinks.md)) introduces two exceptions to the golden rule. All four endpoints are hard-`404` in self-hosted mode.
+
+**Global sysadmin-only surface (no family scope):** The management endpoints (`/api/short-links/*`, `/api/analytics/stats`, `/api/analytics/export`) use `withSysAdminAuth` but operate on **global models that have no `familyId`** — a legitimate no-family exception beyond the "sysadmin may target a requested family" case above.
+
+**Unauthenticated by design:** Two public endpoints carry no auth wrapper, analogous to the `DELETE /api/notifications/device-tokens` exception:
+
+- `POST /api/analytics/collect` — first-party pageview beacon fired from public/funnel pages
+- `GET /go/[slug]` — public short-link redirect (the slug is the only credential)
+
+Both write telemetry inside a try/catch so a failure never breaks the response, and neither issues a session or grants any access.
+
+**`JWT_SECRET` as visitor-hash salt:** In SaaS mode `JWT_SECRET` doubles as the salt for the daily analytics/click visitor hash — `sha256(JWT_SECRET | UTC-day | ip | userAgent)` truncated to 16 hex. No raw IP is stored, and rotating `JWT_SECRET` (which also logs out all users) rotates every visitor hash.
+
+## Write Protection (SaaS Mode)
+
+Expired accounts get read-only access via `checkWritePermission()` in `app/api/utils/writeProtection.ts`:
+
+```typescript
+const writeCheck = checkWritePermission(authContext);
+if (!writeCheck.allowed) return writeCheck.response;
+```
+
+- Only enforced when `DEPLOYMENT_MODE=saas` (auth only sets `isExpired` in SaaS mode)
+- Returns 403 with a human-readable error message; the expiration type (`TRIAL_EXPIRED`, `PLAN_EXPIRED`, or `NO_PLAN`) and date are returned in `data.expirationInfo`
+- Beta participants and non-account families are exempt
+
+## IP Lockout
+
+Brute-force protection via `app/api/utils/ip-lockout.ts`:
+- In-memory store tracks failed login attempts per IP
+- 3 failed attempts → 5-minute lockout
+- `checkIpLockout(ip)` returns `{ locked, remainingTime }`
+- `recordFailedAttempt(ip)` increments counter
+- `resetFailedAttempts(ip)` clears on successful login
+
+## Client-Side Auth Integration
+
+The `FamilyProvider` (`src/context/family.tsx`) handles client-side auth:
+- Global fetch interceptor adds `Authorization: Bearer <token>` to all requests
+- 401 responses trigger automatic logout (except on login page)
+- Account expiration checked every 30 seconds in SaaS mode (soft check reading the JWT payload — expired users are not logged out; the UI shows expiration banners while writes are blocked server-side)
+- Provides `authenticatedFetch` wrapper for components
+
+### Session handoff from the native app
+
+When the app runs inside the Capacitor mobile shell there is a fourth way a
+session can begin: the shell logs in against `/api/auth` or
+`/api/accounts/login` itself, then navigates the WebView to the family page with
+the resulting JWT in a `#bridge-session=` fragment.
+`consumeInjectedSession()` (`src/utils/native-session.ts`) validates it, requires
+the message's slug to match the current path, writes the same `localStorage` keys
+the login screens write (`authToken`, `unlockTime`, `caretakerId`), and strips the
+fragment immediately.
+
+From the server's perspective nothing is special — it issued an ordinary token
+through an ordinary login endpoint. The corollary is that **inside the shell the
+web login UI must never render**: a family page that loads locked hands control
+back to the shell instead (`src/utils/native-relock.ts`). See
+[Native App Integration](./NativeAppIntegration.md).
+
+## Care Record Write Payloads
+
+The canonical note, sleep, bath, diaper, measurement, milestone, medicine,
+vaccine, baby and breast-milk-adjustment APIs validate JSON with
+`app/api/utils/care-write.ts` before constructing persistence data. These
+endpoints accept their declared scalar fields and explicitly supported ID
+arrays. Unknown fields, nested relation instructions, scalar operation objects,
+invalid primitive types and client audit fields return 400 before a write.
+TypeScript request interfaces alone are not a runtime authorization boundary.
+
+Family and caregiver attribution come from authentication. The baby API's
+explicit family selector still goes through `resolveFamilyScope`, including
+the existing system-administrator and validated setup flows. The medicine
+editor's redundant body `id` is accepted and discarded; it never changes a
+record's primary key.
+
+Note, sleep, bath, measurement, milestone and milk-adjustment corrections may
+select another non-deleted child in the same family. Diaper, medicine-log and
+vaccine updates retain their existing immutable child/medicine identifiers:
+normal scalar echoes are validated and ignored. Nullable fields, zero values,
+false booleans and sleep end/undo partial updates remain supported.
+
+Medicine and vaccine `contactIds` must all refer to the authenticated family.
+New associations require live contacts; an already-linked same-family removed
+contact may be retained during an update. Duplicates are deduplicated. Omitting
+the field preserves links, while `[]` clears them. The medicine and vaccine
+editors omit unchanged contact selections so a notes-only edit cannot silently
+replace hidden legacy associations. Parent changes and link replacement share
+a transaction so a later failure cannot leave a partial record or erase
+existing associations. Contact expansion on medicine, vaccine, dose and
+timeline responses is limited to the authenticated family, including for
+legacy associations.
+
+Dose responses also omit foreign medicine, child or caregiver details and
+never expand caregiver login PINs. Timeline queries fetch only same-family
+caregiver badge fields and omit foreign medicine details. The owned care event
+itself remains visible; missing medicine details produce the existing
+active-dose error state instead of a reminder based on unavailable metadata.
+Historical records are not automatically reassigned or repaired.
+
+## Key Files
+
+- `app/api/utils/auth.ts` — All auth middleware wrappers and `getAuthenticatedUser()`
+- `app/api/utils/writeProtection.ts` — Write protection for expired accounts
+- `app/api/utils/care-write.ts` — Canonical care payload fields and relationship validation
+- `app/api/utils/ip-lockout.ts` — IP-based login lockout
+- `app/api/utils/password-utils.ts` — PBKDF2 password hashing (100K iterations, SHA256)
+- `app/api/auth/route.ts` — Login endpoint
+- `app/api/auth/refresh-token/route.ts` — Token refresh endpoint
+- `app/api/auth/logout/route.ts` — Logout (token blacklisting)
+- `src/context/family.tsx` — Client-side auth integration

@@ -1,0 +1,209 @@
+import * as webPush from 'web-push';
+import prisma from '../../../app/api/db';
+import { NotificationEventType } from '@prisma/client';
+import { getDecryptedNotificationConfig, isWebPushInitialized, setWebPushInitialized } from './config';
+
+/**
+ * Initialize web-push with VAPID credentials from database
+ * Should be called before sending any push notification
+ */
+export async function initializeWebPush(): Promise<void> {
+  if (isWebPushInitialized()) {
+    return;
+  }
+
+  const config = await getDecryptedNotificationConfig();
+
+  const publicKey = config?.vapidPublicKey;
+  const privateKey = config?.vapidPrivateKey;
+  const subject = config?.vapidSubject || 'mailto:notifications@sprouttrack.app';
+
+  if (!publicKey || !privateKey) {
+    throw new Error(
+      'VAPID keys are not configured. Configure them in App Configuration.'
+    );
+  }
+
+  webPush.setVapidDetails(subject, publicKey, privateKey);
+  setWebPushInitialized(true);
+}
+
+/**
+ * Notification payload structure
+ */
+export interface NotificationPayload {
+  title: string;
+  body: string;
+  icon?: string;
+  badge?: string;
+  tag?: string; // For deduplication - same tag replaces previous notification
+  data?: {
+    eventType: NotificationEventType;
+    babyId: string;
+    activityType?: string;
+    url?: string; // For deep linking
+    familySlug?: string; // For native deep-link routing to the right family
+    route?: string; // Allow-listed target screen, see notifications/routes.ts
+  };
+}
+
+/**
+ * Result of sending a notification
+ */
+export interface SendNotificationResult {
+  success: boolean;
+  httpStatus?: number;
+  error?: string;
+}
+
+/**
+ * Send a push notification to a subscription endpoint
+ * @param subscription - The push subscription object from database
+ * @param payload - The notification payload
+ * @param options - Optional web-push send options
+ */
+export async function sendNotification(
+  subscription: {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  },
+  payload: NotificationPayload,
+  options?: webPush.RequestOptions
+): Promise<SendNotificationResult> {
+  try {
+    // Inside the try on purpose. Initialization throws when VAPID keys are
+    // absent, undecryptable or malformed, and that used to escape this function
+    // as a rejected promise rather than the {success:false} envelope every
+    // other failure returns. Callers that awaited it before dispatching native
+    // push were silenced permanently as a result, and the failure never reached
+    // NotificationLog where it would have been diagnosable.
+    if (!isWebPushInitialized()) {
+      await initializeWebPush();
+    }
+
+    const pushSubscription: webPush.PushSubscription = {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
+      },
+    };
+
+    const payloadString = JSON.stringify(payload);
+    await webPush.sendNotification(pushSubscription, payloadString, options);
+
+    return {
+      success: true,
+      httpStatus: 200,
+    };
+  } catch (error: unknown) {
+    // web-push throws errors with statusCode property for HTTP errors
+    // WebPushError type from web-push library
+    interface WebPushError extends Error {
+      statusCode?: number;
+      body?: string;
+    }
+
+    const isWebPushError = (err: unknown): err is WebPushError => {
+      return err instanceof Error && 'statusCode' in err;
+    };
+
+    let httpStatus = 500;
+    let errorMessage = 'Unknown error';
+
+    if (isWebPushError(error)) {
+      httpStatus = error.statusCode || 500;
+      errorMessage = error.message || error.body || 'Unknown web-push error';
+    } else if (error instanceof Error) {
+      errorMessage = error.message;
+    }
+
+    return {
+      success: false,
+      httpStatus,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * Send notification with logging to database
+ * Handles subscription cleanup on 410 Gone, updates failure counts, and logs all attempts
+ * @param subscriptionId - The PushSubscription ID from database
+ * @param subscription - The push subscription object
+ * @param payload - The notification payload
+ * @param eventType - The notification event type
+ * @param activityType - Optional activity type (for ACTIVITY_CREATED events)
+ * @param babyId - The baby ID this notification is about
+ */
+export async function sendNotificationWithLogging(
+  subscriptionId: string,
+  subscription: {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  },
+  payload: NotificationPayload,
+  eventType: NotificationEventType,
+  activityType: string | null,
+  babyId: string
+): Promise<SendNotificationResult> {
+  const result = await sendNotification(subscription, payload);
+
+  // Log the attempt to NotificationLog
+  try {
+    await prisma.notificationLog.create({
+      data: {
+        subscriptionId,
+        eventType,
+        activityType,
+        babyId,
+        success: result.success,
+        errorMessage: result.error ? result.error : null,
+        httpStatus: result.httpStatus || null,
+        payload: JSON.stringify(payload),
+      },
+    });
+  } catch (logError) {
+    console.error('Error logging notification attempt:', logError);
+    // Don't fail the function if logging fails
+  }
+
+  // Update subscription based on result
+  try {
+    if (result.success) {
+      // Success: reset failure count and update last success time
+      await prisma.pushSubscription.update({
+        where: { id: subscriptionId },
+        data: {
+          failureCount: 0,
+          lastSuccessAt: new Date(),
+        },
+      });
+    } else {
+      // Failure: handle based on HTTP status
+      if (result.httpStatus === 410) {
+        // 410 Gone: Subscription expired, delete immediately
+        await prisma.pushSubscription.delete({
+          where: { id: subscriptionId },
+        });
+        console.log(`Deleted expired subscription: ${subscriptionId}`);
+      } else {
+        // Other errors: increment failure count
+        await prisma.pushSubscription.update({
+          where: { id: subscriptionId },
+          data: {
+            failureCount: { increment: 1 },
+            lastFailureAt: new Date(),
+          },
+        });
+      }
+    }
+  } catch (updateError) {
+    console.error('Error updating subscription:', updateError);
+    // Don't fail the function if update fails
+  }
+
+  return result;
+}

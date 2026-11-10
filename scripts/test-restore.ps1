@@ -1,6 +1,8 @@
 # Restore a recent snapshot to TEMPORARY named volumes, then verify both SQLite files.
 # Production app and its three data volumes are never touched.
 $ErrorActionPreference = 'Stop'
+$verificationImage = (& docker inspect babytracker-sprout --format '{{.Config.Image}}').Trim()
+if ($LASTEXITCODE -ne 0 -or -not $verificationImage) { throw 'Cannot identify the deployed image for a compatible restore verification' }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $archive = Get-ChildItem (Join-Path $root 'backups') -Filter 'babytracker-snapshot-*.tar.gz' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $archive) { throw 'No backups available; run backup.ps1 first' }
@@ -27,7 +29,7 @@ try {
       '--mount',"type=volume,source=$dbName,target=/restore/db,readonly",
       '--mount',"type=volume,source=$envName,target=/restore/env,readonly",
       '--mount',"type=bind,source=$scriptPath,target=/app/verify-sqlite-backup.js,readonly"
-    ) sprouttrack/sprout-track:1.6.7 /app/verify-sqlite-backup.js
+    ) $verificationImage /app/verify-sqlite-backup.js
     if ($LASTEXITCODE -ne 0) { throw 'SQLite or configuration verification failed' }
     Write-Host "RESTORE_DRILL_PASS=$($archive.Name)"
 }

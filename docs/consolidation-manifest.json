@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "canonicalRepository": "MulattoTech/BabyTracker-Master",
+  "canonicalRoot": "C:\\Tools\\Dev\\BabyTracker-Master",
+  "originalDirectoriesRetained": true,
+  "reason": "Open Windows handles; originals preserved rather than forcing deletion. New development must use the master.",
+  "privateManifest": ".local/consolidation-20261030/consolidation-private-manifest.json",
+  "snapshots": [
+    {
+      "original": "C:\\Tools\\BabyTracker-Fleet-Controller",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-Controller",
+      "verifiedFileCount": 49
+    },
+    {
+      "original": "C:\\Tools\\BabyTracker-Fleet-State",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-State",
+      "verifiedFileCount": 26
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-App",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-App",
+      "verifiedFileCount": 1636
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-App-ocr-staging",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-App-ocr-staging",
+      "verifiedFileCount": 1635
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Canonical-Ops",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Canonical-Ops",
+      "verifiedFileCount": 1636
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Consolidation",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Consolidation",
+      "verifiedFileCount": 1635
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet",
+      "verifiedFileCount": 75
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet-AgyFix",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-AgyFix",
+      "verifiedFileCount": 62
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet-Bootstrap",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-Bootstrap",
+      "verifiedFileCount": 53
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet-Capacity",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-Capacity",
+      "verifiedFileCount": 73
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet-ModelSwitch",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-ModelSwitch",
+      "verifiedFileCount": 67
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet-MultiProject",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-MultiProject",
+      "verifiedFileCount": 62
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-Fleet-quiet-20261028",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-Fleet-quiet-20261028",
+      "verifiedFileCount": 75
+    },
+    {
+      "original": "C:\\Tools\\Dev\\BabyTracker-ocr-drill",
+      "privateSnapshot": ".local\\legacy-snapshots\\BabyTracker-ocr-drill",
+      "verifiedFileCount": 5
+    }
+  ]
+}

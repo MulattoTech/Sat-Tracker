@@ -1,0 +1,397 @@
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '../db';
+import { ApiResponse, SleepLogCreate, SleepLogResponse } from '../types';
+import { withAuthContext, AuthResult } from '../utils/auth';
+import { toUTC, formatForResponse, calculateDurationMinutes } from '../utils/timezone';
+import { checkWritePermission } from '../utils/writeProtection';
+import { CareWriteError, requireCareBaby } from '../utils/care-write';
+import { readSleepWrite, assertSleepScope } from './request';
+import { sleepRevision } from './revision';
+import { createNurserySleep, updateSleepSnapshot, deleteSleepSnapshot } from './mutations';
+import { notifyActivityCreated } from '@/src/lib/notifications/activityHook';
+import { DEFAULT_SLEEP_LOCATIONS } from '@/src/constants/sleepLocations';
+
+async function handlePost(req: NextRequest, authContext: AuthResult) {
+  // Check write permissions for expired accounts
+  const writeCheck = checkWritePermission(authContext);
+  if (!writeCheck.allowed) {
+    return writeCheck.response!;
+  }
+
+  try {
+    const { familyId: userFamilyId, caretakerId } = authContext;
+    if (!userFamilyId) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
+    }
+
+    const parsed = await readSleepWrite(req, 'POST');
+    const body = parsed.body as SleepLogCreate;
+    const request = parsed.request;
+    assertSleepScope(request, authContext, body.babyId);
+
+    const baby = await prisma.baby.findFirst({
+      where: { id: body.babyId, familyId: userFamilyId, deletedAt: null },
+    });
+
+    if (!baby) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
+    }
+    
+    // Convert times to UTC for storage
+    const startTimeUTC = toUTC(body.startTime);
+    const endTimeUTC = body.endTime ? toUTC(body.endTime) : null;
+    
+    // Calculate duration if both start and end times are present
+    const duration = endTimeUTC ? calculateDurationMinutes(startTimeUTC, endTimeUTC) : undefined;
+
+    const data = {
+      ...body, startTime: startTimeUTC, ...(endTimeUTC && { endTime: endTimeUTC }),
+      duration, caretakerId, familyId: userFamilyId,
+    };
+    const saved = request?.action === 'start'
+      ? await createNurserySleep(prisma, authContext, request, data)
+      : { row: await prisma.sleepLog.create({ data }), created: true };
+    const sleepLog = saved.row;
+
+    // Format dates as ISO strings for response
+    const response: SleepLogResponse = {
+      ...sleepLog,
+      revision: sleepRevision(sleepLog),
+      startTime: formatForResponse(sleepLog.startTime) || '',
+      endTime: formatForResponse(sleepLog.endTime) || null,
+      createdAt: formatForResponse(sleepLog.createdAt) || '',
+      updatedAt: formatForResponse(sleepLog.updatedAt) || '',
+      deletedAt: formatForResponse(sleepLog.deletedAt),
+    };
+
+    // Notify subscribers about activity creation (non-blocking)
+    if (saved.created) notifyActivityCreated(sleepLog.babyId, 'sleep', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { type: body.type }).catch(console.error);
+
+    return NextResponse.json<ApiResponse<SleepLogResponse>>({
+      success: true,
+      data: response,
+    });
+  } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
+    console.error('Error creating sleep log:', error);
+    return NextResponse.json<ApiResponse<SleepLogResponse>>(
+      {
+        success: false,
+        error: 'Failed to create sleep log',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handlePut(req: NextRequest, authContext: AuthResult) {
+  // Check write permissions for expired accounts
+  const writeCheck = checkWritePermission(authContext);
+  if (!writeCheck.allowed) {
+    return writeCheck.response!;
+  }
+
+  try {
+    const { familyId: userFamilyId } = authContext;
+    if (!userFamilyId) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    const { body, request } = await readSleepWrite(req, 'PUT');
+
+    if (!id) {
+      return NextResponse.json<ApiResponse<SleepLogResponse>>(
+        {
+          success: false,
+          error: 'Sleep log ID is required',
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingSleepLog = await prisma.sleepLog.findFirst({
+      where: { id, familyId: userFamilyId, deletedAt: null },
+    });
+
+    if (!existingSleepLog) {
+      return NextResponse.json<ApiResponse<SleepLogResponse>>(
+        {
+          success: false,
+          error: 'Sleep log not found or access denied',
+        },
+        { status: 404 }
+      );
+    }
+
+    assertSleepScope(request, authContext, existingSleepLog.babyId);
+
+    if (body.babyId !== undefined && body.babyId !== existingSleepLog.babyId) {
+      await requireCareBaby(prisma, body.babyId, userFamilyId);
+    }
+
+    // Convert times to UTC for storage
+    const startTimeUTC = body.startTime ? toUTC(body.startTime) : undefined;
+    const endTimeUTC = body.endTime ? toUTC(body.endTime) : undefined;
+    
+    // Calculate duration if end time is provided
+    const duration = endTimeUTC 
+      ? calculateDurationMinutes(startTimeUTC || existingSleepLog.startTime, endTimeUTC) 
+      : undefined;
+
+    if (request?.action === 'wake' && (!endTimeUTC || endTimeUTC < existingSleepLog.startTime
+      || duration === undefined || !Number.isInteger(duration) || duration > 2_147_483_647)) {
+      throw new CareWriteError('Review the sleep times before waking this timer.');
+    }
+    const sleepLog = await updateSleepSnapshot(prisma, existingSleepLog, {
+      ...body, ...(startTimeUTC && { startTime: startTimeUTC }),
+      ...(endTimeUTC && { endTime: endTimeUTC }), ...(duration !== undefined && { duration }),
+    }, request);
+
+    // Notify when baby wakes up (endTime set for the first time)
+    if (endTimeUTC && !existingSleepLog.endTime) {
+      notifyActivityCreated(sleepLog.babyId, 'wake', { accountId: authContext.accountId, caretakerId: authContext.caretakerId }, { duration }).catch(console.error);
+    }
+
+    // Format dates as ISO strings for response
+    const response: SleepLogResponse = {
+      ...sleepLog,
+      revision: sleepRevision(sleepLog),
+      startTime: formatForResponse(sleepLog.startTime) || '',
+      endTime: formatForResponse(sleepLog.endTime) || null,
+      createdAt: formatForResponse(sleepLog.createdAt) || '',
+      updatedAt: formatForResponse(sleepLog.updatedAt) || '',
+      deletedAt: formatForResponse(sleepLog.deletedAt),
+    };
+
+    return NextResponse.json<ApiResponse<SleepLogResponse>>({
+      success: true,
+      data: response,
+    });
+  } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
+    console.error('Error updating sleep log:', error);
+    return NextResponse.json<ApiResponse<SleepLogResponse>>(
+      {
+        success: false,
+        error: 'Failed to update sleep log',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleGet(req: NextRequest, authContext: AuthResult) {
+  try {
+    const { familyId: userFamilyId } = authContext;
+    if (!userFamilyId) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+    const babyId = searchParams.get('babyId');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const locations = searchParams.get('locations');
+    
+    // If locations flag is present, return unique custom locations
+    if (locations === 'true') {
+      const defaultLocations = DEFAULT_SLEEP_LOCATIONS;
+
+      const sleepLogs = await prisma.sleepLog.findMany({
+        where: {
+          familyId: userFamilyId,
+          location: {
+            not: null
+          },
+          deletedAt: null,
+        },
+        distinct: ['location'],
+        select: {
+          location: true
+        }
+      });
+      
+      // Include custom names persisted in settings (added via the manager
+      // before any sleep entry uses them)
+      const settings = await prisma.settings.findFirst({
+        where: { familyId: userFamilyId },
+        orderBy: { updatedAt: 'desc' },
+      });
+      let persistedLocations: string[] = [];
+      const rawLocationSettings = (settings as unknown as { sleepLocationSettings?: string } | null)?.sleepLocationSettings;
+      if (rawLocationSettings) {
+        try {
+          const parsed = JSON.parse(rawLocationSettings);
+          if (Array.isArray(parsed.customLocations)) {
+            persistedLocations = parsed.customLocations;
+          }
+        } catch {
+          // ignore malformed settings
+        }
+      }
+
+      const uniqueLocations = Array.from(new Set([
+        ...sleepLogs.map(log => log.location),
+        ...persistedLocations,
+      ]))
+        .filter((location): location is string => location !== null && location.trim() !== '')
+        .filter(location => !defaultLocations.some(
+          def => def.toLowerCase() === location.toLowerCase()
+        ));
+
+      return NextResponse.json<ApiResponse<string[]>>({
+        success: true,
+        data: uniqueLocations
+      });
+    }
+    
+    const queryParams: any = {
+      familyId: userFamilyId,
+      ...(babyId && { babyId }),
+      ...(searchParams.get('activeOnly') === 'true' && { endTime: null, deletedAt: null }),
+      ...(startDate && endDate && {
+        startTime: {
+          gte: toUTC(startDate),
+          lte: toUTC(endDate),
+        },
+      }),
+    };
+
+    if (id) {
+      const sleepLog = await prisma.sleepLog.findFirst({
+        where: { 
+          id,
+          familyId: userFamilyId,
+        },
+      });
+
+      if (!sleepLog) {
+        return NextResponse.json<ApiResponse<SleepLogResponse>>(
+          {
+            success: false,
+            error: 'Sleep log not found or access denied',
+          },
+          { status: 404 }
+        );
+      }
+
+      // Format dates as ISO strings for response
+      const response: SleepLogResponse = {
+        ...sleepLog,
+        revision: sleepRevision(sleepLog),
+        startTime: formatForResponse(sleepLog.startTime) || '',
+        endTime: formatForResponse(sleepLog.endTime) || null,
+        createdAt: formatForResponse(sleepLog.createdAt) || '',
+        updatedAt: formatForResponse(sleepLog.updatedAt) || '',
+        deletedAt: formatForResponse(sleepLog.deletedAt),
+      };
+
+      return NextResponse.json<ApiResponse<SleepLogResponse>>({
+        success: true,
+        data: response,
+      });
+    }
+
+    const sleepLogs = await prisma.sleepLog.findMany({
+      where: queryParams,
+      orderBy: {
+        startTime: 'desc',
+      },
+    });
+
+    // Format dates as ISO strings for response
+    const response: SleepLogResponse[] = sleepLogs.map(sleepLog => ({
+      ...sleepLog,
+      revision: sleepRevision(sleepLog),
+      startTime: formatForResponse(sleepLog.startTime) || '',
+      endTime: formatForResponse(sleepLog.endTime) || null,
+      createdAt: formatForResponse(sleepLog.createdAt) || '',
+      updatedAt: formatForResponse(sleepLog.updatedAt) || '',
+      deletedAt: formatForResponse(sleepLog.deletedAt),
+    }));
+
+    return NextResponse.json<ApiResponse<SleepLogResponse[]>>({
+      success: true,
+      data: response,
+    });
+  } catch (error) {
+    console.error('Error fetching sleep logs:', error);
+    return NextResponse.json<ApiResponse<SleepLogResponse[]>>(
+      {
+        success: false,
+        error: 'Failed to fetch sleep logs',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleDelete(req: NextRequest, authContext: AuthResult) {
+  // Check write permissions for expired accounts
+  const writeCheck = checkWritePermission(authContext);
+  if (!writeCheck.allowed) {
+    return writeCheck.response!;
+  }
+
+  try {
+    const { familyId: userFamilyId } = authContext;
+    if (!userFamilyId) {
+      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'User is not associated with a family.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json<ApiResponse<void>>(
+        {
+          success: false,
+          error: 'Sleep log ID is required',
+        },
+        { status: 400 }
+      );
+    }
+
+    const existingSleepLog = await prisma.sleepLog.findFirst({
+      where: { id, familyId: userFamilyId, deletedAt: null },
+    });
+
+    if (!existingSleepLog) {
+      return NextResponse.json<ApiResponse<void>>(
+        {
+          success: false,
+          error: 'Sleep log not found or access denied',
+        },
+        { status: 404 }
+      );
+    }
+
+    const { request } = await readSleepWrite(req, 'DELETE');
+    assertSleepScope(request, authContext, existingSleepLog.babyId);
+    await deleteSleepSnapshot(prisma, existingSleepLog, request);
+
+    return NextResponse.json<ApiResponse<void>>({
+      success: true,
+    });
+  } catch (error) {
+    if (error instanceof CareWriteError) return error.response();
+    console.error('Error deleting sleep log:', error);
+    return NextResponse.json<ApiResponse<void>>(
+      {
+        success: false,
+        error: 'Failed to delete sleep log',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Apply authentication middleware to all handlers
+// Use type assertions to handle the multiple return types
+export const GET = withAuthContext(handleGet as (req: NextRequest, authContext: AuthResult) => Promise<NextResponse<ApiResponse<any>>>);
+export const POST = withAuthContext(handlePost as (req: NextRequest, authContext: AuthResult) => Promise<NextResponse<ApiResponse<any>>>);
+export const PUT = withAuthContext(handlePut as (req: NextRequest, authContext: AuthResult) => Promise<NextResponse<ApiResponse<any>>>);
+export const DELETE = withAuthContext(handleDelete as (req: NextRequest, authContext: AuthResult) => Promise<NextResponse<ApiResponse<any>>>);

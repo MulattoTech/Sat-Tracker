@@ -1,0 +1,8 @@
+/* Dark mode overrides for Label component */
+html.dark .label-dark {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .label-dark.peer-disabled {
+  color: #9ca3af !important; /* gray-400 */
+}

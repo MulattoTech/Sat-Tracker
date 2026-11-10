@@ -12,7 +12,9 @@ $archive = "babytracker-snapshot-$stamp.tar.gz"
 Push-Location $project
 $running = $false
 try {
-    $running = @(& docker compose ps --status running --services) -contains 'sprout'
+    $services = @(& docker compose ps --status running --services)
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot determine BabyTracker state; backup cancelled before service or archive changes' }
+    $running = $services -contains 'sprout'
     if ($running) {
         Write-Host 'Stopping only BabyTracker for a consistent SQLite snapshot...'
         & docker compose stop sprout

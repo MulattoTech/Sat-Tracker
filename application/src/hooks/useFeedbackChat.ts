@@ -1,0 +1,304 @@
+'use client';
+
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { FeedbackResponse, FeedbackAttachmentResponse } from '@/app/api/types';
+import { authFetch, formatDateTime } from '@/src/components/familymanager/utils';
+import { normalizeImageFile } from '@/src/utils/normalizeImageFile';
+
+export interface SubmitterInfo {
+  name: string;
+  email: string;
+  familyId: string | null;
+  familyName: string | null;
+  accountId: string | null;
+  caretakerId: string | null;
+}
+
+export interface UseFeedbackChatReturn {
+  threads: FeedbackResponse[];
+  loading: boolean;
+  fetchThreads: () => Promise<void>;
+  sendReply: (parentId: string, message: string, subject?: string, familyId?: string | null, files?: File[]) => Promise<FeedbackResponse>;
+  sendNewFeedback: (subject: string, message: string, files?: File[]) => Promise<FeedbackResponse>;
+  uploadAttachments: (feedbackId: string, files: File[]) => Promise<FeedbackAttachmentResponse[]>;
+  deleteAttachment: (attachmentId: string) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAsUnread: (id: string) => Promise<void>;
+  submitterInfo: SubmitterInfo;
+  loadSubmitterInfo: () => Promise<void>;
+  formatDateTime: (dateString: string | null) => string;
+  countUnreadMessages: (thread: FeedbackResponse) => number;
+  startPolling: () => void;
+  stopPolling: () => void;
+}
+
+export function useFeedbackChat(isAdmin: boolean): UseFeedbackChatReturn {
+  const [threads, setThreads] = useState<FeedbackResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitterInfo, setSubmitterInfo] = useState<SubmitterInfo>({
+    name: '',
+    email: '',
+    familyId: null,
+    familyName: null,
+    accountId: null,
+    caretakerId: null,
+  });
+  const isFetchingRef = useRef(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadSubmitterInfo = useCallback(async () => {
+    try {
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) return;
+
+      const payload = authToken.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+
+      let name = 'User';
+      let email = '';
+      let accountId: string | null = null;
+      let caretakerId: string | null = null;
+
+      if (decoded.isAccountAuth) {
+        name = decoded.accountEmail ? decoded.accountEmail.split('@')[0] : 'Account User';
+        email = decoded.accountEmail || '';
+        accountId = decoded.accountId || null;
+      } else {
+        name = decoded.name || 'User';
+        caretakerId = decoded.isSysAdmin ? null : (decoded.id || null);
+      }
+
+      let familyId: string | null = decoded.familyId || null;
+      let familyName: string | null = null;
+
+      if (decoded.familyId && decoded.familySlug) {
+        try {
+          const res = await fetch(`/api/family/by-slug/${decoded.familySlug}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.data) {
+              familyId = data.data.id;
+              familyName = data.data.name;
+            }
+          }
+        } catch {
+          // Not critical
+        }
+      }
+
+      setSubmitterInfo({ name, email, familyId, familyName, accountId, caretakerId });
+    } catch (error) {
+      console.error('Error parsing auth token:', error);
+      setSubmitterInfo({ name: 'User', email: '', familyId: null, familyName: null, accountId: null, caretakerId: null });
+    }
+  }, []);
+
+  // Shared fetch logic; showLoading controls whether the loading spinner shows
+  const doFetch = useCallback(async (showLoading: boolean) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (showLoading) setLoading(true);
+    try {
+      const response = await authFetch('/api/feedback');
+      const data = await response.json();
+      if (data.success) {
+        setThreads(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching feedback:', error);
+    } finally {
+      if (showLoading) setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, []);
+
+  const fetchThreads = useCallback(async () => {
+    await doFetch(true);
+  }, [doFetch]);
+
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    pollingRef.current = setInterval(() => {
+      doFetch(false);
+    }, 10000);
+  }, [doFetch]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  const uploadAttachments = useCallback(async (
+    feedbackId: string,
+    files: File[],
+  ): Promise<FeedbackAttachmentResponse[]> => {
+    const results: FeedbackAttachmentResponse[] = [];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', await normalizeImageFile(file));
+      formData.append('feedbackId', feedbackId);
+      const response = await authFetch('/api/feedback/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        results.push(data.data);
+      }
+    }
+    return results;
+  }, []);
+
+  const deleteAttachment = useCallback(async (attachmentId: string): Promise<void> => {
+    const response = await authFetch(`/api/feedback/file/${attachmentId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to delete attachment');
+    }
+    await fetchThreads();
+  }, [fetchThreads]);
+
+  const sendReply = useCallback(async (
+    parentId: string,
+    message: string,
+    subject?: string,
+    familyId?: string | null,
+    files?: File[],
+  ): Promise<FeedbackResponse> => {
+    const response = await authFetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: subject || '',
+        message,
+        parentId,
+        familyId: familyId ?? null,
+      }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to send reply');
+    }
+    // Upload attachments if any
+    if (files && files.length > 0) {
+      await uploadAttachments(data.data.id, files);
+    }
+    await fetchThreads();
+    return data.data;
+  }, [fetchThreads, uploadAttachments]);
+
+  const sendNewFeedback = useCallback(async (
+    subject: string,
+    message: string,
+    files?: File[],
+  ): Promise<FeedbackResponse> => {
+    const response = await authFetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subject: subject.trim(),
+        message: message.trim(),
+        familyId: submitterInfo.familyId,
+        submitterName: submitterInfo.name,
+        submitterEmail: submitterInfo.email || null,
+      }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to submit feedback');
+    }
+    // Upload attachments if any
+    if (files && files.length > 0) {
+      await uploadAttachments(data.data.id, files);
+    }
+    await fetchThreads();
+    return data.data;
+  }, [fetchThreads, submitterInfo, uploadAttachments]);
+
+  const updateViewed = useCallback(async (id: string, viewed: boolean) => {
+    const response = await authFetch(`/api/feedback?id=${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ viewed }),
+    });
+    const data = await response.json();
+    if (data.success) {
+      setThreads(prev =>
+        prev.map(item => {
+          if (item.id === id) {
+            return { ...item, viewed: data.data.viewed };
+          }
+          if (item.replies) {
+            return {
+              ...item,
+              replies: item.replies.map(reply =>
+                reply.id === id ? { ...reply, viewed: data.data.viewed } : reply
+              ),
+            };
+          }
+          return item;
+        })
+      );
+    }
+  }, []);
+
+  const markAsRead = useCallback(async (id: string) => {
+    await updateViewed(id, true);
+  }, [updateViewed]);
+
+  const markAsUnread = useCallback(async (id: string) => {
+    await updateViewed(id, false);
+  }, [updateViewed]);
+
+  const isMessageFromViewer = useCallback((msg: { accountId?: string | null; caretakerId?: string | null; submitterName?: string | null }): boolean => {
+    if (submitterInfo.accountId && msg.accountId) return msg.accountId === submitterInfo.accountId;
+    if (submitterInfo.caretakerId && msg.caretakerId) return msg.caretakerId === submitterInfo.caretakerId;
+    return isAdmin ? msg.submitterName === 'Admin' : msg.submitterName !== 'Admin';
+  }, [isAdmin, submitterInfo]);
+
+  const countUnreadMessages = useCallback((thread: FeedbackResponse): number => {
+    if (isAdmin) {
+      let count = (!thread.viewed && !isMessageFromViewer(thread)) ? 1 : 0;
+      if (thread.replies) {
+        count += thread.replies.filter(r => !r.viewed && !isMessageFromViewer(r)).length;
+      }
+      return count;
+    } else {
+      if (!thread.replies) return 0;
+      return thread.replies.filter(r => !r.viewed && !isMessageFromViewer(r)).length;
+    }
+  }, [isAdmin, isMessageFromViewer]);
+
+  return {
+    threads,
+    loading,
+    fetchThreads,
+    sendReply,
+    sendNewFeedback,
+    uploadAttachments,
+    deleteAttachment,
+    markAsRead,
+    markAsUnread,
+    submitterInfo,
+    loadSubmitterInfo,
+    formatDateTime,
+    countUnreadMessages,
+    startPolling,
+    stopPolling,
+  };
+}

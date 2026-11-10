@@ -1,0 +1,136 @@
+/* Animation for sliding in from right */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.calendar-day-view-slide-in {
+  animation: slide-in-right 0.3s ease-out forwards;
+  height: 100%;
+  width: 100%;
+}
+
+/* Make the FormPage container take up the full height and width of its parent */
+.calendar-day-view-slide-in .form-page-container {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  inset: 0;
+}
+
+/* On mobile, make it full screen */
+@media (max-width: 768px) {
+  .calendar-day-view-slide-in .form-page-container {
+    position: fixed;
+  }
+}
+
+/* Dark mode overrides for CalendarDayView component */
+html.dark .calendar-day-view {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .calendar-day-view-container {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .calendar-day-view-header {
+  background: linear-gradient(to right, #0d9488, #0f766e) !important; /* teal-600 to teal-700 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .calendar-day-view-group-title {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .calendar-day-view-group-icon {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .calendar-day-view-empty-text {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .calendar-day-view-empty-icon {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+html.dark .calendar-day-view-loader {
+  color: #2dd4bf !important; /* teal-400 */
+}
+
+html.dark .calendar-day-view-add-button-container {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+/* Custom scrollbar for the events list */
+.calendar-day-view-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.calendar-day-view-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.calendar-day-view-content::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5); /* gray-400 with opacity */
+  border-radius: 4px;
+}
+
+html.dark .calendar-day-view-content::-webkit-scrollbar-thumb {
+  background-color: rgba(75, 85, 99, 0.5); /* gray-600 with opacity */
+}
+
+/* Ensure content area takes up available space */
+.calendar-day-view-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.calendar-day-view {
+  flex: 1;
+}
+
+/* Loading spinner animation */
+@keyframes calendar-day-view-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.calendar-day-view-spinner {
+  animation: calendar-day-view-spin 1s linear infinite;
+}
+
+/* Responsive styles */
+@media (max-width: 640px) {
+  .calendar-day-view-header {
+    padding: 0.5rem;
+  }
+  
+  .calendar-day-view-content {
+    padding: 0.5rem;
+    max-height: calc(100vh - 350px); /* Adjust based on calendar height */
+  }
+  
+  .calendar-day-view-add-button-container {
+    padding: 0.5rem;
+  }
+  
+  .calendar-day-view-container {
+    height: auto;
+    max-height: 100%;
+  }
+}

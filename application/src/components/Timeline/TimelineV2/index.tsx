@@ -1,0 +1,728 @@
+import { Settings } from '@prisma/client';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import SleepForm from '@/src/components/forms/SleepForm';
+import FeedForm from '@/src/components/forms/FeedForm';
+import DiaperForm from '@/src/components/forms/DiaperForm';
+import NoteForm from '@/src/components/forms/NoteForm';
+import BathForm from '@/src/components/forms/BathForm';
+import PumpForm from '@/src/components/forms/PumpForm';
+import MilestoneForm from '@/src/components/forms/MilestoneForm';
+import MeasurementForm from '@/src/components/forms/MeasurementForm';
+import GiveMedicineForm from '@/src/components/forms/GiveMedicineForm';
+import ActivityForm from '@/src/components/forms/ActivityForm';
+import VaccineForm from '@/src/components/forms/VaccineForm';
+import FoodForm from '@/src/components/forms/FoodForm';
+import PhotoForm from '@/src/components/forms/PhotoForm';
+import PhotoDetail from '@/src/components/PhotoDetail';
+import { ActivityType, FilterType, TimelineProps, LatestStatusData } from '../types';
+import TimelineV2DailyStats from './TimelineV2DailyStats';
+import TimelineV2ActivityList from './TimelineV2ActivityList';
+import TimelineV2Heatmap from './TimelineV2Heatmap';
+import TimelineActivityDetails from '../TimelineActivityDetails';
+import { getActivityEndpoint, getActivityTime } from '../utils';
+import { groupBreastFeedSessions } from '@/src/utils/feedSessionUtils';
+import { parseFeedTimerTypes, feedCountsForTimer, foodCountsForTimer } from '@/src/utils/feedTimerConfig';
+import { SleepLogResponse, FeedLogResponse, DiaperLogResponse, PumpLogResponse, BreastMilkAdjustmentResponse, PlayLogResponse, VaccineLogResponse, FoodLogResponse, PhotoResponse } from '@/app/api/types';
+import { fetchPhotos } from '@/src/utils/photoClientApi';
+import { useActivityCache } from './useActivityCache';
+import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
+
+const TimelineV2 = ({ babyId, refreshTrigger, initialDate, feedTimerTypes, onLatestStatusReady, onActivityDeleted }: TimelineProps) => {
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [defaultBottleUnit, setDefaultBottleUnit] = useState(() => readCachedDefaultBottleUnit());
+  const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>(null);
+  const [editModalType, setEditModalType] = useState<'sleep' | 'feed' | 'diaper' | 'medicine' | 'note' | 'bath' | 'pump' | 'breast-milk-adjustment' | 'milestone' | 'measurement' | 'play' | 'vaccine' | 'food' | 'photo' | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => initialDate ?? new Date());
+  const [isHeatmapVisible, setIsHeatmapVisible] = useState<boolean>(false);
+
+  // React to ?date= deep-link changes after mount (in-app navigation to the
+  // same route doesn't remount; the parent memoizes initialDate on the param
+  // value, so a new identity means the requested day actually changed)
+  useEffect(() => {
+    if (!initialDate) return;
+    setSelectedDate(prev => (prev.toDateString() === initialDate.toDateString() ? prev : initialDate));
+  }, [initialDate]);
+
+  const [dateFilteredActivities, setDateFilteredActivities] = useState<ActivityType[]>([]);
+  // Selected day ±1 so daily stats can group breast-feed sessions across midnight
+  const [windowActivities, setWindowActivities] = useState<ActivityType[]>([]);
+  const [heatmapActivities, setHeatmapActivities] = useState<ActivityType[]>([]);
+
+  const [isLoadingActivities, setIsLoadingActivities] = useState<boolean>(false);
+  const [isFetchAnimated, setIsFetchAnimated] = useState<boolean>(true);
+  const [breastMilkBalance, setBreastMilkBalance] = useState<string | undefined>(undefined);
+  const lastRefreshTimestamp = useRef<number>(Date.now());
+  const wasIdle = useRef<boolean>(false);
+  const prevRefreshTrigger = useRef<number>(refreshTrigger ?? 0);
+
+  const activityCache = useActivityCache();
+
+  const breastMilkTrackingEnabled = (settings as any)?.enableBreastMilkTracking ?? true;
+
+  // Issue #225: feed categories that reset the "time since last feed" timer
+  // (null = all feeds count)
+  const feedTimerCategories = useMemo(() => parseFeedTimerTypes(feedTimerTypes), [feedTimerTypes]);
+
+  // Extract latest status data from activities and notify parent
+  const emitLatestStatus = useCallback((activities: ActivityType[]) => {
+    if (!onLatestStatusReady) return;
+
+    const status: LatestStatusData = {};
+
+    // Find last feed time. Food (issue #203) lives in FoodLog and is
+    // discriminated by `foodId`; when the FOOD category counts it can reset the
+    // timer alongside breast/bottle feeds.
+    const lastFeed = activities
+      .filter((a) => {
+        if (!('time' in a)) return false;
+        if ('foodId' in a) return foodCountsForTimer(feedTimerCategories);
+        return (
+          'amount' in a && 'type' in a &&
+          ((a as any).type === 'BOTTLE' || (a as any).type === 'BREAST') &&
+          feedCountsForTimer(a as any, feedTimerCategories)
+        );
+      })
+      .sort((a, b) => new Date((b as any).time).getTime() - new Date((a as any).time).getTime())[0];
+
+    if (lastFeed) {
+      const feedAny = lastFeed as any;
+      if (feedAny.type === 'BREAST') {
+        // Linked/paired rows count as one feeding (#198): time the timer against
+        // the whole nursing session, not just its latest row
+        const breastFeeds = activities.filter((a) =>
+          'amount' in a && (a as any).type === 'BREAST' && 'time' in a
+        ) as any[];
+        const session = groupBreastFeedSessions(breastFeeds)
+          .find(s => s.rows.some((r: any) => r.id === feedAny.id));
+        const rows: any[] = session?.rows ?? [feedAny];
+        // Prefer explicit startTime/endTime; `time` only equals the session end
+        // for newly logged feeds and can hold the start time after an edit
+        const startMs = Math.min(...rows.map(r => new Date(r.startTime || r.time).getTime()));
+        const endMs = Math.max(...rows.map(r => new Date(r.endTime || r.time).getTime()));
+        status.lastFeedTime = new Date(startMs);
+        status.lastFeedEndTime = new Date(endMs);
+      } else {
+        status.lastFeedTime = new Date(feedAny.time);
+      }
+    }
+
+    // Find last diaper time
+    const lastDiaper = activities
+      .filter((a) => 'condition' in a && 'time' in a)
+      .sort((a, b) => new Date((b as any).time).getTime() - new Date((a as any).time).getTime())[0];
+
+    if (lastDiaper) {
+      status.lastDiaperTime = new Date((lastDiaper as any).time);
+    }
+
+    // Find sleep status
+    const sleepLogs = activities
+      .filter((a): a is ActivityType =>
+        'duration' in a && 'startTime' in a &&
+        'type' in a && ((a as any).type === 'NAP' || (a as any).type === 'NIGHT_SLEEP')
+      );
+
+    const ongoingSleep = sleepLogs.find(log => !(log as any).endTime);
+    if (ongoingSleep) {
+      status.ongoingSleep = ongoingSleep as unknown as SleepLogResponse;
+    }
+
+    const completedSleeps = sleepLogs
+      .filter((log) => {
+        const endTime = (log as any).endTime;
+        return endTime !== null && typeof endTime === 'string';
+      })
+      .sort((a, b) => new Date((b as any).endTime).getTime() - new Date((a as any).endTime).getTime());
+
+    if (completedSleeps.length > 0) {
+      const lastSleep = completedSleeps[0] as any;
+      status.lastSleepEndTime = new Date(lastSleep.endTime);
+      status.lastEndedSleep = lastSleep as SleepLogResponse & { endTime: string };
+    }
+
+    onLatestStatusReady(status);
+  }, [onLatestStatusReady, feedTimerCategories]);
+
+  const fetchBreastMilkBalance = async (babyId: string) => {
+    if (!breastMilkTrackingEnabled) {
+      setBreastMilkBalance(undefined);
+      return;
+    }
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const unit = settings?.defaultBottleUnit || defaultBottleUnit;
+      const response = await fetch(`/api/breast-milk-balance?babyId=${babyId}&unit=${unit}`, {
+        headers: {
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const balance = data.data.balance;
+          if (balance > 0) {
+            setBreastMilkBalance(`${balance} ${data.data.unit.toLowerCase()}`);
+          } else {
+            setBreastMilkBalance(undefined);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching breast milk balance:', error);
+    }
+  };
+
+  // Fetch activities for date using cache
+  const fetchActivitiesForDate = useCallback(async (date: Date, isAnimated: boolean) => {
+    if (!babyId) return;
+
+    setIsFetchAnimated(isAnimated);
+    if (isAnimated) {
+      setIsLoadingActivities(true);
+    }
+
+    try {
+      const result = await activityCache.fetchWindow(babyId, date, 1);
+      setDateFilteredActivities(result.activities);
+      setWindowActivities(result.allActivities);
+      lastRefreshTimestamp.current = Date.now();
+
+      // Only emit status when today is within the fetched window (prevents stale status on past dates)
+      const todayKey = activityCache.toDateKey(new Date());
+      const dayBefore = new Date(date); dayBefore.setDate(dayBefore.getDate() - 1);
+      const dayAfter = new Date(date); dayAfter.setDate(dayAfter.getDate() + 1);
+      const windowIncludesToday = todayKey === activityCache.toDateKey(date)
+        || todayKey === activityCache.toDateKey(dayBefore)
+        || todayKey === activityCache.toDateKey(dayAfter);
+
+      if (windowIncludesToday) {
+        emitLatestStatus(result.allActivities);
+      }
+    } catch (error) {
+      console.error('Error fetching activities for date:', error);
+      setDateFilteredActivities([]);
+      setWindowActivities([]);
+    } finally {
+      if (isAnimated) {
+        setIsLoadingActivities(false);
+      }
+    }
+  }, [babyId, activityCache, emitLatestStatus]);
+
+  // Refresh just today's data (for polling — bypasses cache)
+  const refreshCurrentDay = useCallback(async () => {
+    if (!babyId) return;
+
+    try {
+      const activities = await activityCache.refreshDate(babyId, selectedDate);
+      setDateFilteredActivities(activities);
+      // Rebuild the ±1 day window from cache around the refreshed day
+      const prevDay = new Date(selectedDate); prevDay.setDate(prevDay.getDate() - 1);
+      const nextDay = new Date(selectedDate); nextDay.setDate(nextDay.getDate() + 1);
+      const windowActs = [
+        ...(activityCache.getActivitiesForDate(activityCache.toDateKey(prevDay)) || []),
+        ...activities,
+        ...(activityCache.getActivitiesForDate(activityCache.toDateKey(nextDay)) || []),
+      ];
+      setWindowActivities(windowActs);
+      lastRefreshTimestamp.current = Date.now();
+
+      // Only emit status when refreshing today's data. Emit the full window so
+      // a nursing session that straddles midnight groups with its earlier row
+      const todayKey = activityCache.toDateKey(new Date());
+      const selectedKey = activityCache.toDateKey(selectedDate);
+      if (todayKey === selectedKey) {
+        emitLatestStatus(windowActs);
+      }
+    } catch (error) {
+      console.error('Error refreshing current day:', error);
+    }
+  }, [babyId, selectedDate, activityCache, emitLatestStatus]);
+
+  const fetchHeatmapData = useCallback(async () => {
+    if (!babyId) return;
+    try {
+      const activities = await activityCache.fetchHeatmap(babyId, selectedDate);
+      setHeatmapActivities(activities);
+    } catch (error) {
+      console.error('Error fetching heatmap data:', error);
+    }
+  }, [babyId, selectedDate, activityCache]);
+
+  const handleFormSuccess = () => {
+    setEditModalType(null);
+    setSelectedActivity(null);
+
+    if (babyId) {
+      // Invalidate today's cache and re-fetch
+      activityCache.invalidateDate(selectedDate);
+      fetchActivitiesForDate(selectedDate, true);
+      fetchBreastMilkBalance(babyId);
+
+      // Also refresh heatmap if visible
+      if (isHeatmapVisible) {
+        fetchHeatmapData();
+      }
+    }
+
+    if (onActivityDeleted) {
+      onActivityDeleted();
+    }
+  };
+
+  // Date navigation is handled entirely here; notifying the parent would only
+  // bounce back as a refreshTrigger and duplicate (then abort) this fetch.
+  const handleDateSelection = (newDate: Date) => {
+    setSelectedDate(newDate);
+    if (babyId) {
+      fetchActivitiesForDate(newDate, true);
+    }
+  };
+
+  const handleDateChange = (days: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + days);
+    handleDateSelection(newDate);
+  };
+
+  const handleFilterChange = (filter: FilterType) => {
+    setActiveFilter(activeFilter === filter ? null : filter);
+  };
+
+  // Fetch settings and refresh them when a warm PWA becomes active again.
+  const refreshSettings = useCallback(async () => {
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch('/api/settings', {
+        cache: 'no-store',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : '',
+        },
+      });
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (data.success) {
+        setSettings(data.data);
+        const unit = cacheDefaultBottleUnit(data.data?.defaultBottleUnit);
+        if (unit) setDefaultBottleUnit(unit);
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshSettings();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshSettings();
+    };
+    window.addEventListener('focus', refreshSettings);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', refreshSettings);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshSettings]);
+
+  // Initial fetch when babyId changes
+  useEffect(() => {
+    if (babyId) {
+      activityCache.invalidateAll();
+      fetchActivitiesForDate(selectedDate, true);
+    }
+  }, [babyId]);
+
+  // Fetch breast milk balance
+  useEffect(() => {
+    if (babyId) {
+      fetchBreastMilkBalance(babyId);
+    }
+  }, [babyId, settings?.defaultBottleUnit, defaultBottleUnit]);
+
+  // Handle refreshTrigger from parent (form submissions in log-entry page)
+  useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger !== prevRefreshTrigger.current) {
+      prevRefreshTrigger.current = refreshTrigger;
+      if (babyId) {
+        activityCache.invalidateDate(selectedDate);
+        fetchActivitiesForDate(selectedDate, true);
+        fetchBreastMilkBalance(babyId);
+      }
+    }
+  }, [refreshTrigger]);
+
+  // Lazy-load heatmap when toggled visible or date changes while visible
+  useEffect(() => {
+    if (isHeatmapVisible && babyId) {
+      fetchHeatmapData();
+    }
+  }, [isHeatmapVisible, selectedDate, babyId]);
+
+  // Single polling loop — replaces both parent and child polling
+  useEffect(() => {
+    if (!babyId) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshCurrentDay();
+      }
+    };
+
+    const poll = setInterval(() => {
+      const idleThreshold = 5 * 60 * 1000; // 5 minutes
+      const activeRefreshRate = 30 * 1000; // 30 seconds
+
+      const idleTime = Date.now() - parseInt(localStorage.getItem('unlockTime') || `${Date.now()}`);
+      const isCurrentlyIdle = idleTime >= idleThreshold;
+      const timeSinceLastRefresh = Date.now() - lastRefreshTimestamp.current;
+
+      if (wasIdle.current && !isCurrentlyIdle) {
+        refreshCurrentDay();
+      } else if (!isCurrentlyIdle && timeSinceLastRefresh > activeRefreshRate) {
+        refreshCurrentDay();
+      }
+
+      wasIdle.current = isCurrentlyIdle;
+    }, 10000);
+
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(poll);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [babyId, refreshCurrentDay]);
+
+  const sortedActivities = useMemo(() => {
+    // Filter out breast-milk-adjustment activities when tracking is disabled
+    const baseActivities = !breastMilkTrackingEnabled
+      ? dateFilteredActivities.filter(activity => !('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)))
+      : dateFilteredActivities;
+
+    const filtered = !activeFilter || activeFilter === null
+      ? baseActivities
+      : baseActivities.filter(activity => {
+          switch (activeFilter) {
+            case 'sleep':
+              return 'duration' in activity;
+            case 'feed':
+              // Bottle and breast feeds only; any unconverted SOLIDS feeds
+              // are left out (solids live under the food filter now) and
+              // breast-milk adjustments (amount without type) stay excluded
+              return 'amount' in activity && 'type' in activity &&
+                     (activity as any).type !== 'SOLIDS';
+            case 'diaper':
+              return 'condition' in activity && 'type' in activity &&
+                     (activity.type === 'WET' || activity.type === 'BOTH');
+            case 'poop':
+              return 'condition' in activity && 'type' in activity &&
+                     (activity.type === 'DIRTY' || activity.type === 'BOTH');
+            case 'medicine':
+              return 'doseAmount' in activity && 'medicineId' in activity;
+            case 'note':
+              return 'content' in activity;
+            case 'bath':
+              return 'soapUsed' in activity;
+            case 'pump':
+              return 'leftAmount' in activity || 'rightAmount' in activity;
+            case 'breast-milk-adjustment':
+              return 'reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity);
+            case 'milestone':
+              return 'title' in activity && 'category' in activity;
+            case 'measurement':
+              return 'value' in activity && 'unit' in activity;
+            case 'play':
+              return 'activities' in activity && 'type' in activity && ['TUMMY_TIME', 'INDOOR_PLAY', 'OUTDOOR_PLAY', 'WALK', 'CUSTOM'].includes((activity as any).type);
+            case 'vaccine':
+              return 'vaccineName' in activity;
+            case 'food':
+              // Food logs (issue #203) - foodId is unique to food logs
+              return 'foodId' in activity;
+            case 'photo':
+              // Match what the Photos Today stat counts: standalone photo
+              // logs plus any activity with attached photos
+              return 'photoLogId' in activity || !!(activity as any).photos?.length;
+            default:
+              return true;
+          }
+        });
+
+    const sorted = [...filtered].sort((a, b) => {
+      const timeA = new Date(getActivityTime(a));
+      const timeB = new Date(getActivityTime(b));
+      return timeB.getTime() - timeA.getTime();
+    });
+
+    return sorted;
+  }, [dateFilteredActivities, activeFilter, breastMilkTrackingEnabled]);
+
+  const handleDelete = async (activity: ActivityType) => {
+    if (!confirm('Are you sure you want to delete this activity?')) return;
+
+    const endpoint = getActivityEndpoint(activity);
+    try {
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`/api/${endpoint}?id=${activity.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': authToken ? `Bearer ${authToken}` : '',
+        },
+      });
+
+      if (response.ok) {
+        setSelectedActivity(null);
+        // Invalidate cache and refresh
+        activityCache.invalidateDate(selectedDate);
+        fetchActivitiesForDate(selectedDate, true);
+        onActivityDeleted?.();
+      }
+    } catch (error) {
+      console.error('Error deleting activity:', error);
+    }
+  };
+
+  const handleEdit = (activity: ActivityType, type: 'sleep' | 'feed' | 'diaper' | 'medicine' | 'note' | 'bath' | 'pump' | 'breast-milk-adjustment' | 'milestone' | 'measurement' | 'play' | 'vaccine' | 'food' | 'photo') => {
+    setSelectedActivity(activity);
+    setEditModalType(type);
+  };
+
+  // Resolve a timeline thumbnail click to its full PhotoResponse for the detail drawer
+  const handlePhotoClick = useCallback(async (photoId: string) => {
+    if (!babyId) return;
+    try {
+      const result = await fetchPhotos({ babyId, limit: 200 });
+      const photo = result.photos.find((p) => p.id === photoId);
+      if (photo) setSelectedPhoto(photo);
+    } catch (error) {
+      console.error('Error fetching photo:', error);
+    }
+  }, [babyId]);
+
+  return (
+    // app header (80px + 1px border) + activity tile row (117px) + 1px rounding margin —
+    // undershooting this budget gives the whole page a scrollbar
+    <div className="flex flex-col h-[calc(100vh-199px)]">
+      {/* Daily Stats with Integrated Date Navigation */}
+      <TimelineV2DailyStats
+        activities={dateFilteredActivities}
+        windowActivities={windowActivities}
+        heatmapActivities={heatmapActivities}
+        date={selectedDate}
+        isLoading={isLoadingActivities}
+        activeFilter={activeFilter}
+        onDateChange={handleDateChange}
+        onDateSelection={handleDateSelection}
+        onFilterChange={handleFilterChange}
+        isHeatmapVisible={isHeatmapVisible}
+        onHeatmapToggle={() => setIsHeatmapVisible((prev) => !prev)}
+        breastMilkBalance={breastMilkTrackingEnabled ? breastMilkBalance : undefined}
+        defaultBottleUnit={settings?.defaultBottleUnit || defaultBottleUnit}
+        enableBreastMilkTracking={breastMilkTrackingEnabled}
+      />
+
+      {/* Activity List + Right-side Heatmap */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
+          <TimelineV2ActivityList
+            activities={sortedActivities}
+            settings={settings}
+            isLoading={isLoadingActivities}
+            isAnimated={isFetchAnimated}
+            selectedDate={selectedDate}
+            onActivitySelect={(activity) => setSelectedActivity(activity)}
+            onPhotoClick={handlePhotoClick}
+          />
+        </div>
+
+        {/* Right-side stacked heatmap - desktop/tablet */}
+        {isHeatmapVisible && (
+          <div className="hidden md:flex w-24 px-1 border-l border-gray-200 bg-white relative timeline-v2-heatmap-panel overflow-hidden">
+            <TimelineV2Heatmap
+              activities={heatmapActivities}
+              selectedDate={selectedDate}
+              isVisible={isHeatmapVisible}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Activity Details */}
+      <TimelineActivityDetails
+        activity={selectedActivity}
+        settings={settings}
+        isOpen={!!selectedActivity}
+        onClose={() => setSelectedActivity(null)}
+        onDelete={handleDelete}
+        onEdit={handleEdit}
+        onPhotoClick={handlePhotoClick}
+      />
+
+      {/* Photo Detail - opened from a timeline thumbnail click */}
+      <PhotoDetail
+        isOpen={!!selectedPhoto}
+        onClose={() => setSelectedPhoto(null)}
+        photo={selectedPhoto}
+        onChanged={handleFormSuccess}
+      />
+
+      {/* Edit Forms */}
+      {selectedActivity && editModalType && (
+        <>
+          <SleepForm
+            isOpen={editModalType === 'sleep'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'duration' in selectedActivity && 'type' in selectedActivity && !('activities' in selectedActivity) ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+            isSleeping={false}
+            onSleepToggle={() => {}}
+          />
+          <FeedForm
+            isOpen={editModalType === 'feed'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'amount' in selectedActivity && !('foodId' in selectedActivity) ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <DiaperForm
+            isOpen={editModalType === 'diaper'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'condition' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <NoteForm
+            isOpen={editModalType === 'note'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'content' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <BathForm
+            isOpen={editModalType === 'bath'}
+            onClose={() => setEditModalType(null)}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'soapUsed' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <PumpForm
+            isOpen={editModalType === 'pump' || editModalType === 'breast-milk-adjustment'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'startTime' in selectedActivity && selectedActivity.startTime ? String(selectedActivity.startTime) : getActivityTime(selectedActivity)}
+            activity={
+              ('leftAmount' in selectedActivity || 'rightAmount' in selectedActivity) ?
+                (selectedActivity as unknown as PumpLogResponse) :
+                undefined
+            }
+            adjustmentActivity={
+              editModalType === 'breast-milk-adjustment' && 'reason' in selectedActivity
+                ? (selectedActivity as unknown as BreastMilkAdjustmentResponse)
+                : undefined
+            }
+            onSuccess={handleFormSuccess}
+          />
+          <MilestoneForm
+            isOpen={editModalType === 'milestone'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'date' in selectedActivity && selectedActivity.date ? String(selectedActivity.date) : getActivityTime(selectedActivity)}
+            activity={'title' in selectedActivity && 'category' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <MeasurementForm
+            isOpen={editModalType === 'measurement'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'date' in selectedActivity && selectedActivity.date ? String(selectedActivity.date) : getActivityTime(selectedActivity)}
+            activity={'value' in selectedActivity && 'unit' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <GiveMedicineForm
+            isOpen={editModalType === 'medicine'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'doseAmount' in selectedActivity && 'time' in selectedActivity ? String(selectedActivity.time) : getActivityTime(selectedActivity)}
+            activity={'doseAmount' in selectedActivity && 'medicineId' in selectedActivity ? selectedActivity : undefined}
+            onSuccess={handleFormSuccess}
+            isSupplement={
+              'medicine' in selectedActivity &&
+              selectedActivity.medicine && typeof selectedActivity.medicine === 'object' &&
+              'isSupplement' in selectedActivity.medicine
+                ? !!(selectedActivity.medicine as any).isSupplement
+                : false
+            }
+          />
+          <ActivityForm
+            isOpen={editModalType === 'play'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'startTime' in selectedActivity && selectedActivity.startTime ? String(selectedActivity.startTime) : getActivityTime(selectedActivity)}
+            activity={'activities' in selectedActivity && 'type' in selectedActivity ?
+              (selectedActivity as unknown as PlayLogResponse) : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <VaccineForm
+            isOpen={editModalType === 'vaccine'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'time' in selectedActivity && selectedActivity.time ? String(selectedActivity.time) : getActivityTime(selectedActivity)}
+            activity={'vaccineName' in selectedActivity ? (selectedActivity as unknown as VaccineLogResponse) : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <FoodForm
+            isOpen={editModalType === 'food'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={'time' in selectedActivity && selectedActivity.time ? String(selectedActivity.time) : getActivityTime(selectedActivity)}
+            activity={'foodId' in selectedActivity ? (selectedActivity as unknown as FoodLogResponse) : undefined}
+            onSuccess={handleFormSuccess}
+          />
+          <PhotoForm
+            isOpen={editModalType === 'photo'}
+            onClose={() => {
+              setEditModalType(null);
+              setSelectedActivity(null);
+            }}
+            babyId={selectedActivity.babyId}
+            initialTime={getActivityTime(selectedActivity)}
+            activity={'photoLogId' in selectedActivity ? { photoLogId: (selectedActivity as any).photoLogId } : undefined}
+            onSuccess={handleFormSuccess}
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
+export default TimelineV2;

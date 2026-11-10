@@ -1,0 +1,659 @@
+/* Light mode styles for timeline components */
+.timeline-activity-scroll-container {
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  scroll-behavior: smooth;
+  contain: layout style paint; /* CSS containment for performance */
+}
+
+.timeline-vertical-line {
+  background-color: #e5e7eb; /* gray-200 */
+}
+
+.timeline-hour-marker {
+  background-color: #f3f4f6; /* gray-100 */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  position: sticky !important;
+  top: 8px !important;
+  z-index: 30 !important;
+  background: rgba(243, 244, 246, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.timeline-hour-text {
+  color: #4b5563; /* gray-600 */
+}
+
+.timeline-hour-divider {
+  background-color: #e5e7eb; /* gray-200 */
+}
+
+.timeline-connector-line {
+  background-color: #d1d5db; /* gray-300 */
+  z-index: 5;
+}
+
+.timeline-activity-card {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  will-change: transform, box-shadow;
+  transform: translateZ(0); /* Force hardware acceleration */
+  backface-visibility: hidden; /* Prevent flickering */
+}
+
+.timeline-activity-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px) translateZ(0);
+}
+
+.timeline-activity-card:active {
+  transform: translateY(1px) translateZ(0);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.1s ease-in-out;
+}
+
+.timeline-activity-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: transparent;
+  transition: background-color 0.2s ease-in-out;
+  border-radius: 12px 0 0 12px; /* Rounded left edge to match card */
+}
+
+.timeline-activity-card:hover::before {
+  background-color: var(--activity-color);
+}
+
+.timeline-activity-time {
+  color: #6b7280; /* gray-500 */
+}
+
+/* Timeline - Style 2 Minimal List (matching mockup) */
+.timeline-container {
+  border-left: 2px solid #e5e7eb; /* gray-200 */
+  padding-left: 1.25rem; /* 20px */
+  margin-left: 0.625rem; /* 10px */
+}
+
+.timeline-hour-group {
+  margin-bottom: 1.5rem; /* 25px */
+}
+
+.timeline-event {
+  display: flex;
+  align-items: center;
+  gap: 0.9375rem; /* 15px */
+  padding: 0.75rem; /* 12px */
+  margin-bottom: 0.625rem; /* 10px */
+  position: relative;
+  transition: all 0.2s ease;
+  border-radius: 0.5rem; /* 8px */
+  cursor: pointer;
+}
+
+/* EXPLORATION: dot removed — the activity icon now sits on the line instead */
+.timeline-event::before {
+  display: none;
+}
+
+.timeline-event:hover {
+  background: #f3f4f6; /* gray-100 - matches selected filter color */
+}
+
+.timeline-event:hover::before {
+  transform: scale(1.3);
+}
+
+.timeline-event.sleep::before { 
+  background: #9ca3af !important; /* gray-400 - matches old timeline */
+}
+.timeline-event.feed::before { 
+  background: #7dd3fc !important; /* sky-300 - matches old timeline */
+}
+.timeline-event.diaper::before { 
+  background: #0d9488 !important; /* teal-600 - matches old timeline */
+}
+.timeline-event.note::before { 
+  background: #fef08a !important; /* yellow-200 - matches old timeline */
+}
+.timeline-event.bath::before { 
+  background: #fb923c !important; /* orange-400 - matches old timeline */
+}
+.timeline-event.pump::before { 
+  background: #c084fc !important; /* purple-400 - matches old timeline */
+}
+.timeline-event.milestone::before { 
+  background: #4875EC !important; /* blue - matches old timeline */
+}
+.timeline-event.measurement::before { 
+  background: #EA6A5E !important; /* red - matches old timeline */
+}
+.timeline-event.medicine::before {
+  background: #43B755 !important; /* green - matches old timeline */
+}
+.timeline-event.supplement::before {
+  background: #43B755 !important; /* green - supplements */
+}
+.timeline-event.play::before {
+  background: #F3C4A2 !important; /* peach - play activity */
+}
+
+.event-icon {
+  width: 2.25rem; /* 36px */
+  height: 2.25rem; /* 36px */
+  border-radius: 0.625rem; /* 10px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f9fafb; /* gray-50 */
+  padding: 0.5rem;
+  /* EXPLORATION: pull the icon out of the flex row and centre it on the 2px
+     vertical line (it replaces the old dot). The 3px stroke matches the page
+     background so the line appears to break where the icon sits. */
+  position: absolute;
+  left: -2.375rem; /* -38px: centres the 36px icon on the container's left border */
+  top: 50%;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 3px #ffffff; /* page background */
+  z-index: 10;
+}
+
+/* EXPLORATION: when the slot holds a real PNG illustration, drop the colored
+   box + padding so the self-contained circular art fills the 36px slot. The
+   circular radius makes the 3px stroke hug the round illustration cleanly.
+   The image sizes itself (36px, set in utils.tsx) — the slot just wraps it. */
+.event-icon:has(.timeline-png-icon) {
+  background: transparent !important;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+}
+
+/* Legacy timeline cards: same treatment — the illustration carries its own
+   colored background, so the tinted box + padding around it are dropped. */
+.timeline-card-activity-icon:has(.timeline-png-icon) {
+  background: none;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.event-icon.sleep { 
+  background: linear-gradient(to bottom right, #9ca3af, #6b7280, #4b5563); /* gray gradient - matches old timeline */
+}
+.event-icon.sleep svg,
+.event-icon.sleep svg path {
+  color: #ffffff !important; /* white - matches old timeline */
+  stroke: #ffffff !important;
+}
+.event-icon.feed { 
+  background: #bae6fd; /* sky-200 - matches old timeline */
+}
+.event-icon.feed svg,
+.event-icon.feed svg path {
+  color: #374151 !important; /* gray-700 - matches old timeline */
+  stroke: #374151 !important;
+}
+.event-icon.diaper { 
+  background: linear-gradient(to right, #0d9488, #0f766e); /* teal gradient - matches old timeline */
+}
+.event-icon.diaper svg,
+.event-icon.diaper svg path {
+  color: #ffffff !important; /* white - matches old timeline */
+  stroke: #ffffff !important;
+}
+.event-icon.note { 
+  background: #ffff99; /* yellow - matches old timeline */
+}
+.event-icon.note svg,
+.event-icon.note svg path {
+  color: #374151 !important; /* gray-700 - matches old timeline */
+  stroke: #374151 !important;
+}
+.event-icon.bath { 
+  background: linear-gradient(to right, #fb923c, #f97316); /* orange gradient - matches old timeline */
+}
+.event-icon.bath svg,
+.event-icon.bath svg path {
+  color: #ffffff !important; /* white - matches old timeline */
+  stroke: #ffffff !important;
+}
+.event-icon.pump {
+  background: linear-gradient(to right, #e9d5ff, #d8b4fe); /* purple gradient - matches old timeline */
+}
+.event-icon.breast-milk-adjustment {
+  background: linear-gradient(to right, #e9d5ff, #d8b4fe); /* purple gradient - matches pump */
+}
+.event-icon.breast-milk-adjustment span {
+  color: #ffffff !important; /* white text for +/- */
+}
+.event-icon.milestone { 
+  background: #4875EC; /* blue - matches old timeline */
+}
+.event-icon.milestone svg,
+.event-icon.milestone svg path {
+  color: #ffffff !important; /* white - matches old timeline */
+  stroke: #ffffff !important;
+}
+.event-icon.measurement { 
+  background: #EA6A5E; /* red - matches old timeline */
+}
+.event-icon.measurement svg,
+.event-icon.measurement svg path {
+  color: #ffffff !important; /* white - matches old timeline */
+  stroke: #ffffff !important;
+}
+.event-icon.medicine { 
+  background: #43B755; /* green - matches old timeline */
+}
+.event-icon.medicine svg,
+.event-icon.medicine svg path {
+  color: #ffffff !important; /* white - matches old timeline */
+  stroke: #ffffff !important;
+}
+.event-icon.supplement {
+  background: #43B755; /* green - supplements */
+}
+.event-icon.supplement svg,
+.event-icon.supplement svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+.event-icon.play {
+  background: #F3C4A2; /* peach - play activity */
+}
+
+.event-content {
+  flex: 1;
+}
+
+/* Caretaker/account name badge shown next to the event title. The bg/fg come
+   from CSS vars set inline per-caretaker color; when unset (no color chosen)
+   it falls back to a neutral gray pill. */
+.timeline-caretaker-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  max-width: 10rem;
+  padding: 0.0625rem 0.4375rem; /* 1px 7px */
+  border-radius: 9999px;
+  font-size: 0.6875rem; /* 11px */
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--badge-bg, #e5e7eb); /* gray-200 fallback */
+  color: var(--badge-fg, #374151); /* gray-700 fallback */
+}
+
+/* Dark mode only needs to fix the neutral fallback; colored pills carry their
+   own inline vars and read fine on the dark surface. */
+html.dark .timeline-caretaker-badge {
+  background: var(--badge-bg, #374151); /* gray-700 fallback */
+  color: var(--badge-fg, #e5e7eb); /* gray-200 fallback */
+}
+
+.event-title {
+  font-weight: 600;
+  font-size: 0.875rem; /* 14px */
+  color: #1f2937; /* gray-800 */
+  margin-bottom: 0.125rem; /* 2px */
+}
+
+.event-details {
+  font-size: 0.75rem; /* 12px */
+  color: #4b5563; /* gray-600 */
+}
+
+.event-time {
+  font-size: 0.75rem; /* 12px */
+  color: #6b7280; /* gray-500 */
+}
+
+.timeline-activity-wrapper {
+  position: relative;
+}
+
+.timeline-activity-wrapper:hover .timeline-dot-hover {
+  transform: translateY(-50%) scale(1.5);
+}
+
+.timeline-connector-line {
+  z-index: 5;
+}
+
+.timeline-activity-wrapper:hover .timeline-connector-line {
+  width: 3rem !important; /* Expand connector line on hover */
+}
+
+.timeline-hour-group:not(:last-child) .timeline-activity-wrapper:last-child {
+  margin-bottom: 0;
+}
+
+/* Dark mode overrides for TimelineActivityList component */
+html.dark .timeline-activity-list,
+html.dark .timeline-activity-scroll-container {
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+html.dark .timeline-vertical-line {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .timeline-hour-marker {
+  background: rgba(55, 65, 81, 0.95) !important; /* semi-transparent gray-700 */
+  backdrop-filter: blur(8px) !important;
+}
+
+html.dark .timeline-hour-group > div:first-child {
+  background-color: transparent !important; /* Remove background in dark mode */
+}
+
+html.dark .timeline-hour-text {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .timeline-hour-divider {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .timeline-connector-line {
+  background-color: #6b7280 !important; /* gray-500 */
+}
+
+html.dark .timeline-activity-card {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .timeline-activity-card:hover {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .timeline-activity-card::before {
+  background-color: transparent !important;
+}
+
+html.dark .timeline-activity-card:hover::before {
+  background-color: var(--activity-color) !important;
+}
+
+html.dark .timeline-activity-item {
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .timeline-activity-item:hover {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .timeline-activity-type {
+  background-color: #374151 !important; /* gray-700 */
+  color: #e5e7eb !important; /* gray-200 */
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+html.dark .timeline-activity-details {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .timeline-activity-time {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .timeline-empty-state {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .timeline-empty-description {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .timeline-swipe-shadow-left {
+  background: linear-gradient(to right, rgba(75, 85, 99, 0.5), transparent) !important;
+}
+
+html.dark .timeline-swipe-shadow-right {
+  background: linear-gradient(to left, rgba(75, 85, 99, 0.5), transparent) !important;
+}
+
+html.dark .timeline-activity-wrapper {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .timeline-activity-wrapper:hover {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+/* Dark mode styles for TimelineV2ActivityList */
+html.dark .timeline-activity-list {
+  background-color: #1f2937 !important; /* gray-800 - matches activity-tile background */
+}
+
+html.dark .timeline-activity-scroll-container {
+  background-color: #1f2937 !important; /* gray-800 - matches activity-tile background */
+}
+
+  /* Gradient at top - from dark background to transparent - override all Tailwind gradient utilities */
+html.dark .timeline-top-gradient,
+html.dark .timeline-top-gradient.bg-gradient-to-b,
+html.dark .timeline-top-gradient.from-white,
+html.dark .timeline-top-gradient.to-transparent {
+  background-image: linear-gradient(to bottom, #1f2937, transparent) !important; /* gray-800 to transparent */
+  background: linear-gradient(to bottom, #1f2937, transparent) !important;
+}
+
+/* Timeline container border */
+html.dark .timeline-container {
+  border-color: rgb(55, 65, 81) !important; /* gray-700 */
+}
+
+/* Time of day header */
+html.dark .timeline-hour-group .text-gray-500 {
+  color: rgb(209, 213, 219) !important; /* gray-300 */
+}
+
+/* Timeline event hover - matches selected filter color */
+html.dark .timeline-event:hover {
+  background-color: rgb(55, 65, 81) !important; /* gray-700 - matches selected filter color */
+}
+
+/* EXPLORATION: stroke around the on-line icon matches the dark page background */
+html.dark .event-icon {
+  box-shadow: 0 0 0 3px #1f2937; /* gray-800 - dark page background */
+}
+
+/* Event title */
+html.dark .event-title {
+  color: rgb(243, 244, 246) !important; /* gray-100 */
+}
+
+/* Event details */
+html.dark .event-details {
+  color: rgb(209, 213, 219) !important; /* gray-300 */
+}
+
+/* Event time */
+html.dark .event-time {
+  color: rgb(156, 163, 175) !important; /* gray-400 */
+}
+
+/* Event icon backgrounds - maintain activity colors in dark mode */
+html.dark .event-icon.sleep {
+  background: linear-gradient(to bottom right, #9ca3af, #6b7280, #4b5563) !important; /* gray gradient */
+}
+
+html.dark .event-icon.sleep svg,
+html.dark .event-icon.sleep svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.feed {
+  background: #bae6fd !important; /* sky-200 - keep light blue background */
+}
+
+html.dark .event-icon.feed svg,
+html.dark .event-icon.feed svg path {
+  color: #374151 !important; /* gray-700 - dark text on light background */
+  stroke: #374151 !important;
+}
+
+html.dark .event-icon.diaper {
+  background: linear-gradient(to right, #0d9488, #0f766e) !important; /* teal gradient */
+}
+
+html.dark .event-icon.diaper svg,
+html.dark .event-icon.diaper svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.note {
+  background: #ffff99 !important; /* yellow */
+}
+
+html.dark .event-icon.note svg,
+html.dark .event-icon.note svg path {
+  color: #374151 !important; /* gray-700 - dark text on light background */
+  stroke: #374151 !important;
+}
+
+html.dark .event-icon.bath {
+  background: linear-gradient(to right, #fb923c, #f97316) !important; /* orange gradient */
+}
+
+html.dark .event-icon.bath svg,
+html.dark .event-icon.bath svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.pump {
+  background: linear-gradient(to right, #e9d5ff, #d8b4fe) !important; /* purple gradient */
+}
+
+html.dark .event-icon.breast-milk-adjustment {
+  background: linear-gradient(to right, #e9d5ff, #d8b4fe) !important; /* purple gradient - matches pump */
+}
+
+html.dark .event-icon.breast-milk-adjustment span {
+  color: #ffffff !important;
+}
+
+html.dark .event-icon.milestone {
+  background: #4875EC !important; /* blue */
+}
+
+html.dark .event-icon.milestone svg,
+html.dark .event-icon.milestone svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.measurement {
+  background: #EA6A5E !important; /* red */
+}
+
+html.dark .event-icon.measurement svg,
+html.dark .event-icon.measurement svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.medicine {
+  background: #43B755 !important; /* green */
+}
+
+html.dark .event-icon.medicine svg,
+html.dark .event-icon.medicine svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.supplement {
+  background: #43B755 !important; /* green */
+}
+
+html.dark .event-icon.supplement svg,
+html.dark .event-icon.supplement svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+html.dark .event-icon.play {
+  background: #F3C4A2 !important; /* peach */
+}
+
+.event-icon.vaccine {
+  background: #ffffff;
+  border: 2px solid #EF4444;
+}
+.event-icon.vaccine svg, .event-icon.vaccine svg path {
+  color: #EF4444 !important;
+  stroke: #EF4444 !important;
+}
+.timeline-event.vaccine::before {
+  background: #EF4444 !important;
+}
+html.dark .event-icon.vaccine {
+  background: transparent !important;
+  border: 2px solid #EF4444 !important;
+}
+html.dark .event-icon.vaccine svg, html.dark .event-icon.vaccine svg path {
+  color: #EF4444 !important;
+  stroke: #EF4444 !important;
+}
+
+.event-icon.food {
+  background: #BBD444; /* food tracker (issue #203) */
+}
+.event-icon.food svg, .event-icon.food svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+.timeline-event.food::before {
+  background: #BBD444 !important; /* food tracker */
+}
+html.dark .event-icon.food {
+  background: #BBD444 !important;
+}
+html.dark .event-icon.food svg, html.dark .event-icon.food svg path {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.event-icon.photo {
+  background: #ffffff;
+  border: 2px solid #e11d48;
+}
+.event-icon.photo svg, .event-icon.photo svg path {
+  color: #e11d48 !important;
+  stroke: #e11d48 !important;
+}
+.timeline-event.photo::before {
+  background: #e11d48 !important;
+}
+html.dark .event-icon.photo {
+  background: transparent !important;
+  border: 2px solid #e11d48 !important;
+}
+html.dark .event-icon.photo svg, html.dark .event-icon.photo svg path {
+  color: #e11d48 !important;
+  stroke: #e11d48 !important;
+}
+
+/* Timeline photo thumbnails - "+N" overflow badge */
+html.dark .timeline-thumb-more {
+  background-color: #1e293b;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+html.dark .full-log-timeline-activity-icon.bg-white {
+  background: transparent;
+}

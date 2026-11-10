@@ -1,0 +1,236 @@
+/* Theme toggle styles */
+.theme-toggle-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.theme-toggle-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+}
+
+/* Theme toggle button */
+.theme-toggle-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* Light variant button */
+.theme-toggle-button-light {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+/* Minimal variant button - gray-200 in both modes */
+.theme-toggle-button-minimal {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+}
+
+/* Theme icon container and styling */
+.theme-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+/* Light variant icon container - smaller margin */
+.theme-icon-container-light {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+}
+
+.theme-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: #6b7280; /* gray-500 */
+}
+
+/* Light variant icon - smaller */
+.theme-icon-light {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #6b7280; /* gray-500 - visible in light mode */
+}
+
+/* Circle indicator for active theme */
+.theme-icon::before {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+/* Light variant - no circle indicator */
+.theme-icon-light::before {
+  display: none;
+}
+
+/* Minimal variant icon - same size as light, gray-200 color */
+.theme-icon-minimal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: #e5e7eb; /* gray-200 */
+}
+
+/* Minimal variant - no circle indicator */
+.theme-icon-minimal::before {
+  display: none;
+}
+
+/* Minimal variant current theme - gray-200 text */
+.current-theme-minimal {
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 500; /* font-medium */
+  color: #e5e7eb; /* gray-200 */
+}
+
+/* Active theme indicators - light mode styles */
+.active-light::before {
+  border-color: #0ea5e9; /* sky-500 */
+  background-color: rgba(14, 165, 233, 0.1); /* sky-500 with opacity */
+}
+
+.active-dark::before {
+  border-color: #6366f1; /* indigo-500 */
+  background-color: rgba(99, 102, 241, 0.1); /* indigo-500 with opacity */
+}
+
+.active-system::before {
+  border-color: #10b981; /* emerald-500 */
+  background-color: rgba(16, 185, 129, 0.1); /* emerald-500 with opacity */
+}
+
+/* Theme info text styling */
+.theme-info {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Light variant theme info - single line with smaller text */
+.theme-info-light {
+  display: flex;
+  flex-direction: column;
+}
+
+.current-theme {
+  font-size: 0.875rem; /* text-sm */
+  font-weight: 500; /* font-medium */
+  color: #111827; /* gray-900 */
+}
+
+/* Light variant current theme - smaller text */
+.current-theme-light {
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 500; /* font-medium */
+  color: #6b7280; /* gray-500 - visible in light mode */
+}
+
+.next-theme {
+  font-size: 0.75rem; /* text-xs */
+  color: #6b7280; /* gray-500 */
+}
+
+/* Dark mode overrides */
+html.dark .theme-toggle-button {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .theme-toggle-button:hover {
+  background-color: #374151 !important; /* gray-700 */
+  color: #e5e7eb !important; /* gray-200 - keep same color on hover */
+}
+
+/* Dark mode overrides for light variant */
+html.dark .theme-toggle-button-light {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .theme-toggle-button-light:hover {
+  color: #5eead4 !important; /* teal-300 - just color change, no background */
+}
+
+/* Dark mode overrides for minimal variant */
+html.dark .theme-toggle-button-minimal {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .theme-toggle-button-minimal:hover {
+  color: #5eead4 !important; /* teal-300 - just color change, no background */
+}
+
+html.dark .theme-icon {
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .theme-icon-light {
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .theme-icon-minimal {
+  color: #e5e7eb; /* gray-200 - same in both modes */
+}
+
+html.dark .current-theme-minimal {
+  color: #e5e7eb; /* gray-200 - same in both modes */
+}
+
+html.dark .current-theme {
+  color: #f3f4f6; /* gray-100 */
+}
+
+html.dark .current-theme-light {
+  color: #f3f4f6; /* gray-100 */
+}
+
+html.dark .next-theme {
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Active theme indicators - dark mode styles */
+html.dark .active-light::before {
+  border-color: #38bdf8; /* sky-400 */
+  background-color: rgba(56, 189, 248, 0.15); /* sky-400 with opacity */
+}
+
+html.dark .active-dark::before {
+  border-color: #818cf8; /* indigo-400 */
+  background-color: rgba(129, 140, 248, 0.15); /* indigo-400 with opacity */
+}
+
+html.dark .active-system::before {
+  border-color: #34d399; /* emerald-400 */
+  background-color: rgba(52, 211, 153, 0.15); /* emerald-400 with opacity */
+}
+
+/* Responsive adjustments */
+@media (max-width: 639px) {
+  .theme-toggle-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

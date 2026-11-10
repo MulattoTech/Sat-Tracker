@@ -1,0 +1,76 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+test-results/
+tests/
+
+# Never copy runtime infant files or local databases into an application image
+Files/
+env/
+*.db
+*.db-shm
+*.db-wal
+.env*
+
+# Next.js
+.next/
+out/
+
+# Production
+build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Database
+db/*.db
+/db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Scripts
+scripts/backup.sh
+scripts/deployment.sh
+scripts/service.sh
+scripts/setup-service.sh
+scripts/update.sh
+
+# Logs
+logs/
+Logs/
+
+# Documentation (ignore all except CSV files needed for seeding)
+documentation/
+!documentation/wtageinf.csv
+!documentation/hcageinf.csv
+!documentation/lenageinf.csv
+!documentation/who-wtageinf.csv
+!documentation/who-hcageinf.csv
+!documentation/who-lenageinf.csv

@@ -1,0 +1,91 @@
+/* Dark mode overrides for CalendarEvent component */
+html.dark .calendar-event {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .calendar-event-container {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .calendar-event-header {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .calendar-event-title {
+  color: #f3f4f6 !important; /* gray-100 */
+}
+
+html.dark .calendar-event-type {
+  background-color: rgba(13, 148, 136, 0.3) !important; /* teal-900/30 */
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .calendar-event-icon {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .calendar-event-time {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .calendar-event-location {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .calendar-event-people-list {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .calendar-event-description {
+  color: #d1d5db !important; /* gray-300 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .calendar-event-actions {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+/* Enhance hover effects in dark mode */
+html.dark .calendar-event-container:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+/* Recurring event icon animation */
+.recurring-icon {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 640px) {
+  .calendar-event-container {
+    margin-bottom: 0.5rem;
+  }
+  
+  .calendar-event-title {
+    font-size: 0.875rem;
+  }
+  
+  .calendar-event-time,
+  .calendar-event-location,
+  .calendar-event-description {
+    font-size: 0.75rem;
+  }
+  
+  .calendar-event-badge {
+    font-size: 0.65rem;
+    padding: 0.125rem 0.375rem;
+  }
+}

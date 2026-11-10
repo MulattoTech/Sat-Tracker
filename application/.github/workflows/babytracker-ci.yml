@@ -1,0 +1,45 @@
+name: BabyTracker acceptance
+
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: babytracker-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  reviewed-ocr:
+    # Match the tested native/browser toolchain; ubuntu-latest can advance to an
+    # OS release that the pinned Playwright browser does not support yet.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_PROVIDER: sqlite
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install local OCR tools
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr poppler-utils fonts-dejavu-core util-linux
+      - name: Pin English OCR model
+        run: |
+          mkdir -p "$RUNNER_TEMP/babytracker-ocr-model"
+          curl --fail --location --max-time 60 https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata --output "$RUNNER_TEMP/babytracker-ocr-model/eng.traineddata"
+          echo "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  $RUNNER_TEMP/babytracker-ocr-model/eng.traineddata" | sha256sum -c -
+          echo "TESSDATA_PREFIX=$RUNNER_TEMP/babytracker-ocr-model" >> "$GITHUB_ENV"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run prisma:generate && npm run prisma:generate:log
+      - run: npx tsc --noEmit --incremental false
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium --only-shell
+      - run: npm run test:ocr-browser

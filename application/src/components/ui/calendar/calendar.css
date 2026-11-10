@@ -1,0 +1,148 @@
+/* Dark mode overrides for calendar component */
+html.dark .calendar {
+  background-color: #4b5563 !important; /* dark:bg-gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+  border-color: #6b7280 !important; /* dark:border-gray-500 */
+}
+
+html.dark .calendar-header {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .calendar-month-select {
+  color: #e5e7eb !important; /* dark:text-gray-200 */
+}
+
+html.dark .calendar-nav-button {
+  color: #9ca3af !important; /* dark:text-gray-400 */
+}
+
+html.dark .calendar-nav-button:hover {
+  background-color: #374151 !important; /* dark:hover:bg-gray-700 */
+  color: #e5e7eb !important; /* dark:hover:text-gray-200 */
+}
+
+html.dark .calendar-day-name {
+  color: #9ca3af !important; /* dark:text-gray-400 */
+}
+
+html.dark .calendar-day {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .calendar-day:hover:not(.calendar-day-disabled):not(.calendar-day-selected) {
+  background-color: #374151 !important; /* dark:hover:bg-gray-700 */
+  color: #9ca3af !important; /* dark:hover:text-gray-300 */
+}
+
+html.dark .calendar-day-outside {
+  color: #6b7280 !important; /* dark:text-gray-500 */
+}
+
+html.dark .calendar-day-today {
+  border-color: #5eead4 !important; /* dark:border-teal-300 */
+}
+
+html.dark .calendar-day-selected,
+html.dark .calendar-day-range-start,
+html.dark .calendar-day-range-end {
+  background: linear-gradient(to right, #0d9488, #059669) !important; /* dark:from-teal-600 dark:to-emerald-600 */
+  color: #ffffff !important; /* white */
+}
+
+html.dark .calendar-day-selected:hover,
+html.dark .calendar-day-range-start:hover,
+html.dark .calendar-day-range-end:hover {
+  background: linear-gradient(to right, #0f766e, #047857) !important; /* dark:hover:from-teal-700 dark:hover:to-emerald-700 */
+}
+
+html.dark .calendar-day-range-middle {
+  background-color: #134e4a !important; /* dark:bg-teal-900 */
+  color: #99f6e4 !important; /* dark:text-teal-200 */
+  border-radius: 0 !important;
+}
+
+html.dark .calendar-day-range-middle:hover {
+  background-color: #115e59 !important; /* dark:hover:bg-teal-800 */
+}
+
+html.dark .calendar-day-range-start {
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+html.dark .calendar-day-range-end {
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+/* Additional dark mode styles from calendar.styles.ts */
+html.dark .calendar-day-disabled {
+  color: #4b5563 !important; /* dark:text-gray-600 */
+}
+
+html.dark .calendar-day-disabled:hover {
+  background-color: transparent !important;
+  color: #4b5563 !important; /* dark:hover:text-gray-600 */
+}
+
+html.dark .calendar-day-selected.calendar-day-today {
+  border-color: #ffffff !important; /* dark:border-white */
+}
+
+/* Dark mode styles for month/year selectors */
+html.dark .calendar-month-select,
+html.dark .calendar-year-select {
+  color: #e5e7eb !important; /* dark:text-gray-200 */
+}
+
+html.dark .calendar-month-select:hover,
+html.dark .calendar-year-select:hover {
+  background-color: #374151 !important; /* dark:hover:bg-gray-700 */
+  color: #e5e7eb !important; /* dark:hover:text-gray-200 */
+}
+
+/* Legacy dropdown styles - now unused but kept for compatibility */
+html.dark .month-selector-container,
+html.dark .year-selector-container {
+  background-color: #4b5563 !important; /* dark:bg-gray-600 */
+  border-color: #6b7280 !important; /* dark:border-gray-500 */
+  color: #e5e7eb !important; /* dark:text-gray-200 */
+}
+
+/* Page-based selector styles */
+html.dark .calendar .border-gray-200 {
+  border-color: #374151 !important; /* dark:border-gray-700 */
+}
+
+/* Page-based selector button styles for dark mode */
+html.dark .calendar button[class*="bg-teal-100"] {
+  background-color: #134e4a !important; /* dark:bg-teal-900 selected */
+  color: #99f6e4 !important; /* dark:text-teal-200 selected */
+}
+
+html.dark .calendar button[class*="hover:bg-teal-50"] {
+  color: #d1d5db !important; /* dark:text-gray-300 */
+}
+
+html.dark .calendar button[class*="hover:bg-teal-50"]:hover {
+  background-color: #134e4a !important; /* dark:hover:bg-teal-900 */
+  color: #99f6e4 !important; /* dark:hover:text-teal-200 */
+}
+
+/* Dark mode styles for date range display */
+html.dark .calendar-range-display {
+  color: #e5e7eb !important; /* dark:text-gray-200 */
+}
+
+html.dark .calendar-range-display .text-gray-500 {
+  color: #9ca3af !important; /* dark:text-gray-400 */
+}
+
+html.dark .calendar-range-display .text-gray-700 {
+  color: #e5e7eb !important; /* dark:text-gray-200 */
+}
+
+html.dark .calendar-range-display .bg-gray-300 {
+  background-color: #6b7280 !important; /* dark:bg-gray-500 */
+}

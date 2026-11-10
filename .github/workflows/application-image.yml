@@ -1,0 +1,74 @@
+name: Build accepted BabyTracker image
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: [BabyTracker acceptance]
+    branches: [main]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+  packages: write
+concurrency:
+  group: accepted-image-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+jobs:
+  image:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Verify exact-commit acceptance before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$REPO/actions/workflows/babytracker-ci.yml/runs?head_sha=$SOURCE_SHA&branch=main&per_page=20" > /tmp/acceptance.json
+          python3 - <<'PY'
+          import json, os
+          runs=json.load(open('/tmp/acceptance.json'))['workflow_runs']
+          runs=[r for r in runs if r['head_sha']==os.environ['SOURCE_SHA'] and r['head_branch']=='main']
+          latest=max(runs,key=lambda r:r['created_at'])
+          assert latest['status']=='completed' and latest['conclusion']=='success', 'Exact SHA acceptance is not passing'
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: ./application
+          push: true
+          tags: ghcr.io/mulattotech/babytracker-master:sha-${{ env.SOURCE_SHA }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/MulattoTech/BabyTracker-Master
+            org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
+      - name: Emit immutable candidate manifest
+        env:
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          value={'schemaVersion':1,'repository':os.environ['GITHUB_REPOSITORY'],'revision':os.environ['SOURCE_SHA'],
+                 'image':'ghcr.io/mulattotech/babytracker-master@'+os.environ['IMAGE_DIGEST'],
+                 'productionAutomaticallyChanged':False,'promotionCommand':'pwsh -File scripts/promote-release.ps1 -Image <pinned-image> -Apply -VerifyDataPreservation'}
+          open('release-candidate.json','w').write(json.dumps(value,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-${{ env.SOURCE_SHA }}
+          path: release-candidate.json
+          retention-days: 30

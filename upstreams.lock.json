@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-30",
+  "policy": "Fetch, compare, test and review; never overwrite application or auto-merge upstream.",
+  "upstreams": [
+    {
+      "id": "sprout",
+      "repository": "Oak-and-Sprout/sprout-track",
+      "remote": "upstream-sprout",
+      "branch": "main",
+      "observedHead": "eb26949461bd0455cb8d6137dc5bc417a02adcf9",
+      "integrationBase": "462246d9653c805cac87ee4e860fec7b54367f8a",
+      "target": "application/",
+      "integration": "Maintain the existing derivative; apply reviewed upstream changes using prefix-aware comparison.",
+      "license": "Custom Sprout Track license; retain application/LICENSE.md. Attribution, non-commercial and share-alike conditions apply."
+    },
+    {
+      "id": "babybuddy",
+      "repository": "babybuddy/babybuddy",
+      "remote": "upstream-babybuddy",
+      "branch": "master",
+      "observedHead": "2bd0461f5a7e407147bcfef363eb79dce6c9708d",
+      "integrationBase": null,
+      "target": "application/src/lib/importers/baby-buddy/",
+      "integration": "Existing data-import adapter; full Baby Buddy application is not merged. Review service/API or adapter integration before copying code.",
+      "license": "BSD-2-Clause according to upstream metadata; retain notices for any adopted code."
+    }
+  ]
+}

@@ -1,0 +1,1240 @@
+import { Settings } from '@prisma/client';
+import { pumpActionLabel } from '@/src/utils/pumpAction';
+import {
+  formatTimeDisplay,
+  formatDateShort,
+  DateFormatSetting,
+  TimeFormatSetting,
+} from '@/src/utils/dateFormat';
+import {
+  Moon,
+  Icon,
+  Edit,
+  Bath,
+  LampWallDown,
+  Trophy,
+  Ruler,
+  Scale,
+  RotateCw,
+  Thermometer,
+  PillBottle,
+  Pill,
+  Baby,
+  Plus,
+  Minus,
+  Syringe,
+  Camera,
+  Utensils,
+  Apple
+} from 'lucide-react';
+import { diaper, bottleBaby } from '@lucide/lab';
+import {
+  ActivityType,
+  ActivityDetails,
+  ActivityDescription,
+  ActivityStyle
+} from './types';
+import { getSymbol } from '@/src/hooks/useUnit';
+import { FOOD_ENJOYMENT_LABELS, formatFoodMealTitle, isFoodLogActivity, isValidEnjoyment } from '@/src/utils/foodLogUtils';
+import { lbToLbOz, formatWeightDisplay } from '@/src/utils/weightUnits';
+import { formatPauseDuration } from '@/src/utils/pauseDisplay';
+import { isDirtyDiaper } from '@/src/utils/diaperStats';
+import { localizeSleepLocation } from '@/src/utils/sleepLocationUtils';
+
+export { lbToLbOz, formatWeightDisplay };
+
+const PLAY_TYPES = ['TUMMY_TIME', 'INDOOR_PLAY', 'OUTDOOR_PLAY', 'WALK', 'CUSTOM'];
+
+const isPlayActivity = (activity: any): boolean => {
+  return 'activities' in activity && 'type' in activity && PLAY_TYPES.includes(activity.type);
+};
+
+// EXPLORATION: render the activity's real PNG illustration instead of a mono
+// lucide glyph. `timeline-png-icon` lets the CSS strip the colored box padding
+// so the circular illustration fills the icon slot cleanly. The 36px size lives
+// on the img itself (not the slot) so it renders identically in every consumer —
+// timeline, V2 timeline and full log — regardless of the slot's own sizing.
+const pngIcon = (src: string) => (
+  <img src={src} alt="" aria-hidden="true" className="timeline-png-icon block h-9 w-9 object-contain" />
+);
+
+export const getActivityIcon = (activity: ActivityType) => {
+  // Photo log - check first since it has no overlapping fields with other types
+  if ('photoLogId' in activity) {
+    return pngIcon('/photo-192.png');
+  }
+  // Food log (issue #203 / #247) — foodId or foods JSON
+  if (isFoodLogActivity(activity)) {
+    return pngIcon('/food-256.png');
+  }
+  // Play activity - check before sleep since both have duration and type
+  if (isPlayActivity(activity)) {
+    return pngIcon('/activity-128.png');
+  }
+  if ('doseAmount' in activity && 'medicineId' in activity) {
+    // Medicine or supplement log (no separate supplement art yet)
+    return pngIcon('/med-128.png');
+  }
+  // Check for breast milk adjustment BEFORE pump (both have amount) - no PNG art,
+  // keep the lucide +/- glyph on the purple box
+  if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) {
+    const amt = (activity as any).amount;
+    if (amt < 0) {
+      return <Minus className="h-4 w-4 text-black" aria-hidden="true" />;
+    }
+    return <Plus className="h-4 w-4 text-black" aria-hidden="true" />;
+  }
+  // Check for pump activities FIRST (before sleep) since they also have duration and startTime
+  if ('leftAmount' in activity || 'rightAmount' in activity) {
+    return pngIcon('/pump-128.png'); // Pump activity
+  }
+  if ('type' in activity) {
+    if ('duration' in activity) {
+      return pngIcon('/crib-128.png'); // Sleep activity
+    }
+    if ('amount' in activity) {
+      if ((activity as any).type === 'SOLIDS') {
+        return pngIcon('/solids-128.png'); // Solids feed
+      }
+      return pngIcon('/bottle-128.png'); // Feed activity
+    }
+    if ('condition' in activity) {
+      return pngIcon('/diaper-128.png'); // Diaper activity
+    }
+  }
+  if ('content' in activity) {
+    return pngIcon('/note-128.png'); // Note activity
+  }
+  if ('soapUsed' in activity) {
+    return pngIcon('/bath-128.png'); // Bath activity
+  }
+  if ('vaccineName' in activity) {
+    return pngIcon('/vaccine-128.png');
+  }
+  if ('title' in activity && 'category' in activity) {
+    return pngIcon('/milestone-128.png'); // Milestone activity
+  }
+  if ('value' in activity && 'unit' in activity) {
+    // Per-type measurement illustrations, falling back to the generic icon
+    switch (activity.type) {
+      case 'WEIGHT':
+        return pngIcon('/weight-192.png');
+      case 'HEIGHT':
+        return pngIcon('/height-192.png');
+      case 'HEAD_CIRCUMFERENCE':
+        return pngIcon('/hc-measurement-192.png');
+      case 'TEMPERATURE':
+        return pngIcon('/temperature-192.png');
+      default:
+        return pngIcon('/measurement-128.png');
+    }
+  }
+  return null;
+};
+
+export const getActivityTime = (activity: ActivityType): string => {
+  if ('time' in activity && activity.time) {
+    // For breast feeds, prefer startTime (session start) over time (session end)
+    if ('type' in activity && activity.type === 'BREAST' && 'startTime' in activity && activity.startTime) {
+      return String(activity.startTime);
+    }
+    return activity.time;
+  }
+  if ('startTime' in activity && activity.startTime) {
+    if ('duration' in activity && activity.endTime) {
+      return String(activity.endTime);
+    }
+    return String(activity.startTime);
+  }
+  if ('date' in activity && activity.date) {
+    return String(activity.date);
+  }
+  return new Date().toLocaleString();
+};
+
+export const formatTime = (date: string, settings: Settings | null, includeDate: boolean = true, t?: (key: string) => string) => {
+  if (!date) return 'Invalid Date';
+
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return 'Invalid Date';
+
+    const tf = ((settings as any)?.timeFormat || '12h') as TimeFormatSetting;
+    const df = ((settings as any)?.dateFormat || 'MM/DD/YYYY') as DateFormatSetting;
+
+    const timeStr = formatTimeDisplay(dateObj, tf);
+
+    if (!includeDate) return timeStr;
+
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isToday = dateObj.toDateString() === today.toDateString();
+    const isYesterday = dateObj.toDateString() === yesterday.toDateString();
+
+    const dateStr = isToday
+      ? (t ? t('Today') : 'Today')
+      : isYesterday
+      ? (t ? t('Yesterday') : 'Yesterday')
+      : formatDateShort(dateObj, df) + ',';
+    return `${dateStr} ${timeStr}`;
+  } catch (error) {
+    console.error('Error formatting time:', error);
+    return 'Invalid Date';
+  }
+};
+
+export const formatDuration = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `(${hours.toString().padStart(2, '0')}:${remainingMinutes.toString().padStart(2, '0')})`;
+};
+
+export const getActivityDetails = (activity: ActivityType, settings: Settings | null, t: (key: string) => string): ActivityDetails => {
+  // Common details that should be added to all activity types if caretaker name exists
+  const caretakerDetail = activity.caretakerName ? [
+    { label: t('Caretaker'), value: activity.caretakerName }
+  ] : [];
+
+  // Food log (issue #203 / #247)
+  if (isFoodLogActivity(activity)) {
+    const foodLog = activity as any;
+    const enjoyment: unknown = foodLog.enjoyment;
+    const names: string[] =
+      (Array.isArray(foodLog.foodItems) && foodLog.foodItems.length > 0
+        ? foodLog.foodItems.map((item: { name?: string }) => item.name).filter(Boolean)
+        : null) ||
+      (foodLog.food?.name ? [foodLog.food.name] : []);
+    const mealTitle = formatFoodMealTitle(names) || t('unknown');
+    const foodDetails = [
+      { label: t('Food'), value: mealTitle },
+      { label: t('Time'), value: formatTime(foodLog.time, settings, true, t) },
+    ];
+    if (foodLog.amount) {
+      foodDetails.push({ label: t('Amount'), value: `${foodLog.amount} ${getSymbol(foodLog.unitAbbr, t)}`.trim() });
+    }
+    if (isValidEnjoyment(enjoyment)) {
+      foodDetails.push({ label: t('Enjoyment'), value: t(FOOD_ENJOYMENT_LABELS[enjoyment]) });
+    }
+    const anyCommonAllergen =
+      foodLog.food?.commonAllergen ||
+      (Array.isArray(foodLog.foodItems) && foodLog.foodItems.some((item: { commonAllergen?: boolean }) => item.commonAllergen));
+    if (anyCommonAllergen) {
+      foodDetails.push({ label: t('Common Allergen'), value: t('Yes') });
+    }
+    if (foodLog.isFirstTry) {
+      foodDetails.push({ label: t('First Try'), value: t('Yes') });
+    }
+    if (foodLog.hadReaction) {
+      foodDetails.push({ label: t('Reaction'), value: foodLog.reactionDescription || t('Yes') });
+    }
+    if (foodLog.notes) {
+      foodDetails.push({ label: t('Notes'), value: foodLog.notes });
+    }
+    return {
+      title: t('Food Record'),
+      details: [...foodDetails, ...caretakerDetail],
+    };
+  }
+
+  // Play activity - check before sleep since both have duration and type
+  if (isPlayActivity(activity)) {
+    const formatPlayType = (type: string) => {
+      switch (type) {
+        case 'TUMMY_TIME': return t('Tummy Time');
+        case 'INDOOR_PLAY': return t('Indoor Play');
+        case 'OUTDOOR_PLAY': return t('Outdoor Play');
+        case 'WALK': return t('Walk');
+        default: return type;
+      }
+    };
+    const playDetails = [
+      { label: t('Start Time'), value: formatTime((activity as any).startTime, settings, true, t) },
+      { label: t('Activity Type'), value: formatPlayType((activity as any).type) },
+    ];
+    if ((activity as any).duration) {
+      playDetails.push({ label: t('Duration'), value: `${(activity as any).duration} ${t('minutes')}` });
+    }
+    if ((activity as any).activities) {
+      playDetails.push({ label: t('Sub-Category'), value: t((activity as any).activities) });
+    }
+    if ((activity as any).location) {
+      playDetails.push({ label: t('Notes'), value: (activity as any).location });
+    }
+    return {
+      title: t('Activity Record'),
+      details: [...playDetails, ...caretakerDetail],
+    };
+  }
+
+  if ('type' in activity) {
+    if ('duration' in activity) {
+      // For sleep activities, always show dates with times
+      const startTime = activity.startTime ? formatTime(activity.startTime, settings, true, t) : t('unknown');
+      let endTime = t('ongoing');
+      
+      if (activity.endTime) {
+        endTime = formatTime(activity.endTime, settings, true, t);
+      }
+      
+      const duration = activity.duration ? ` ${formatDuration(activity.duration)}` : '';
+      const formatSleepQuality = (quality: string) => {
+        switch (quality) {
+          case 'POOR': return t('Poor');
+          case 'FAIR': return t('Fair');
+          case 'GOOD': return t('Good');
+          case 'EXCELLENT': return t('Excellent');
+          default: return quality;
+        }
+      };
+      const formatLocation = (location: string) => {
+        if (location === 'OTHER') return t('Other');
+        
+        return localizeSleepLocation(location, t);
+      };
+      const details = [
+        { label: t('Type'), value: activity.type === 'NAP' ? t('Nap') : t('Night Sleep') },
+        { label: t('Start Time'), value: startTime },
+      ];
+      
+      // Only show end time and duration if sleep has ended
+      if (activity.endTime) {
+        // Format duration as hours and minutes
+        let durationValue = t('unknown');
+        if (activity.duration) {
+          const hours = Math.floor(activity.duration / 60);
+          const mins = activity.duration % 60;
+          durationValue = `${hours}h ${mins}${t('min')}`;
+        }
+        details.push(
+          { label: t('End Time'), value: endTime },
+          { label: t('Duration'), value: durationValue }
+        );
+        // Only show quality if sleep has ended
+        if ((activity as any).quality) {
+          details.push({ label: t('Quality'), value: formatSleepQuality((activity as any).quality) });
+        }
+      }
+      
+      // Always show location if specified (SleepLog only)
+      if ((activity as any).location) {
+        details.push({ label: t('Location'), value: formatLocation((activity as any).location) });
+      }
+
+      // Show notes if present
+      if ((activity as any).notes) {
+        details.push({ label: t('Notes'), value: (activity as any).notes });
+      }
+
+      return {
+        title: t('Sleep Record'),
+        details: [...details, ...caretakerDetail],
+      };
+    }
+    if ('amount' in activity) {
+      const formatFeedType = (type: string) => {
+        switch (type) {
+          case 'BREAST': return t('Breast');
+          case 'BOTTLE': return t('Bottle');
+          case 'SOLIDS': return t('Solid Food');
+          default: return type;
+        }
+      };
+      const formatBreastSide = (side: string) => {
+        switch (side) {
+          case 'LEFT': return t('Left');
+          case 'RIGHT': return t('Right');
+          default: return side;
+        }
+      };
+      // For breast feeds, show startTime (session start) instead of time (session end)
+      const displayTime = activity.type === 'BREAST' && (activity as any).startTime
+        ? (activity as any).startTime
+        : activity.time;
+      const details = [
+        { label: t('Time'), value: formatTime(displayTime, settings, true, t) },
+        { label: t('Type'), value: formatFeedType(activity.type) },
+      ];
+
+      // Show amount for bottle and solids - use unitAbbr instead of hardcoded units
+      if (activity.amount && (activity.type === 'BOTTLE' || activity.type === 'SOLIDS')) {
+        const unit = (activity as any).unitAbbr || (activity.type === 'BOTTLE' ? 'oz' : 'g');
+        if ((activity as any).bottleType === 'Formula/Breast' && (activity as any).breastMilkAmount != null) {
+          const bmAmt = (activity as any).breastMilkAmount;
+          const formulaAmt = Math.round((activity.amount - bmAmt) * 100) / 100;
+          details.push({ label: t('Breast Milk Amount'), value: `${bmAmt} ${unit}` });
+          details.push({ label: t('Formula Amount'), value: `${formulaAmt} ${unit}` });
+          details.push({ label: t('Total'), value: `${activity.amount} ${unit}` });
+        } else {
+          details.push({
+            label: t('Amount'),
+            value: `${activity.amount} ${unit}`
+          });
+        }
+      }
+
+      // Show side for breast feeds
+      if (activity.type === 'BREAST') {
+        if (activity.side) {
+          details.push({ label: t('Side'), value: formatBreastSide(activity.side) });
+        }
+        
+        // Show duration from feedDuration (in seconds) or fall back to amount (in minutes)
+        if (activity.feedDuration) {
+          const minutes = Math.floor(activity.feedDuration / 60);
+          const seconds = activity.feedDuration % 60;
+          details.push({ 
+            label: t('Duration'), 
+            value: seconds > 0 ? 
+              `${minutes} ${t('min')} ${seconds} ${t('sec')}` : 
+              `${minutes} ${t('minutes')}` 
+          });
+        } else if (activity.amount) {
+          details.push({ label: t('Duration'), value: `${activity.amount} ${t('minutes')}` });
+        }
+
+        const pauseText = formatPauseDuration((activity as any).pauseDuration ?? 0, t);
+        if (pauseText) {
+          details.push({ label: t('Pause'), value: pauseText });
+        }
+      }
+
+      // Show food for solids
+      if (activity.type === 'SOLIDS' && activity.food) {
+        details.push({ label: t('Food'), value: activity.food });
+      }
+
+      // Show bottle type for bottle feeds
+      if (activity.type === 'BOTTLE' && (activity as any).bottleType) {
+        const bottleType = (activity as any).bottleType;
+        details.push({
+          label: t('Bottle Type'),
+          value: t(bottleType)
+        });
+      }
+
+      // Show reaction for all feed types if flagged
+      if ((activity as any).hadReaction) {
+        details.push({ label: t('Reaction'), value: (activity as any).reactionDescription || t('Yes') });
+        if ((activity as any).reactionCause) {
+          details.push({ label: t('Cause'), value: (activity as any).reactionCause });
+        }
+      }
+
+      // Show notes for all feed types if present
+      if ((activity as any).notes) {
+        details.push({ label: t('Notes'), value: (activity as any).notes });
+      }
+
+      return {
+        title: t('Feed Record'),
+        details: [...details, ...caretakerDetail],
+      };
+    }
+    if ('condition' in activity) {
+      const formatDiaperType = (type: string) => {
+        switch (type) {
+          case 'WET': return t('Wet');
+          case 'DIRTY': return t('Dirty');
+          case 'BOTH': return t('Wet and Dirty');
+          case 'DRY': return t('Dry');
+          default: return t(capitalize(type));
+        }
+      };
+      const formatDiaperCondition = (condition: string) => {
+        switch (condition) {
+          case 'NORMAL': return t('Normal');
+          case 'LOOSE': return t('Loose');
+          case 'FIRM': return t('Firm');
+          case 'OTHER': return t('Other');
+          default: return t(capitalize(condition));
+        }
+      };
+      const formatDiaperColor = (color: string) => {
+        switch (color) {
+          case 'YELLOW': return t('Yellow');
+          case 'BROWN': return t('Brown');
+          case 'GREEN': return t('Green');
+          case 'OTHER': return t('Other');
+          default: return t(capitalize(color));
+        }
+      };
+      const details = [
+        { label: t('Time'), value: formatTime(activity.time, settings, true, t) },
+        { label: t('Type'), value: formatDiaperType(activity.type) },
+      ];
+
+      // Only show condition and color for DIRTY or BOTH types
+      if (isDirtyDiaper(activity.type)) {
+        if (activity.condition) {
+          details.push({ label: t('Condition'), value: formatDiaperCondition(activity.condition) });
+        }
+        if (activity.color) {
+          details.push({ label: t('Color'), value: formatDiaperColor(activity.color) });
+        }
+      }
+
+      // Show blowout/leakage for all diaper types
+      if (activity.blowout) {
+        details.push({ label: t('Blowout/Leakage'), value: t('Yes') });
+      }
+      if (activity.creamApplied) {
+        details.push({ label: t('Diaper Cream Applied'), value: t('Yes') });
+      }
+
+      if ((activity as any).notes) {
+        details.push({ label: t('Notes'), value: (activity as any).notes });
+      }
+
+      return {
+        title: t('Diaper Record'),
+        details: [...details, ...caretakerDetail],
+      };
+    }
+  }
+  if ('content' in activity) {
+    const noteDetails = [
+      { label: t('Time'), value: formatTime(activity.time, settings, true, t) },
+      { label: t('Content'), value: activity.content },
+      { label: t('Category'), value: activity.category || t('Not specified') },
+    ];
+    
+    return {
+      title: t('Note'),
+      details: [...noteDetails, ...caretakerDetail],
+    };
+  }
+  if ('soapUsed' in activity) {
+    const bathDetails = [
+      { label: t('Time'), value: formatTime(activity.time, settings, true, t) },
+      // Custom bath types pass through t() unchanged; defaults get translated
+      ...((activity as any).bathType ? [{ label: t('Bath Type'), value: t((activity as any).bathType) }] : []),
+      { label: t('Soap Used'), value: activity.soapUsed ? t('Yes') : t('No') },
+      { label: t('Shampoo Used'), value: activity.shampooUsed ? t('Yes') : t('No') },
+    ];
+    
+    if (activity.notes) {
+      bathDetails.push({ label: t('Notes'), value: activity.notes });
+    }
+    
+    return {
+      title: t('Bath Record'),
+      details: [...bathDetails, ...caretakerDetail],
+    };
+  }
+  
+  // Breast milk adjustment
+  if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) {
+    const adjDetails = [
+      { label: t('Time'), value: formatTime((activity as any).time, settings, true, t) },
+      { label: t('Amount'), value: `${(activity as any).amount > 0 ? '+' : ''}${(activity as any).amount} ${(activity as any).unitAbbr || 'oz'}` },
+    ];
+    if ((activity as any).reason) {
+      adjDetails.push({ label: t('Reason'), value: t((activity as any).reason) });
+    }
+    if ((activity as any).notes) {
+      adjDetails.push({ label: t('Notes'), value: (activity as any).notes });
+    }
+    return {
+      title: t('Breast Milk Adjustment'),
+      details: [...adjDetails, ...caretakerDetail],
+    };
+  }
+
+  // Pump activity
+  if ('leftAmount' in activity || 'rightAmount' in activity) {
+    const pumpDetails = [];
+
+    // Type guard to ensure TypeScript knows this is a pump activity
+    const isPumpActivity = (act: any): act is {
+      startTime?: string;
+      endTime?: string | null;
+      leftAmount?: number;
+      rightAmount?: number;
+      totalAmount?: number;
+      unit?: string;
+      pumpAction?: string;
+      notes?: string;
+    } => {
+      return 'leftAmount' in act || 'rightAmount' in act;
+    };
+
+    if (isPumpActivity(activity)) {
+      // Add start time
+      if (activity.startTime) {
+        pumpDetails.push({ label: t('Start Time'), value: formatTime(activity.startTime, settings, true, t) });
+      }
+
+      // Add end time if available
+      if (activity.endTime) {
+        pumpDetails.push({ label: t('End Time'), value: formatTime(activity.endTime, settings, true, t) });
+      }
+
+      // Add left amount if available
+      if (activity.leftAmount) {
+        pumpDetails.push({ label: t('Left Breast'), value: `${activity.leftAmount} ${activity.unit || 'oz'}` });
+      }
+
+      // Add right amount if available
+      if (activity.rightAmount) {
+        pumpDetails.push({ label: t('Right Breast'), value: `${activity.rightAmount} ${activity.unit || 'oz'}` });
+      }
+
+      // Add total amount if available
+      if (activity.totalAmount) {
+        pumpDetails.push({ label: t('Total Amount'), value: `${activity.totalAmount} ${activity.unit || 'oz'}` });
+      }
+
+      // Show pump action
+      if (activity.pumpAction) {
+        pumpDetails.push({ label: t('Action'), value: t(pumpActionLabel(activity.pumpAction)) });
+      }
+
+      // Add notes if available
+      if (activity.notes) {
+        pumpDetails.push({ label: t('Notes'), value: activity.notes });
+      }
+    }
+
+    return {
+      title: t('Breast Pumping Record'),
+      details: [...pumpDetails, ...caretakerDetail],
+    };
+  }
+
+  // Vaccine activity
+  if ('vaccineName' in activity) {
+    const vaccineDetails = [
+      { label: t('Vaccine'), value: (activity as any).vaccineName },
+      { label: t('Time'), value: formatTime((activity as any).time, settings, true, t) },
+    ];
+    if ((activity as any).doseNumber) {
+      vaccineDetails.push({ label: t('Dose #'), value: String((activity as any).doseNumber) });
+    }
+    if ((activity as any).notes) {
+      vaccineDetails.push({ label: t('Notes'), value: (activity as any).notes });
+    }
+    if ((activity as any).administeredBy) {
+      vaccineDetails.push({ label: t('Administered By'), value: (activity as any).administeredBy });
+    }
+    return {
+      title: t('Vaccine Record'),
+      details: [...vaccineDetails, ...caretakerDetail],
+    };
+  }
+
+  // Milestone activity
+  if ('title' in activity && 'category' in activity) {
+    const formatMilestoneCategory = (category: string) => {
+      switch (category) {
+        case 'MOTOR': return t('Motor Skills');
+        case 'COGNITIVE': return t('Cognitive');
+        case 'SOCIAL': return t('Social');
+        case 'LANGUAGE': return t('Language');
+        case 'OTHER': return t('Other');
+        default: return category;
+      }
+    };
+
+    const milestoneDetails = [
+      { label: t('Date'), value: formatTime(activity.date, settings, true, t) },
+      { label: t('Title'), value: activity.title },
+      { label: t('Category'), value: formatMilestoneCategory(activity.category) },
+    ];
+
+    if (activity.description) {
+      milestoneDetails.push({ label: t('Description'), value: activity.description });
+    }
+
+    if (activity.ageInDays) {
+      const years = Math.floor(activity.ageInDays / 365);
+      const months = Math.floor((activity.ageInDays % 365) / 30);
+      const days = activity.ageInDays % 30;
+      let ageString = '';
+      
+      if (years > 0) {
+        ageString += `${years} year${years !== 1 ? 's' : ''} `;
+      }
+      if (months > 0) {
+        ageString += `${months} month${months !== 1 ? 's' : ''} `;
+      }
+      if (days > 0 || (years === 0 && months === 0)) {
+        ageString += `${days} day${days !== 1 ? 's' : ''}`;
+      }
+      
+      milestoneDetails.push({ label: t('Age'), value: ageString.trim() });
+    }
+
+    return {
+      title: t('Milestone'),
+      details: [...milestoneDetails, ...caretakerDetail],
+    };
+  }
+
+  // Measurement activity
+  if ('value' in activity && 'unit' in activity) {
+    const formatMeasurementType = (type: string) => {
+      switch (type) {
+        case 'HEIGHT': return t('Height');
+        case 'WEIGHT': return t('Weight');
+        case 'HEAD_CIRCUMFERENCE': return t('Head Circumference');
+        case 'TEMPERATURE': return t('Temperature');
+        case 'OTHER': return t('Other');
+        default: return type;
+      }
+    };
+
+    const displayValue = ('type' in activity && activity.type === 'WEIGHT')
+      ? formatWeightDisplay(activity.value, activity.unit)
+      : `${activity.value} ${activity.unit}`;
+
+    const measurementDetails = [
+      { label: t('Date'), value: formatTime(activity.date, settings, true, t) },
+      { label: t('Type'), value: formatMeasurementType(activity.type) },
+      { label: t('Value'), value: displayValue },
+    ];
+
+    if (activity.notes) {
+      measurementDetails.push({ label: t('Notes'), value: activity.notes });
+    }
+
+    return {
+      title: t('Measurement'),
+      details: [...measurementDetails, ...caretakerDetail],
+    };
+  }
+  
+  return { title: t('Activity'), details: [...caretakerDetail] };
+};
+
+export const getActivityDescription = (activity: ActivityType, settings: Settings | null, t: (key: string) => string): ActivityDescription => {
+  // Photo log - check first since it has no overlapping fields with other types
+  if ('photoLogId' in activity) {
+    const photos = activity.photos;
+    const firstCaption = photos?.find(p => p.caption)?.caption;
+    const count = photos?.length ?? 0;
+    return {
+      type: t('Photo'),
+      details: firstCaption || `${count} ${count === 1 ? t('photo') : t('photos')}`
+    };
+  }
+  // Food log (issue #203 / #247)
+  if (isFoodLogActivity(activity)) {
+    const foodLog = activity as any;
+    const enjoyment: unknown = foodLog.enjoyment;
+    const time = formatTime(foodLog.time, settings, true, t);
+    const parts = [time];
+    if (foodLog.amount) {
+      parts.push(`${foodLog.amount} ${getSymbol(foodLog.unitAbbr, t)}`.trim());
+    }
+    if (isValidEnjoyment(enjoyment)) {
+      parts.push(t(FOOD_ENJOYMENT_LABELS[enjoyment]));
+    }
+    if (foodLog.isFirstTry) parts.push(t('First try!'));
+    if (foodLog.hadReaction) parts.push(t('Reaction'));
+    let notes: string = foodLog.notes ?? '';
+    if (notes.length > 30) notes = notes.slice(0, 30) + '...';
+    if (notes) parts.push(notes);
+    const names: string[] =
+      (Array.isArray(foodLog.foodItems) && foodLog.foodItems.length > 0
+        ? foodLog.foodItems.map((item: { name?: string }) => item.name).filter(Boolean)
+        : null) ||
+      (foodLog.food?.name ? [foodLog.food.name] : []);
+    return {
+      type: formatFoodMealTitle(names) || t('Food'),
+      details: parts.join(' • ')
+    };
+  }
+  // Play activity - check before sleep since both have duration and type
+  if (isPlayActivity(activity)) {
+    const formatPlayType = (type: string) => {
+      switch (type) {
+        case 'TUMMY_TIME': return t('Tummy Time');
+        case 'INDOOR_PLAY': return t('Indoor Play');
+        case 'OUTDOOR_PLAY': return t('Outdoor Play');
+        case 'WALK': return t('Walk');
+        default: return type;
+      }
+    };
+    const time = formatTime((activity as any).startTime, settings, true, t);
+    const parts = [time];
+    if ((activity as any).duration) parts.push(`${(activity as any).duration} ${t('min')}`);
+    if ((activity as any).activities) parts.push(t((activity as any).activities));
+    return {
+      type: formatPlayType((activity as any).type),
+      details: parts.join(' • ')
+    };
+  }
+  if ('doseAmount' in activity && 'medicineId' in activity) {
+    // Medicine or supplement log
+    let medName = t('Medicine');
+    if ('medicine' in activity && activity.medicine && typeof activity.medicine === 'object') {
+      if ('isSupplement' in activity.medicine && activity.medicine.isSupplement) {
+        medName = t('Supplement');
+      }
+      if ('name' in activity.medicine && activity.medicine.name) {
+        medName = (activity.medicine as { name?: string }).name || medName;
+      }
+    }
+    const dose = activity.doseAmount ? `${activity.doseAmount} ${getSymbol(activity.unitAbbr, t)}`.trim() : '';
+    const medTime = formatTime(activity.time, settings, true, t);
+    let notes = activity.notes ? activity.notes : '';
+    if (notes.length > 50) notes = notes.slice(0, 50) + '...';
+    return {
+      type: medName,
+      details: [medTime, dose, notes].filter(Boolean).join(' • ')
+    };
+  }
+  if ('type' in activity) {
+    if ('duration' in activity) {
+      const startTimeFormatted = activity.startTime ? formatTime(activity.startTime, settings, true, t) : t('unknown');
+      const endTimeFormatted = activity.endTime ? formatTime(activity.endTime, settings, true, t) : t('ongoing');
+      const duration = activity.duration ? formatDuration(activity.duration) : '';
+      const timeSpan = `${startTimeFormatted} - ${endTimeFormatted.split(' ').slice(-2).join(' ')}`;
+      const time = [duration, timeSpan].join(' ');
+      
+      // Format location (SleepLog only)
+      let locationText = '';
+      if ((activity as any).location) {
+        const loc = (activity as any).location;
+        const location = loc === 'OTHER' ? t('Other') : capitalize(loc);
+        locationText = localizeSleepLocation(location, t);
+      }
+      
+      // Format quality
+      let qualityText = '';
+      if ((activity as any).quality) {
+        const qualityMap: Record<string, string> = {
+          'POOR': t('Poor'),
+          'FAIR': t('Fair'),
+          'GOOD': t('Good'),
+          'EXCELLENT': t('Excellent')
+        };
+        qualityText = qualityMap[(activity as any).quality] || (activity as any).quality.charAt(0) + (activity as any).quality.slice(1).toLowerCase();
+      }
+
+      // Add notes if available, truncate if needed
+      let notesText: string = (activity as any).notes ?? '';
+      if (notesText.length > 30) {
+        notesText = notesText.slice(0, 30) + '...';
+      }
+
+      return {
+        type: activity.type === 'NAP' ? t('Nap') : t('Night Sleep'),
+        details: [time, locationText, qualityText, notesText].filter(Boolean).join(' • '),
+      };
+    }
+    if ('amount' in activity) {
+      const formatFeedType = (type: string) => {
+        switch (type) {
+          case 'BREAST': return t('Breast');
+          case 'BOTTLE': return t('Bottle');
+          case 'SOLIDS': return t('Solid Food');
+          default: return t(capitalize(type));
+        }
+      };
+      const formatBreastSide = (side: string) => {
+        switch (side) {
+          case 'LEFT': return t('Left');
+          case 'RIGHT': return t('Right');
+          default: return t(capitalize(side));
+        }
+      };
+      
+      let details = '';
+      if (activity.type === 'BREAST') {
+        const side = activity.side ? `${t('Side')}: ${formatBreastSide(activity.side)}` : '';
+        
+        // Get duration from feedDuration (in seconds) or fall back to amount (in minutes)
+        let duration = '';
+        if (activity.feedDuration) {
+          const minutes = Math.floor(activity.feedDuration / 60);
+          const seconds = activity.feedDuration % 60;
+          duration = seconds > 0 ? 
+            `${minutes}${t('min')} ${seconds}${t('sec')}` : 
+            `${minutes} ${t('min')}`;
+        } else if (activity.amount) {
+          duration = `${activity.amount} ${t('min')}`;
+        }
+
+        const pauseText = formatPauseDuration((activity as any).pauseDuration ?? 0, t);
+        const pause = pauseText ? `${t('Pause')}: ${pauseText}` : '';
+        
+        details = [side, duration, pause].filter(Boolean).join(' • ');
+      } else if (activity.type === 'BOTTLE') {
+        // Use unitAbbr instead of hardcoded 'oz'
+        const unit = ((activity as any).unitAbbr || 'oz').toLowerCase();
+
+        if ((activity as any).bottleType === 'Formula/Breast' && (activity as any).breastMilkAmount != null) {
+          const bmAmt = (activity as any).breastMilkAmount;
+          const formulaAmt = Math.round((((activity as any).amount || 0) - bmAmt) * 100) / 100;
+          details = `${bmAmt} ${unit} ${t('BM')} + ${formulaAmt} ${unit} ${t('Formula')}`;
+        } else {
+          details = `${activity.amount || t('unknown')} ${unit}`;
+        }
+
+        // Add bottle type if available (skip for mixed since already shown above)
+        if ((activity as any).bottleType && (activity as any).bottleType !== 'Formula/Breast') {
+          const bottleType = (activity as any).bottleType;
+          details += ` (${t(bottleType)})`;
+        } else if ((activity as any).bottleType === 'Formula/Breast' && !(activity as any).breastMilkAmount) {
+          details += ` (${t('Formula/Breast')})`;
+        }
+      } else if (activity.type === 'SOLIDS') {
+        // Use unitAbbr instead of hardcoded 'g'
+        const unit = ((activity as any).unitAbbr || 'g').toLowerCase();
+        details = `${activity.amount || t('unknown')} ${unit}`;
+        if (activity.food) {
+          details += ` ${t('of')} ${activity.food}`;
+        }
+      }
+      
+      // Add notes if available for any feed type
+      let notes: string = (activity as any).notes ?? "";
+      if (notes.length > 30) {
+        notes = notes.slice(0, 30) + '...';
+      }
+      
+      const time = formatTime(activity.time, settings, true, t);
+      return {
+        type: formatFeedType(activity.type),
+        details: [time, details, notes].filter(Boolean).join(' • ')
+      };
+    }
+    if ('condition' in activity) {
+      const formatDiaperType = (type: string) => {
+        switch (type) {
+          case 'WET': return t('Wet');
+          case 'DIRTY': return t('Dirty');
+          case 'BOTH': return t('Wet and Dirty');
+          case 'DRY': return t('Dry');
+          default: return t(capitalize(type));
+        }
+      };
+      const formatDiaperCondition = (condition: string) => {
+        switch (condition) {
+          case 'NORMAL': return t('Normal');
+          case 'LOOSE': return t('Loose');
+          case 'FIRM': return t('Firm');
+          case 'OTHER': return t('Other');
+          default: return t(capitalize(condition));
+        }
+      };
+      const formatDiaperColor = (color: string) => {
+        switch (color) {
+          case 'YELLOW': return t('Yellow');
+          case 'BROWN': return t('Brown');
+          case 'GREEN': return t('Green');
+          case 'OTHER': return t('Other');
+          default: return t(capitalize(color));
+        }
+      };
+      
+      const conditions = [];
+      if (isDirtyDiaper(activity.type)) {
+        if (activity.condition) conditions.push(formatDiaperCondition(activity.condition));
+        if (activity.color) conditions.push(formatDiaperColor(activity.color));
+      }
+
+      // Add blowout information for all diaper types
+      const blowout = activity.blowout ? t('Blowout/Leakage') : '';
+      const cream = activity.creamApplied ? t('Diaper Cream Applied') : '';
+
+      // Add notes if available, truncate if needed
+      let notesText: string = (activity as any).notes ?? '';
+      if (notesText.length > 30) {
+        notesText = notesText.slice(0, 30) + '...';
+      }
+
+      const time = formatTime(activity.time, settings, true, t);
+      return {
+        type: formatDiaperType(activity.type),
+        details: [time, ...conditions, blowout, cream, notesText].filter(Boolean).join(' • ')
+      };
+    }
+  }
+  if ('content' in activity) {
+    const time = formatTime(activity.time, settings, true, t);
+    const content = activity.content.length > 50 ? activity.content.slice(0, 50) + '...' : activity.content;
+    return {
+      type: activity.category || t('Note'),
+      details: [time, content].join(' • ')
+    };
+  }
+  if ('soapUsed' in activity) {
+    const time = formatTime(activity.time, settings, true, t);
+    // Determine bath details based on soap and shampoo usage
+    const bath = [
+      activity.soapUsed && t('Soap'),
+      activity.shampooUsed && t('Shampoo'),
+      !activity.soapUsed && !activity.shampooUsed && t('Water only'),
+    ]
+    .filter(Boolean)
+    .join(' + ');
+    
+    // Add notes if available, truncate if needed
+    let notes = activity.notes ?? '';
+    if (notes.length > 30) {
+      notes = notes.slice(0, 30) + '...';
+    }
+    
+    const bathType = (activity as any).bathType ? t((activity as any).bathType) : '';
+
+    return {
+      type: t('Bath'),
+      details: [time, bathType, bath, notes].filter(Boolean).join(' • ')
+    };
+  }
+  
+  // Breast milk adjustment description
+  if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) {
+    const amount = (activity as any).amount;
+    const sign = amount > 0 ? '+' : '';
+    const reason = (activity as any).reason ? ` (${t((activity as any).reason)})` : '';
+    const unit = getSymbol((activity as any).unitAbbr || 'oz', t);
+    const time = formatTime((activity as any).time, settings, true, t);
+    return {
+      type: t('Breast Milk Adjustment'),
+      details: [`${sign}${amount} ${unit}`, reason, time].filter(Boolean).join(' • ')
+    };
+  }
+
+  if ('leftAmount' in activity || 'rightAmount' in activity) {
+    // Type guard to ensure TypeScript knows this is a pump activity
+    const isPumpActivity = (act: any): act is {
+      startTime?: string;
+      endTime?: string | null;
+      leftAmount?: number;
+      rightAmount?: number;
+      totalAmount?: number;
+      unit?: string;
+      duration?: number;
+      pumpAction?: string;
+    } => {
+      return 'leftAmount' in act || 'rightAmount' in act;
+    };
+
+    if (isPumpActivity(activity)) {
+      const startTime = activity.startTime ? formatTime(activity.startTime, settings, true, t) : t('unknown');
+
+      // Add duration if available
+      let duration = '';
+      if (activity.duration) {
+        duration = formatDuration(activity.duration);
+      } else if (activity.startTime && activity.endTime) {
+        const start = new Date(activity.startTime).getTime();
+        const end = new Date(activity.endTime).getTime();
+        const durationMinutes = Math.floor((end - start) / 60000);
+        if (!isNaN(durationMinutes) && durationMinutes > 0) {
+          duration = formatDuration(durationMinutes);
+        }
+      }
+
+      const time = [duration, startTime].filter(Boolean).join(' ');
+
+      // Always show left, right, and total amounts when available
+      const unit = activity.unit || 'oz';
+      const left = activity.leftAmount && `${t('Left')}: ${activity.leftAmount} ${unit}`;
+      const right = activity.rightAmount && `${t('Right')}: ${activity.rightAmount} ${unit}`;
+      const sidesAmount = [left, right].filter(Boolean).join(' + ');
+      const totalAmount = activity.totalAmount && `${t('Total Amount')}: ${activity.totalAmount} ${unit}`;
+
+      // Add pump action label
+      let pumpAction = '';
+      if (activity.pumpAction && activity.pumpAction !== 'STORED') {
+        pumpAction = t(pumpActionLabel(activity.pumpAction));
+      }
+
+      return {
+        type: t('Breast Pumping'),
+        details: [time, sidesAmount, totalAmount, pumpAction].filter(Boolean).join(' • ')
+      };
+    }
+  }
+
+  // Vaccine activity
+  if ('vaccineName' in activity) {
+    const time = formatTime((activity as any).time, settings, true, t);
+    const parts = [time];
+    if ((activity as any).doseNumber) parts.push(`${t('Dose')} #${(activity as any).doseNumber}`);
+    return {
+      type: (activity as any).vaccineName,
+      details: parts.join(' • ')
+    };
+  }
+
+  // Milestone activity
+  if ('title' in activity && 'category' in activity) {
+    const formatMilestoneCategory = (category: string) => {
+      switch (category) {
+        case 'MOTOR': return t('Motor Skills');
+        case 'COGNITIVE': return t('Cognitive');
+        case 'SOCIAL': return t('Social');
+        case 'LANGUAGE': return t('Language');
+        case 'OTHER': return t('Other');
+        default: return category;
+      }
+    };
+    
+    const date = formatTime(activity.date, settings, true, t);
+    const category = formatMilestoneCategory(activity.category);
+    
+    // Format title with label
+    const titleText = activity.title.length > 50 ? activity.title.slice(0, 50) + '...' : activity.title;
+    
+    // Format description with label if available
+    const descriptionText = activity.description && activity.description.length > 50 ? activity.description.slice(0, 50) + '...' : activity.description;
+    
+    return {
+      type: category,
+      details: [date, titleText, descriptionText].filter(Boolean).join(' • '),
+    };
+  }
+
+  // Measurement activity
+  if ('value' in activity && 'unit' in activity) {
+    const formatMeasurementType = (type: string) => {
+      switch (type) {
+        case 'HEIGHT': return t('Height');
+        case 'WEIGHT': return t('Weight');
+        case 'HEAD_CIRCUMFERENCE': return t('Head Circumference');
+        case 'TEMPERATURE': return t('Temperature');
+        case 'OTHER': return t('Other');
+        default: return type;
+      }
+    };
+    
+    const date = formatTime(activity.date, settings, true, t);
+    const displayValue = ('type' in activity && activity.type === 'WEIGHT')
+      ? formatWeightDisplay(activity.value, activity.unit)
+      : `${activity.value} ${activity.unit}`;
+
+    return {
+      type: formatMeasurementType(activity.type),
+      details: [date, displayValue].join(' • '),
+    };
+  }
+  
+  return {
+    type: t('Activity'),
+    details: t('Activity logged')
+  };
+};
+
+export const getActivityEndpoint = (activity: ActivityType): string => {
+  if ('photoLogId' in activity) return 'photo-log';
+  // Food log (issue #203 / #247)
+  if (isFoodLogActivity(activity)) return 'food-log';
+  // Check play activity before sleep since both have duration and type
+  if (isPlayActivity(activity)) return 'play-log';
+  // Check for breast milk adjustment before pump
+  if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) return 'breast-milk-adjustment';
+  // Check for pump activity first since it can also have duration
+  if ('leftAmount' in activity || 'rightAmount' in activity) return 'pump-log';
+  if ('duration' in activity) return 'sleep-log';
+  if ('amount' in activity) return 'feed-log';
+  if ('condition' in activity) return 'diaper-log';
+  if ('doseAmount' in activity && 'medicineId' in activity) return 'medicine-log';
+  if ('content' in activity) return 'note';
+  if ('soapUsed' in activity) return 'bath-log';
+  if ('vaccineName' in activity) return 'vaccine-log';
+  if ('title' in activity && 'category' in activity) return 'milestone-log';
+  if ('value' in activity && 'unit' in activity) return 'measurement-log';
+  
+  // Log the activity for debugging
+  console.log('Activity type not identified:', activity);
+  
+  return '';
+};
+
+export const getActivityStyle = (activity: ActivityType): ActivityStyle => {
+  // Photo log - check first since it has no overlapping fields with other types
+  if ('photoLogId' in activity) {
+    return { bg: 'bg-white border-2 border-[#e11d48]', textColor: 'text-[#e11d48]' };
+  }
+  // Food log (issue #203 / #247): lime green, distinct from medicine green (#43B755)
+  // and the sky-blue feed color
+  if (isFoodLogActivity(activity)) {
+    return { bg: 'bg-[#BBD444]', textColor: 'text-white' };
+  }
+  // Play activity - check before sleep since both have duration and type
+  if (isPlayActivity(activity)) {
+    return { bg: 'bg-[#F3C4A2]', textColor: 'text-white' };
+  }
+  if ('doseAmount' in activity && 'medicineId' in activity) {
+    // Medicine and supplement logs: green
+    return { bg: 'bg-[#43B755]', textColor: 'text-white' };
+  }
+  // Breast milk adjustment style
+  if ('reason' in activity && 'amount' in activity && !('type' in activity) && !('leftAmount' in activity)) {
+    return {
+      bg: 'bg-gradient-to-r from-purple-200 to-purple-300',
+      textColor: 'text-white',
+    };
+  }
+  // Check for pump activities FIRST (before sleep) since they also have duration and startTime
+  if ('leftAmount' in activity || 'rightAmount' in activity) {
+    return {
+      bg: 'bg-gradient-to-r from-purple-200 to-purple-300',
+      textColor: 'text-white',
+    };
+  }
+  if ('type' in activity) {
+    if ('duration' in activity) {
+      return {
+        bg: 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600',
+        textColor: 'text-white',
+      };
+    }
+    if ('amount' in activity) {
+      return {
+        bg: 'bg-sky-200',
+        textColor: 'text-gray-700',
+      };
+    }
+    if ('condition' in activity) {
+      return {
+        bg: 'bg-gradient-to-r from-teal-600 to-teal-700',
+        textColor: 'text-white',
+      };
+    }
+  }
+  if ('content' in activity) {
+    return {
+      bg: 'bg-[#FFFF99]',
+      textColor: 'text-gray-700',
+    };
+  }
+  if ('soapUsed' in activity) {
+    return {
+      bg: 'bg-gradient-to-r from-orange-400 to-orange-500',
+      textColor: 'text-white',
+    };
+  }
+  if ('vaccineName' in activity) {
+    return { bg: 'bg-white border-2 border-red-500', textColor: 'text-red-600' };
+  }
+  if ('title' in activity && 'category' in activity) {
+    return {
+      bg: 'bg-[#4875EC]', // Blue background for milestone activities
+      textColor: 'text-white',
+    };
+  }
+  if ('value' in activity && 'unit' in activity) {
+    return {
+      bg: 'bg-[#EA6A5E]', // Red background for measurement activities
+      textColor: 'text-white',
+    };
+  }
+  return {
+    bg: 'bg-gray-100',
+    textColor: 'text-gray-700',
+  };
+};
+
+function capitalize(sentence: string) {
+  return sentence.split('_').map(word =>
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+}

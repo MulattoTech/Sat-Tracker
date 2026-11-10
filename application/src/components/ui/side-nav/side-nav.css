@@ -1,0 +1,143 @@
+/* Inner shadow for side-nav on large screens only (600px and above) */
+@media (min-width: 600px) {
+  .side-nav {
+    box-shadow: inset -4px 0 6px -1px rgba(0, 0, 0, 0.1), inset -2px 0 4px -1px rgba(0, 0, 0, 0.06);
+  }
+  
+  .side-nav-header {
+    box-shadow: inset -4px 0 6px -1px rgba(0, 0, 0, 0.1), inset -2px 0 4px -1px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* Dark mode overrides for SideNav component */
+html.dark .side-nav {
+  background-color: #4b5563; /* gray-600 */
+  color: #e5e7eb; /* gray-200 */
+}
+
+@media (min-width: 600px) {
+  html.dark .side-nav {
+    box-shadow: none !important;
+    border-right: 1px solid #1f2937 !important; /* almost black border in dark mode */
+  }
+  
+}
+
+/* Light mode border for header */
+.side-nav-header .mx-auto {
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+}
+
+html.dark .side-nav-header {
+  background-color: #4b5563; /* gray-600 */
+}
+
+html.dark .side-nav-header .mx-auto {
+  border-bottom: 1px solid #6b7280; /* gray-500 */
+}
+
+html.dark .side-nav-footer {
+  border-color: #6b7280; /* gray-500 */
+}
+
+html.dark .side-nav-app-name {
+  color: #5eead4; /* teal-300 */
+}
+
+html.dark .side-nav-close-button {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .side-nav-close-button:hover {
+  color: #ffffff; /* white */
+}
+
+html.dark .side-nav-item {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .side-nav-item:hover {
+  background-color: #374151; /* gray-700 */
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .side-nav-item.active {
+  background-color: #1f2937; /* gray-800 */
+  color: #5eead4; /* teal-300 */
+}
+
+/* Ensure consistent spacing between nav items and footer buttons */
+/* These might still be needed if not covered by Tailwind utilities */
+.side-nav-item:last-child {
+  margin-bottom: 0;
+}
+
+.side-nav-settings-button {
+  margin-bottom: 8px;
+}
+
+.side-nav-settings-button:last-child {
+  margin-bottom: 0;
+}
+
+html.dark .side-nav-settings-button {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .side-nav-settings-button:hover {
+  background-color: #374151; /* gray-700 */
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Trial information section */
+html.dark .side-nav-trial-container {
+  background-color: rgba(245, 158, 11, 0.1) !important; /* amber with low opacity */
+  border-color: #d97706 !important; /* amber-600 */
+}
+
+html.dark .side-nav-trial-header {
+  color: #fbbf24 !important; /* amber-400 */
+}
+
+html.dark .side-nav-trial-text {
+  color: #fbbf24 !important; /* amber-400 */
+}
+
+/* Language selector */
+html.dark .side-nav-language-trigger {
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .side-nav-language-trigger:hover {
+  color: #5eead4; /* teal-300 */
+}
+
+html.dark .side-nav-language-item {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .side-nav-language-item:hover {
+  background-color: #374151; /* gray-700 */
+  color: #9ca3af; /* gray-400 */
+}
+
+/* New Updates badge animation */
+.new-updates-badge {
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+html.dark .new-updates-badge {
+  background-color: #0d9488; /* teal-600 */
+  color: #ffffff;
+}

@@ -1,0 +1,851 @@
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '../db';
+import { foodDisplayRelation } from '../utils/careReadScope';
+import { ApiResponse, SleepLogResponse, FeedLogResponse, DiaperLogResponse, NoteResponse, BathLogResponse, PumpLogResponse, PlayLogResponse, MilestoneResponse, MeasurementResponse, MedicineLogResponse, MedicineResponse, BreastMilkAdjustmentResponse, VaccineLogResponse, FoodLogResponse, PhotoLogResponse, TimelinePhotoInfo } from '../types';
+import { withAuthContext, AuthResult } from '../utils/auth';
+import { toUTC, formatForResponse } from '../utils/timezone';
+import { buildLinkTargets, groupPhotoLinks, photoLogHasLivePhotos } from './timeline-photo-links';
+import { isPhotosEnabled } from '../photos/photo-service';
+import { resolveCaretakerBadge } from '@/src/constants/caretakerBadge';
+import {
+  computeFoodProgress,
+  expandFoodItems,
+  mealIncludesFirstTry,
+  type FoodLogLike,
+} from '@/src/utils/foodLogUtils';
+
+/**
+ * Distinct foodIds referenced by the food logs in the requested window,
+ * across both storage shapes: the legacy/N=1 `foodId` FK and the `foods`
+ * JSON column used by multi-food meals (which carry a NULL FK).
+ */
+export function collectWindowFoodIds(logs: FoodLogLike[]): string[] {
+  const ids = new Set<string>();
+  for (const log of logs) {
+    for (const item of expandFoodItems(log)) ids.add(item.foodId);
+  }
+  return Array.from(ids);
+}
+
+/** Prisma where-clause shape for the bounded all-time first-try lookup. */
+export interface FirstTryScopeWhere {
+  babyId: string;
+  /** Nullable to match Baby.familyId; the route always passes the verified id. */
+  familyId: string | null;
+  deletedAt: null;
+  OR?: ({ foodId: { in: string[] } } | { foods: { contains: string } })[];
+  id?: { in: string[] };
+}
+
+/**
+ * Where-clause for the all-time first-try lookup, bounded to rows that could
+ * reference one of `foodIds` (the foods visible in the requested window).
+ *
+ * `contains` is a substring LIKE on the JSON text column and works on both
+ * SQLite and PostgreSQL (same pattern as /api/food-log and /api/food/merge).
+ * It may over-match, which is harmless: this is a NARROWING filter only and
+ * `computeFoodProgress` recomputes precisely from the expanded items. It can
+ * never under-match, because a meal that includes food F always contains F's
+ * id verbatim in either the FK or the JSON.
+ *
+ * Always scoped to babyId + familyId + deletedAt: null. With no ids the clause
+ * fails closed explicitly (`id: { in: [] }`) rather than relying on Prisma's
+ * empty-`OR` behaviour.
+ */
+export function buildFirstTryScopeWhere(params: {
+  babyId: string;
+  familyId: string | null;
+  foodIds: string[];
+}): FirstTryScopeWhere {
+  const { babyId, familyId, foodIds } = params;
+  const base = { babyId, familyId, deletedAt: null } as const;
+  if (foodIds.length === 0) return { ...base, id: { in: [] } };
+  return {
+    ...base,
+    OR: [
+      { foodId: { in: foodIds } },
+      ...foodIds.map(id => ({ foods: { contains: id } })),
+    ],
+  };
+}
+
+// Builds the caretaker badge fields for a timeline log. The system caretaker
+// (loginId '00') and nameless caretakers are omitted so no badge renders.
+function caretakerBadgeFields(caretaker: { name?: string | null; loginId?: string | null; badgeColor?: string | null } | null | undefined) {
+  const badge = resolveCaretakerBadge(caretaker);
+  return { caretakerName: badge?.name, caretakerBadgeColor: badge?.colorId ?? null };
+}
+
+// Extended activity types with caretaker information
+type ActivityTypeWithCaretaker = (
+  SleepLogResponse | FeedLogResponse | DiaperLogResponse | NoteResponse | BathLogResponse | PumpLogResponse | PlayLogResponse | MilestoneResponse | MeasurementResponse | MedicineLogResponse | BreastMilkAdjustmentResponse | VaccineLogResponse | FoodLogResponse
+  | (Omit<PhotoLogResponse, 'photos'> & { photoLogId: string; photos: TimelinePhotoInfo[] })
+) & {
+  caretakerId?: string | null;
+  caretakerName?: string;
+  caretakerBadgeColor?: string | null;
+  medicine?: MedicineResponse;
+  photos?: TimelinePhotoInfo[];
+  /** Food logs only: this log is its food's all-time earliest try. */
+  isFirstTry?: boolean;
+};
+
+type ActivityType = ActivityTypeWithCaretaker;
+
+const getActivityTime = (activity: any): number => {
+  // For activities with a simple time field (feed, diaper, note, bath)
+  if ('time' in activity && activity.time) {
+    return new Date(activity.time).getTime();
+  }
+  
+  // For activities with startTime/endTime (sleep, pump)
+  if ('startTime' in activity && activity.startTime) {
+    // For sleep activities, use endTime if available
+    if ('type' in activity && ['NAP', 'NIGHT'].includes(activity.type) && activity.endTime) {
+      return new Date(activity.endTime).getTime();
+    }
+    // For pump activities, always use startTime for sorting
+    if ('leftAmount' in activity || 'rightAmount' in activity || 'totalAmount' in activity) {
+      return new Date(activity.startTime).getTime();
+    }
+    // Default to startTime for any other activities with startTime
+    return new Date(activity.startTime).getTime();
+  }
+  
+  // For activities with a date field (milestone, measurement)
+  if ('date' in activity && activity.date) {
+    return new Date(activity.date).getTime();
+  }
+  
+  // Fallback
+  return new Date().getTime();
+};
+
+async function handleGet(req: NextRequest, authContext: AuthResult) {
+  try {
+    const { caretakerId, familyId: caretakerFamilyId } = authContext;
+
+    if (!caretakerFamilyId) {
+        return NextResponse.json<ApiResponse<null>>(
+            { success: false, error: 'User is not associated with a family.' },
+            { status: 403 }
+        );
+    }
+    
+    const url = new URL(req.url);
+    const { searchParams } = url;
+    
+    const babyId = searchParams.get('babyId');
+
+    if (!babyId) {
+      return NextResponse.json<ApiResponse<ActivityType[]>>(
+        {
+          success: false,
+          error: 'Baby ID is required',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Verify that the baby belongs to the caretaker's family
+    const baby = await prisma.baby.findFirst({
+        where: {
+            id: babyId,
+            familyId: caretakerFamilyId,
+        },
+        select: {
+            familyId: true,
+        },
+    });
+
+    if (!baby) {
+        return NextResponse.json<ApiResponse<null>>(
+            { success: false, error: "Baby not found in this family." },
+            { status: 404 }
+        );
+    }
+
+    const familyId = caretakerFamilyId; // The child lookup verified this authenticated family.
+    // Legacy records may contain an inconsistent relation. Keep the care event,
+    // but fetch only badge fields from a caretaker in this verified family.
+    const scopedCaretaker = {
+      where: { familyId },
+      select: { name: true, loginId: true, badgeColor: true },
+    } as const;
+
+    // Get the full URL to debug
+    // const fullUrl = req.url;
+    // console.log(`Full request URL: ${fullUrl}`);
+    
+    // Log all search parameters for debugging
+    console.log("All search parameters:");
+    // Array.from(searchParams.entries()).forEach(([key, value]) => {
+      // console.log(`${key}: ${value}`);
+    // });
+    
+    const limit = Number(searchParams.get('limit')) || 200;
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    
+    // console.log(`API Request - babyId: ${babyId}, startDate: ${startDate}, endDate: ${endDate}`);
+
+    let effectiveStartDate = startDate;
+    let effectiveEndDate = endDate;
+    let useLimit = true;
+    
+    if (startDate && endDate) {
+      // Don't use limit when filtering by date range
+      useLimit = false;
+      // console.log(`Using date range: ${startDate} to ${endDate}`);
+    } else {
+      // console.log(`No date parameters provided, using limit: ${limit}`);
+    }
+
+    // Log query parameters
+    // console.log(`Query parameters - useLimit: ${useLimit}, limit: ${limit}`);
+    // console.log(`Date filtering: ${effectiveStartDate ? 'Yes' : 'No'}`);
+    // console.log(`Effective start date: ${effectiveStartDate}`);
+    // console.log(`Effective end date: ${effectiveEndDate}`);
+    
+    // Convert date strings to UTC for database queries
+    const startDateUTC = effectiveStartDate ? toUTC(effectiveStartDate) : undefined;
+    const endDateUTC = effectiveEndDate ? toUTC(effectiveEndDate) : undefined;
+
+    // Optional: extend sleep query date range for statistics (Reports)
+    // When extendSleepRange=true, extend the start date back by 12 hours to capture
+    // evening sleep entries that belong to the first day's "night period"
+    // Night period for Day X = 12:00 PM Day X-1 to 11:59 AM Day X
+    // Default is false (Timeline behavior) - only show sleep that starts or ends on the selected day
+    const extendSleepRange = searchParams.get('extendSleepRange') === 'true';
+    let sleepStartDateUTC = startDateUTC;
+    if (startDateUTC && extendSleepRange) {
+      sleepStartDateUTC = new Date(startDateUTC.getTime() - (12 * 60 * 60 * 1000));
+    }
+
+    // Optional: filter which activity types to fetch (comma-separated)
+    // e.g., ?types=sleep,feed,diaper,pump — only runs those Prisma queries
+    const typesParam = searchParams.get('types');
+    const requestedTypes = typesParam ? new Set(typesParam.split(',').map(t => t.trim().toLowerCase())) : null;
+    const shouldFetch = (type: string) => !requestedTypes || requestedTypes.has(type);
+    const photosEnabled = await isPhotosEnabled();
+
+    // Get recent activities from each type with caretaker information
+    const emptyPromise = Promise.resolve([]);
+    const [sleepLogs, feedLogs, diaperLogs, noteLogs, bathLogs, pumpLogs, playLogs, milestoneLogs, measurementLogs, medicineLogs, breastMilkAdjustments, vaccineLogs, foodLogs, photoLogs] = await Promise.all([
+      shouldFetch('sleep') ? prisma.sleepLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            OR: [
+              // Sleep logs that start within the date range
+              {
+                startTime: {
+                  gte: sleepStartDateUTC,
+                  lte: endDateUTC
+                }
+              },
+              // Sleep logs that end within the date range
+              {
+                endTime: {
+                  gte: startDateUTC,
+                  lte: endDateUTC
+                }
+              },
+              // Sleep logs that span the date range
+              {
+                startTime: { lte: startDateUTC },
+                endTime: { gte: endDateUTC }
+              }
+            ]
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { startTime: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('feed') ? prisma.feedLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('diaper') ? prisma.diaperLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('note') ? prisma.note.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('bath') ? prisma.bathLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('pump') ? prisma.pumpLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            startTime: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { startTime: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('play') ? prisma.playLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            startTime: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId,
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { startTime: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('milestone') ? prisma.milestone.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            date: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { date: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('measurement') ? prisma.measurement.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            date: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { date: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('medicine') ? prisma.medicineLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker,
+          medicine: true
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('breast-milk-adjustment') ? prisma.breastMilkAdjustment.findMany({
+        where: {
+          babyId,
+          deletedAt: null,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('vaccine') ? prisma.vaccineLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker,
+          documents: true,
+          contacts: {
+            where: { contact: { familyId } },
+            include: {
+              contact: true
+            }
+          }
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      shouldFetch('food') ? prisma.foodLog.findMany({
+        where: {
+          babyId,
+          deletedAt: null, // Food logs are soft-deleted
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+        },
+        include: {
+          caretaker: scopedCaretaker,
+          food: foodDisplayRelation(familyId)
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise,
+      photosEnabled && shouldFetch('photo') ? prisma.photoLog.findMany({
+        where: {
+          babyId,
+          ...(startDateUTC && endDateUTC ? {
+            time: {
+              gte: startDateUTC,
+              lte: endDateUTC
+            }
+          } : {}),
+          familyId, // Filter by the verified family ID
+          deletedAt: null,
+        },
+        include: {
+          caretaker: scopedCaretaker
+        },
+        orderBy: { time: 'desc' }
+      }) : emptyPromise
+    ]);
+    
+    console.log(`Results - sleepLogs: ${sleepLogs.length}, feedLogs: ${feedLogs.length}, diaperLogs: ${diaperLogs.length}, noteLogs: ${noteLogs.length}, bathLogs: ${bathLogs.length}, pumpLogs: ${pumpLogs.length}`);
+
+    // Batch-load photo attachments for every activity on this page (no N+1)
+    const linkTargets = buildLinkTargets({
+      feed: feedLogs.map((l: any) => l.id),
+      bath: bathLogs.map((l: any) => l.id),
+      play: playLogs.map((l: any) => l.id),
+      milestone: milestoneLogs.map((l: any) => l.id),
+      measurement: measurementLogs.map((l: any) => l.id),
+      foodLog: foodLogs.map((l: any) => l.id),
+      photo: photoLogs.map((l: any) => l.id),
+    });
+
+    const photoLinks = photosEnabled && linkTargets.length > 0
+      ? await prisma.photoLink.findMany({
+          where: {
+            OR: linkTargets.map((t) => ({ activityType: t.activityType, activityId: { in: t.ids } })),
+            photo: { deletedAt: null },
+          },
+          orderBy: { createdAt: 'asc' },
+          include: { photo: { select: { id: true, caption: true } } },
+        })
+      : [];
+
+    const photosByActivity = groupPhotoLinks(photoLinks);
+    const photosFor = (activityType: string, activityId: string) => photosByActivity.get(`${activityType}:${activityId}`);
+
+    // Format the responses with caretaker information
+    const formattedSleepLogs: ActivityTypeWithCaretaker[] = sleepLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          startTime: formatForResponse(log.startTime) || '',
+          endTime: formatForResponse(log.endTime) || null,
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+        };
+      });
+
+    const formattedFeedLogs: ActivityTypeWithCaretaker[] = feedLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          photos: photosFor('feed', log.id),
+        };
+      });
+
+    const formattedDiaperLogs: ActivityTypeWithCaretaker[] = diaperLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+        };
+      });
+
+    const formattedNoteLogs: ActivityTypeWithCaretaker[] = noteLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+        };
+      });
+      
+    const formattedBathLogs: ActivityTypeWithCaretaker[] = bathLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          photos: photosFor('bath', log.id),
+        };
+      });
+
+    const formattedPumpLogs: ActivityTypeWithCaretaker[] = pumpLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Get the unit from the unitAbbr field or default to 'oz', ensuring it's lowercase
+        const unit = log.unitAbbr ? log.unitAbbr.toLowerCase() : 'oz';
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          startTime: formatForResponse(log.startTime) || '',
+          endTime: formatForResponse(log.endTime) || null,
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          unit: unit, // Explicitly include the unit in the response
+        };
+      });
+      
+    // Format play logs
+    const formattedPlayLogs: ActivityTypeWithCaretaker[] = playLogs
+      .map(log => {
+        const { caretaker, ...logWithoutCaretaker } = log;
+        return {
+          ...logWithoutCaretaker,
+          startTime: formatForResponse(log.startTime) || '',
+          endTime: formatForResponse(log.endTime) || null,
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          photos: photosFor('play', log.id),
+        };
+      });
+
+    // Format medicine logs
+    const formattedMedicineLogs: ActivityTypeWithCaretaker[] = medicineLogs
+      .map(log => {
+        const { caretaker, medicine, ...logWithoutCaretaker } = log;
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          medicine: medicine?.familyId === familyId ? {
+            ...medicine,
+            createdAt: formatForResponse(medicine.createdAt) || '',
+            updatedAt: formatForResponse(medicine.updatedAt) || '',
+            deletedAt: formatForResponse(medicine.deletedAt)
+          } : undefined
+        };
+      });
+
+    // Format milestone logs
+    const formattedMilestoneLogs: ActivityTypeWithCaretaker[] = milestoneLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          date: formatForResponse(log.date) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          photos: photosFor('milestone', log.id),
+        };
+      });
+
+    // Format measurement logs
+    const formattedMeasurementLogs: ActivityTypeWithCaretaker[] = measurementLogs
+      .map(log => {
+        // Create a new object without the caretaker property
+        const { caretaker, ...logWithoutCaretaker } = log;
+        
+        // Format dates as ISO strings
+        return {
+          ...logWithoutCaretaker,
+          date: formatForResponse(log.date) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          photos: photosFor('measurement', log.id),
+        };
+      });
+
+    // Format breast milk adjustments
+    const formattedBreastMilkAdjustments: ActivityTypeWithCaretaker[] = breastMilkAdjustments
+      .map(log => {
+        const { caretaker, ...logWithoutCaretaker } = log;
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+        };
+      });
+
+    // Format vaccine logs
+    const formattedVaccineLogs: ActivityTypeWithCaretaker[] = vaccineLogs
+      .map(log => {
+        const { caretaker, documents, ...logWithoutCaretaker } = log;
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          documents: documents ? documents.map(doc => ({
+            ...doc,
+            createdAt: formatForResponse(doc.createdAt) || '',
+            updatedAt: formatForResponse(doc.updatedAt) || '',
+          })) : [],
+        };
+      });
+
+    // Food logs: mark meals that include any food's all-time earliest try
+    // (multi-food meals expand items — replaces Prisma groupBy foodId).
+    let firstTryByFoodId: Record<string, string> = {};
+    if (foodLogs.length > 0) {
+      // Only foods visible in this window need a first-try answer, so the
+      // all-time read is bounded to rows that could reference one of them
+      // instead of scanning the baby's whole food history on every page load.
+      const windowFoodIds = collectWindowFoodIds(foodLogs as any[]);
+      if (windowFoodIds.length > 0) {
+        const allTimeFoodLogs = await prisma.foodLog.findMany({
+          where: buildFirstTryScopeWhere({ babyId, familyId, foodIds: windowFoodIds }),
+          select: { foodId: true, foods: true, time: true, hadReaction: true, reactionDescription: true, deletedAt: true },
+        });
+        firstTryByFoodId = computeFoodProgress(allTimeFoodLogs).firstTryByFoodId;
+
+        // Resolve catalog names for multi-food meals in the window
+        const catalogFoods = await prisma.food.findMany({
+          where: { id: { in: windowFoodIds }, familyId },
+          select: { id: true, name: true, commonAllergen: true },
+        });
+        const catalogById = new Map(catalogFoods.map(f => [f.id, f]));
+        for (const log of foodLogs as any[]) {
+          const items = expandFoodItems(log);
+          log.foodItems = items.map(item => {
+            const meta = catalogById.get(item.foodId);
+            return {
+              foodId: item.foodId,
+              hadReaction: item.hadReaction === true,
+              reactionDescription: item.reactionDescription ?? null,
+              ...(meta ? { name: meta.name, commonAllergen: meta.commonAllergen === true } : {}),
+            };
+          });
+        }
+      }
+    }
+
+    // Format food logs
+    const formattedFoodLogs: ActivityTypeWithCaretaker[] = foodLogs
+      .map((log: any) => {
+        const { caretaker, ...logWithoutCaretaker } = log;
+        return {
+          ...logWithoutCaretaker,
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          isFirstTry: mealIncludesFirstTry(log, firstTryByFoodId),
+          photos: photosFor('foodLog', log.id),
+        };
+      });
+
+    // Format photo logs. Logs whose every photo has been trashed or purged
+    // have nothing to show — hide them from the timeline entirely.
+    const formattedPhotoLogs: ActivityTypeWithCaretaker[] = photoLogs
+      .filter((log: any) => photoLogHasLivePhotos(photosByActivity, log.id))
+      .map((log: any) => {
+        const { caretaker, ...logWithoutCaretaker } = log;
+        return {
+          ...logWithoutCaretaker,
+          photoLogId: log.id, // discriminant for the client icon/record switch
+          time: formatForResponse(log.time) || '',
+          createdAt: formatForResponse(log.createdAt) || '',
+          updatedAt: formatForResponse(log.updatedAt) || '',
+          deletedAt: formatForResponse(log.deletedAt),
+          caretakerId: log.caretakerId,
+          ...caretakerBadgeFields(caretaker),
+          photos: photosFor('photo', log.id) || [],
+        };
+      });
+
+    // Combine and sort all activities
+    const allActivities = [
+      ...formattedSleepLogs,
+      ...formattedFeedLogs,
+      ...formattedDiaperLogs,
+      ...formattedNoteLogs,
+      ...formattedBathLogs,
+      ...formattedPumpLogs,
+      ...formattedPlayLogs,
+      ...formattedMilestoneLogs,
+      ...formattedMeasurementLogs,
+      ...formattedMedicineLogs,
+      ...formattedBreastMilkAdjustments,
+      ...formattedVaccineLogs,
+      ...formattedFoodLogs,
+      ...formattedPhotoLogs
+    ]
+    .sort((a, b) => getActivityTime(b) - getActivityTime(a));
+    
+    // Only apply the limit if we're not filtering by date
+    const finalActivities = useLimit ? allActivities.slice(0, limit) : allActivities;
+    
+    console.log(`Final activities count: ${finalActivities.length}`);
+
+    return NextResponse.json<ApiResponse<ActivityType[]>>({
+      success: true,
+      data: finalActivities
+    });
+  } catch (error) {
+    console.error(`Error fetching timeline:`, error);
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        success: false,
+        error: 'Failed to fetch timeline',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export const GET = withAuthContext(handleGet);

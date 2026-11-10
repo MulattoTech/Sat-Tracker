@@ -1,0 +1,4028 @@
+{
+  "schemaVersion": 1,
+  "asOfRelease": "sat-tracker-2026-11-02",
+  "asOfSourceRevision": "a07289755b9a142e300f5367eba48ede8b999f1d",
+  "observedAtUTC": "2026-11-02",
+  "scopeVersion": "2026-11-02-v2",
+  "scopeComplete": false,
+  "scopeNote": "Independent continuation audit preserves all 77 original capability contracts and the 24 existing mission contracts, and adds three distinct omitted issue-level capabilities: data-quality resolution, caregiver handoff, and prospective prediction evaluation. There are 103 required and one desired contracts. Detailed criteria and duplicate mappings are recorded in docs/sat-tracker-scope-audit-2026-11-02.md. Scope remains provisional until pinned source parity, package commitments, deferred recovery proposals and remaining source/test gaps are reconciled. No whole-product percentage is emitted.",
+  "sourceSpecifications": [
+    "docs/FEATURE_PARITY_MATRIX.md",
+    "docs/sat-tracker-source-parity-2026-11-01.md",
+    "docs/sat-tracker-issue-dispositions-2026-11-02.json",
+    "Owner supplied autonomous completion mission 2026-11-02",
+    "docs/sat-tracker-scope-audit-2026-11-02.md",
+    "docs/PRODUCT_VISION.md",
+    "docs/IMPORT_PIPELINE.md",
+    "docs/SLEEP_INTELLIGENCE.md"
+  ],
+  "requirements": [
+    {
+      "id": "PAR-001",
+      "domain": "Family",
+      "title": "Multiple babies",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Multiple babies",
+        "issues": [
+          1,
+          22
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Each child has a stable family-scoped identity and explicit profile/time precision; imports cannot reassign another family's child. Birth/due/corrected-age semantics follow PAR-042."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-002",
+      "domain": "Family",
+      "title": "Multiple caregivers/attribution",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Multiple caregivers/attribution",
+        "issues": [
+          1,
+          22
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Parent/admin and caregiver roles, scoped child access, secure invitation/pairing, expiry/re-authentication and shared-iPad timeout behavior are explicit and tested.",
+        "Every create/edit/delete records the authenticated actor and source provenance; source caregiver text cannot grant identity or permission. Caregiver handoff is separately accepted under CARE-001."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-003",
+      "domain": "Family",
+      "title": "Multi-family isolation",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Multi-family isolation",
+        "issues": [
+          1,
+          22
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Wrong-family and unauthorized-child access is denied consistently across UI, API, reports, source files, audit and import paths, including combined filters and identifiers."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-004",
+      "domain": "Feeding",
+      "title": "Bottle feeding",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Bottle feeding",
+        "issues": [
+          3
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Preserve consumed and offered volume, mL/oz conversion, formula/concentration, bottle ID, caregiver and notes.",
+        "Support explicit optional feeding duration without manufacturing absent values; import/export/API/timeline must retain reviewed duration.",
+        "Backdated and current writes, duplicate prevention, lost responses and concurrent editing have real API/database evidence.",
+        "Source feeding time and elapsed duration remain distinct; missing/ambiguous timestamps are never replaced by a plausible default. Cross-midnight, explicit-offset and DST fixtures preserve the intended instant."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Partial bottle slice: structured duration, rich fields and Journal retry tests on disposable data. Does not establish all feeding parity or physical devices.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Structured OCR duration and rich bottle fields are merged with exact-main synthetic acceptance. Complete all feeding semantics, timestamp/round-trip boundaries and required runtime evidence; no broad PASS follows from this slice.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-005",
+      "domain": "Feeding",
+      "title": "Breastfeeding side/session timers",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Breastfeeding side/session timers",
+        "issues": [
+          3
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Preserve left/right/both semantics across timers, imports, reports and exports.",
+        "Preserve source food type separately from feeding method, including parent/self and both-breast imports; linked nursing sessions retain side-specific elapsed time."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-006",
+      "domain": "Feeding",
+      "title": "Pause/resume/switch side",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Pause/resume/switch side",
+        "issues": [
+          3
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Start/pause/resume/switch/end and timer reset rules produce one coherent session under repeated actions, reconnects and concurrent caregivers."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-007",
+      "domain": "Feeding",
+      "title": "Formula/breast/mixed types",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Formula/breast/mixed types",
+        "issues": [
+          3
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Preserve fortified breast milk and concentration without collapsing meaningful source types into undocumented defaults.",
+        "Formula name/concentration and fortified-milk information survive historical editing, reviewed imports, exports and reports without silently changing units."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-008",
+      "domain": "Feeding",
+      "title": "Feeding reactions",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Feeding reactions",
+        "issues": [
+          3
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-009",
+      "domain": "Pumping",
+      "title": "Pump sessions",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Pump sessions",
+        "issues": [
+          4
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Pump sessions preserve source timestamp, duration and notes; absent disposition remains explicit rather than automatically adding stored milk."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-010",
+      "domain": "Pumping",
+      "title": "Left/right volumes",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Left/right volumes",
+        "issues": [
+          4
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Left/right/total amounts reconcile in mL and oz with documented rounding and no duplicate counting."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-011",
+      "domain": "Pumping",
+      "title": "Breast-milk inventory",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Breast-milk inventory",
+        "issues": [
+          4
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Stored/fed/discarded and reasoned adjustments reconcile without negative inventory or duplicate imported stock.",
+        "Pump-to-store-to-feed, discard and reasoned corrections retain audit/provenance and links to feeds where available; imports and retries cannot duplicate stock."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-012",
+      "domain": "Food",
+      "title": "Solid foods",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Solid foods",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-013",
+      "domain": "Food",
+      "title": "Dedicated foods catalog",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Dedicated foods catalog",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-014",
+      "domain": "Food",
+      "title": "First 100 foods",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "First 100 foods",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-015",
+      "domain": "Food",
+      "title": "Allergens/reactions",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Allergens/reactions",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-016",
+      "domain": "Diaper",
+      "title": "Wet/dirty/both/dry",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Wet/dirty/both/dry",
+        "issues": [
+          5
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Wet, dirty, both and dry classifications retain their meanings in manual/OCR/adapter entries and ordinary exports/reports."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-017",
+      "domain": "Diaper",
+      "title": "Color/condition/amount",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Color/condition/amount",
+        "issues": [
+          5
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Preserve numeric diaper amounts, observations and tags when present.",
+        "Numeric amount is separate from qualitative condition/color; notes, observations and imported metadata are retained or explicitly unresolved."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-018",
+      "domain": "Diaper",
+      "title": "Blowout/cream",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Blowout/cream",
+        "issues": [
+          5
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-019",
+      "domain": "Sleep",
+      "title": "Start/end/timer",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Start/end/timer",
+        "issues": [
+          6
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Ongoing and historical sleep sessions support start/end/manual/backdate and safe corrections/undo; invalid or negative intervals fail visibly."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-020",
+      "domain": "Sleep",
+      "title": "Nap/night classification",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Nap/night classification",
+        "issues": [
+          6
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Nap/night classification, overnight boundaries and local calendar days remain correct across timezone and DST changes."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-021",
+      "domain": "Sleep",
+      "title": "Location",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Location",
+        "issues": [
+          6
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-022",
+      "domain": "Sleep",
+      "title": "Quality",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Quality",
+        "issues": [
+          6
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-023",
+      "domain": "Sleep",
+      "title": "Average wake windows",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Average wake windows",
+        "issues": [
+          6
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Wake-window aggregates exclude invalid/incomplete intervals according to a documented rule and match golden per-child historical fixtures."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-024",
+      "domain": "Sleep AI",
+      "title": "Next nap prediction",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Next nap prediction",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Provide a versioned corrected-age-aware deterministic baseline and sparse-history fallback before personalized predictions; caregiver overrides remain explicit. Model evaluation is owned by SLP-001."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-025",
+      "domain": "Sleep AI",
+      "title": "Wind-down recommendation",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Wind-down recommendation",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Wind-down suggestions derive from the same prospective sleep-ready window and disclose user-configured offsets and insufficient-history states."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-026",
+      "domain": "Sleep AI",
+      "title": "Nap duration/wake prediction",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Nap duration/wake prediction",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Once sleep begins, predict duration and wake time using only available prior history; compare with per-child median baseline under SLP-001."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-027",
+      "domain": "Sleep AI",
+      "title": "Bedtime projection",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Bedtime projection",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Bedtime projections respect the child's local day and configured constraints; retain prospective versions and manual overrides."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-028",
+      "domain": "Sleep AI",
+      "title": "Dynamic re-planning",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Dynamic re-planning",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Completed naps trigger next-nap/bedtime recalculation, prediction-error capture and clear short/long-nap explanations; meaningful-change thresholds prevent notification spam."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-029",
+      "domain": "Sleep AI",
+      "title": "Confidence/explanation",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Confidence/explanation",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Show confidence ranges, sparse-data limits and contributing factors as planning assistance; do not present a model output as a medical diagnosis."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-030",
+      "domain": "Activity",
+      "title": "Tummy time",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Tummy time",
+        "issues": [
+          17
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Dedicated tummy-time records retain duration, source milestone, notes and tags rather than dropping one source field for another."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-031",
+      "domain": "Activity",
+      "title": "Play/walk/outdoor",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Play/walk/outdoor",
+        "issues": [
+          17
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Activity subtypes and reusable timers preserve canonical history without a separate authoritative store; subtype extensions have import/export/API representations."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-032",
+      "domain": "Activity",
+      "title": "Bath tracking",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Bath tracking",
+        "issues": [
+          17
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-033",
+      "domain": "Health",
+      "title": "Temperature",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Temperature",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Temperature values preserve original units/time and validate conversions without fabricating absent measurements."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-034",
+      "domain": "Health",
+      "title": "Medication",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Medication",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Missing dosage remains unresolved, distinct from numeric zero; preserve real dose/unit/frequency across imports and exports.",
+        "Dose interval/reminders, medication name and source units remain faithful; a later corrected source dose uses explicit reconciliation rather than rewriting a previously imported event."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/70"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Partial medication import slice: unknown dose Note, known/explicit-zero dose, actual SQLite confirmation/replay and wizard authorization. Full medication parity is unaccepted.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "PR #70 preserves absent Baby Buddy doses as unresolved Notes and retains explicit zero; exact-main synthetic SQLite/browser tests pass. Complete dosage/interval/reminder/export parity and explicit reconciliation of older incorrect imports without rewriting history.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-035",
+      "domain": "Health",
+      "title": "Supplements",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Supplements",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-036",
+      "domain": "Health",
+      "title": "Vaccines + documents",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Vaccines + documents",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Vaccine attachments remain family-scoped, type/size validated, portable with the record and restorable with encryption requirements intact."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-037",
+      "domain": "Growth",
+      "title": "Weight",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Weight",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-038",
+      "domain": "Growth",
+      "title": "Height/length",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Height/length",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-039",
+      "domain": "Growth",
+      "title": "Head circumference",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Head circumference",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-040",
+      "domain": "Growth",
+      "title": "BMI",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "BMI",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "BMI is a derived value only when compatible weight/length data and timing are available; preserve source measurements and document missing/inapplicable states rather than inventing inputs."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-041",
+      "domain": "Growth",
+      "title": "CDC/WHO percentiles",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "CDC/WHO percentiles",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Pinned CDC/WHO reference data, units, age basis and applicable ranges are documented; plotted results match golden calculations and explain unavailable references."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-042",
+      "domain": "Growth",
+      "title": "Due date / corrected age",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Due date / corrected age",
+        "issues": [
+          15
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Store due date or gestational context explicitly; preserve birth-time precision and compute chronological/corrected age consistently at local-day boundaries.",
+        "Corrected age is a deliberate canonical extension, not a claimed native Baby Buddy field; growth and sleep consumers use the same documented contract."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-043",
+      "domain": "Milestones",
+      "title": "Dedicated milestones",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Dedicated milestones",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-044",
+      "domain": "Media",
+      "title": "Photos linked to activities",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Photos linked to activities",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Imported image references are retained with source provenance or actionable unresolved warnings; no external source URL is silently treated as a fetched trusted attachment."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-045",
+      "domain": "Notes",
+      "title": "Free-form notes",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Free-form notes",
+        "issues": [
+          17
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-046",
+      "domain": "Organization",
+      "title": "Generic tags",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Generic tags",
+        "issues": [
+          17
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Family-scoped generic tags can be created, renamed, removed and combined in filtering; imports and exports preserve association with applicable canonical event types."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-047",
+      "domain": "Timers",
+      "title": "Generic reusable timers",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Generic reusable timers",
+        "issues": [
+          17
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Independent named timers support start/stop/pause/restart and historical correction separately from domain timers; duplicate starts and concurrent changes remain explicit."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-048",
+      "domain": "Calendar",
+      "title": "Calendar/events",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Calendar/events",
+        "issues": [
+          24
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Recurring events/reminders preserve recurrence rules, local dates and timezone/DST behavior; day/week/month navigation and edits do not silently rewrite unrelated occurrences."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-049",
+      "domain": "Contacts",
+      "title": "Providers/contacts",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Providers/contacts",
+        "issues": [
+          16
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-050",
+      "domain": "UX",
+      "title": "Mobile-first responsive UI",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Mobile-first responsive UI",
+        "issues": [
+          2,
+          23,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Feed, diaper and sleep can be initiated within two interaction steps from the primary screen; common one-handed flows have readable units, usable keyboards, large touch targets and no horizontal overflow."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-051",
+      "domain": "UX",
+      "title": "PWA/installable",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "PWA/installable",
+        "issues": [
+          2,
+          23,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "PWA install/session/camera/keyboard/update/reconnect behavior is verified on the required physical devices; emulation is separate."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-052",
+      "domain": "UX",
+      "title": "Offline-aware logging",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Offline-aware logging",
+        "issues": [
+          2,
+          23,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Durable per-owner/family/child pending entries survive disconnection and browser restart.",
+        "Reconnect and lost-response replay create one canonical record; authentication, validation and concurrent-edit conflicts remain visible.",
+        "Qualify all promised care-entry types; Bottle Journal-only support is a partial checkpoint.",
+        "Separate loaded-app offline writes from cold offline startup, background delivery while closed and offline historical edits; explicitly qualify or retain each boundary as unresolved.",
+        "Queued entries remain local pending state until confirmed, retain immutable timestamp/UUID and original actor/family/child scope, and expose bounded retries, conflicts and local-discard behavior."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "New bottles in loaded Journal only: actual disconnect, reload, full browser-process restart, concurrent tabs and lost-response replay on disposable SQLite. No physical-device or cold-start claim.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "PR #67 implements durable new bottles in an already loaded Journal, including actual disconnection/reload/process-restart and lost-response tests. Cold offline startup, background delivery while closed, historical edits, other care domains and physical-device acceptance remain open.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-053",
+      "domain": "UX",
+      "title": "Nursery/night mode",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Nursery/night mode",
+        "issues": [
+          2,
+          23,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Nursery mode offers configurable quick actions, visible active timers and accidental-log undo usable one-handed; no critical step requires precise pointer input."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-054",
+      "domain": "UX",
+      "title": "Dark mode",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Dark mode",
+        "issues": [
+          2,
+          23,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Night and light themes retain readable text/controls, focus/disabled states and source-review contrast across required screens and devices."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-055",
+      "domain": "UX",
+      "title": "Accessibility",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Accessibility",
+        "issues": [
+          2,
+          23,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Keyboard focus, screen-reader labels and error announcements, reduced motion and touch interaction are verified for core capture/review/entry workflows."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-056",
+      "domain": "Reporting",
+      "title": "Dashboard",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Dashboard",
+        "issues": [
+          19,
+          24
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "The dashboard shows current canonical state, active/recent sessions and pending/sync states without presenting unsent local entries as confirmed history."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-057",
+      "domain": "Reporting",
+      "title": "Searchable timeline/full log",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Searchable timeline/full log",
+        "issues": [
+          19,
+          24
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Timeline/full-log views represent every canonical event type, combine child/caregiver/type/tag/date filters safely, support day/week/month navigation and paginate long histories.",
+        "Historical edit/delete/undo records actor/provenance and never silently changes later-edited events."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-058",
+      "domain": "Reporting",
+      "title": "Graphs/analytics",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Graphs/analytics",
+        "issues": [
+          19
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Feeding/sleep/diaper and growth reports match golden date-window/unit/rounding calculations, including local midnight and DST; absent data remains explicit."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-059",
+      "domain": "Reporting",
+      "title": "Monthly report card",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Monthly report card",
+        "issues": [
+          19
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Monthly report cards use the same canonical period and aggregates as API/exports and preserve per-child/family boundaries."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-060",
+      "domain": "Reporting",
+      "title": "PDF report",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "PDF report",
+        "issues": [
+          19
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "PDF reports preserve units/date context and relevant provenance, remain readable on representative page layouts and contain only authorized records."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-061",
+      "domain": "Export",
+      "title": "CSV/XLSX",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "CSV/XLSX",
+        "issues": [
+          19
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "CSV/XLSX exports preserve faithful values and stable provenance while escaping malicious imported text and spreadsheet formulas."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-062",
+      "domain": "Export",
+      "title": "Full portable export",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Full portable export",
+        "issues": [
+          12,
+          19
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Portable exports reconcile IDs, relationships, timestamps, units, caregiver labels and attachments against a fresh isolated restore, including encrypted-source configuration requirements."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-063",
+      "domain": "Import",
+      "title": "Baby Buddy import",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Baby Buddy import",
+        "issues": [
+          3,
+          4,
+          5,
+          6,
+          12,
+          13,
+          15,
+          17,
+          19,
+          22,
+          29,
+          34
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Golden fixtures cover fields, units, original timestamps, tags, image references, both-breast mapping, optional medication dose and pump disposition.",
+        "Actual database import, duplicate retry and export round trips preserve source provenance.",
+        "Pin Baby Buddy v2.11.0 and source commit for acceptance; food type/method, fortified milk, both-breast, numeric diaper amounts, durations, birth precision, BMI, notes/tags and timer semantics receive explicit golden mappings.",
+        "Unsupported source fields are preserved with provenance or block with actionable warnings; behavioral parity, wire compatibility and migration coverage are separately described.",
+        "Actual database tests cover cross-family/child rejection, malformed-row transaction rollback, simultaneous retries, lost responses and displayed-field equality; undo preserves later edits and preexisting history."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/70"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Medication fidelity slice only: unknown dose versus explicit zero, stable replay target and ownership boundaries. Other Baby Buddy semantic round trips remain unaccepted.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "PR #70 fixes unknown medication dose fidelity. Feeding timestamps/duration, fortified milk, both breasts, numeric diaper amounts, tags, BMI, image references, pump disposition and complete golden runtime/export/undo acceptance remain; do not build a second importer.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-064",
+      "domain": "Import",
+      "title": "Sprout import",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Sprout import",
+        "issues": [
+          12,
+          14,
+          19,
+          29
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Map families/caretakers/children and every promised Sprout event/resource family, including inventory, measurements, media, medicines/vaccines, foods, calendar and contacts where portable.",
+        "Idempotent golden imports preserve ownership, source identifiers, relationships, units, original timestamps and provenance; unsupported fields and safe undo remain explicit."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-065",
+      "domain": "Import",
+      "title": "PDF form import",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "PDF form import",
+        "issues": [
+          10,
+          11,
+          12,
+          26,
+          29
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Native, scanned and mixed PDFs and embedded form values use local extraction, bounded input handling and explicit review.",
+        "Prefer native form fields (including supported AcroForm/XFA-style fields) and embedded text/table geometry before recognition; unsupported/password-protected formats fail visibly.",
+        "Feeding, diaper, sleep, medication, temperature/vitals and growth inputs emit source/page-linked candidates with warnings, never direct canonical writes."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Native/scanned fixture and explicit duration review regression; does not establish AcroForm or all care-event candidates.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Native text and scanned/mixed fallback plus reviewed duration are merged. Native form-field extraction, table geometry and all promised candidate event types still require separate qualification.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-066",
+      "domain": "Import",
+      "title": "Scanned PDF review workflow",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Scanned PDF review workflow",
+        "issues": [
+          11,
+          12,
+          25,
+          29,
+          37,
+          38,
+          49
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "PNG/JPEG/Android photos, multipage files, skew/rotation, uneven light, handwritten columns, ambiguous rows and mixed units have measured image fixtures.",
+        "Source/draft comparison, manual rows, uncertainty, rejection, duplicate decisions, partial import, final confirmation and undo have API/database/browser evidence.",
+        "Source preview supports zoom, page selection, crop/rotation and manual add/split/merge/delete/reject; original source coordinates/provenance survive transformations.",
+        "Date/year/timezone are explicitly resolved; ambiguous 12/24-hour time, midnight crossings, DST, fraction/decimal oz, mixed units and contradictory fields require correction instead of guesses.",
+        "Every selected row requires explicit approval after its latest edit; multi-row selection and final summary recompute counts/totals without writing from preview.",
+        "Exact source identity and fuzzy/transformed-rescan duplicate warnings preserve legitimate same-time events and child/family separation; partial batches have explicit per-row results.",
+        "Cancel/back/retry/interruption create no unintended care records; transaction failures and import undo are exercised against the real database, preserving later-edited records and unrelated history.",
+        "Malicious extracted text remains data in UI/export; no external document transfer or sensitive diagnostic logging occurs."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Synthetic OCR upload/correction/approval/duration/canonical replay browser flow. Does not certify real handwriting, physical devices or complete undo/crop workflows.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Merged review, confirmation, duration and privacy paths have synthetic API/database/browser evidence. Complete full crop/split/merge, safe partial batch/undo and current runtime acceptance; representative handwriting and physical devices remain separate unresolved contracts.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-067",
+      "domain": "Platform",
+      "title": "Docker/self-hosting",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Docker/self-hosting",
+        "issues": [
+          20,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Clean isolated install and representative prior-version upgrade pass required CI and runtime gates; immutable amd64 and arm64 artifacts have truthful architecture qualification."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-068",
+      "domain": "Platform",
+      "title": "PostgreSQL",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "PostgreSQL",
+        "issues": [
+          20
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "PostgreSQL support requires its own schema, transaction, import, backup/restore and upgrade evidence; the current SQLite production database is not replaced to satisfy this inventory."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-069",
+      "domain": "Platform",
+      "title": "SQLite option",
+      "required": false,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "SQLite option",
+        "issues": [
+          20,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-070",
+      "domain": "Platform",
+      "title": "Backup/restore",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Backup/restore",
+        "issues": [
+          19,
+          20,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Consistent archives include database, log database, encrypted source files and required configuration.",
+        "Isolated restore integrity and full-startup migration checks pass for the accepted image; real family recovery remains covered by SETUP-001.",
+        "User-facing backup/restore and authorized access recovery preserve consistent database, attachments and encryption configuration, beyond a CLI archive integrity check."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-071",
+      "domain": "API",
+      "title": "Full REST/OpenAPI",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Full REST/OpenAPI",
+        "issues": [
+          18
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Versioned read contracts cover every canonical event type, with safe writes where intended; generated OpenAPI and versioned contract tests match actual authorization and errors."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-072",
+      "domain": "API",
+      "title": "Scoped API keys",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Scoped API keys",
+        "issues": [
+          18
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "API keys have explicit scopes/child-family limits, revocation and expiry; automated mutations retain actor/provenance and invalid keys cannot access files or reports."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-073",
+      "domain": "API",
+      "title": "Signed webhooks",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Signed webhooks",
+        "issues": [
+          18
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Outbound callbacks are signed with documented verification, retry bounds and deduplication IDs; failed delivery and key rotation remain observable and tested. Inbound hooks alone do not satisfy this contract."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-074",
+      "domain": "Integrations",
+      "title": "Home Assistant",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Home Assistant",
+        "issues": [
+          18
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "A documented Home Assistant integration exercises canonical scoped read/write contracts and revocation without exposing unrestricted family data."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-075",
+      "domain": "Integrations",
+      "title": "MCP",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "MCP",
+        "issues": [
+          18
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "MCP resources/tools query and log through existing authorized canonical services; scopes, validation and mutation audit match ordinary API behavior."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Required capability is absent or planned in the audited canonical runtime; implement and verify its full contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-076",
+      "domain": "Notifications",
+      "title": "Web/native push",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Web/native push",
+        "issues": [
+          23
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Feed/diaper/medication/sleep reminders and web/native-ready delivery respect per-caregiver/device preferences, revocation and deduplication; denied or unavailable permission has useful fallback."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PAR-077",
+      "domain": "Localization",
+      "title": "Multi-language",
+      "required": true,
+      "source": {
+        "spec": "docs/FEATURE_PARITY_MATRIX.md",
+        "capability": "Multi-language",
+        "issues": [
+          23
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
+        "Applicable import/export, API, timeline and reporting representations are faithful.",
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "New core workflow copy and validation messages use the supported localization mechanism; missing strings, unit formats and date/time rendering are checked across supported locales."
+      ],
+      "implementationReferences": [
+        "docs/sat-tracker-source-parity-2026-11-01.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "OCR-001",
+      "domain": "Mission extension",
+      "title": "Representative handwritten-image qualification",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          38,
+          49
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Run the actual local image recognition engine against representative privately supplied handwriting.",
+        "Report row recall, field/date/time/volume/unit accuracy, false positives, uncertainty and duplicate behavior with explicit denominators.",
+        "Reviewed end-to-end imports match expected canonical records; parser strings and printed fonts cannot satisfy handwriting qualification.",
+        "The private corpus manifest distinguishes genuine human-paper images from native/printed/cursive fixtures; row correspondence and acceptance thresholds receive independent review."
+      ],
+      "implementationReferences": [
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/68"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Qualification harness tests include actual PNG/JPEG/mixed-PDF recognition and private report controls. These are infrastructure/controlled-fixture tests, not representative handwriting acceptance.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "BLOCKED",
+      "remainingWork": "PR #68 supplies actual-byte local recognition, count-only private reports and regression fixtures. A representative genuine human-paper corpus with reviewed ground truth, correspondence review and acceptance thresholds is still unavailable; repeated synthetic runs cannot provide it.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "OCR-002",
+      "domain": "Mission extension",
+      "title": "Encrypted source authorization and retention lifecycle",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          11,
+          12,
+          25,
+          49
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Family/child ownership rejects wrong-family source, review and audit access.",
+        "Encryption, expiration, deletion and failed-upload cleanup are exercised with real APIs/database/files.",
+        "No unconfirmed row changes canonical records; invalid approvals and partial failures fail safely; logs omit sensitive text.",
+        "Review/source/audit expiry and deletion are verified with wrong-family and invalid approval requests; encrypted raw, corrected and audit text copies are redacted transactionally without deleting canonical care records.",
+        "Malformed/oversized/decompression-heavy inputs and failed/cancelled processing leave no unowned temporary files; configured input/resource limits and local engine licenses/checksums are recorded."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Reconcile existing negative tests and current release evidence to the complete privacy contract.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "JRN-001",
+      "domain": "Mission extension",
+      "title": "Shared Bottle Journal totals and tracking targets",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          3,
+          19,
+          23
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "The journal and normal FeedLog timeline share one canonical history.",
+        "Daily and rolling-24-hour totals, target progress, timezone/DST/midnight boundaries, unit conversion and rounding match golden fixtures.",
+        "Night mode, touch targets and clear save/sync states pass browser and required device checks.",
+        "Fast entry, manual refresh, targets and progress operate per child; historical revision conflicts and lost responses are visible while daily/rolling totals include only server-confirmed records."
+      ],
+      "implementationReferences": [
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835887",
+            "scope": "Synthetic canonical journal, targets, browser contexts and new-bottle outbox acceptance; physical devices and full totals boundary coverage are separate.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Rich canonical Journal and PR #67 outbox have exact-main synthetic multi-context/restart tests. Complete golden total/timezone boundaries, protected runtime evidence and required physical caregiver/device checks.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
+    },
+    {
+      "id": "LEG-001",
+      "domain": "Mission extension",
+      "title": "Actual legacy Family Bottle Journal history migration",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          13,
+          19,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Obtain the paired export containing historical records; preserve timestamps, units, caregiver/formula details, notes and stable source IDs.",
+        "Review privately, import idempotently into correct family/child, and reconcile actual record counts and field values.",
+        "Retain source provenance and document unavailable-source cases without claiming history never existed.",
+        "Pending legacy operations remain unresolved in the original source backup; migration does not silently replay them as confirmed care history."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "BLOCKED",
+      "remainingWork": "No usable paired historical export has been supplied; the inspected empty CSV does not prove history is absent.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "SYNC-001",
+      "domain": "Mission extension",
+      "title": "Real caregiver multi-device synchronization",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          22,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Demonstrate writes and edits from separate actual family devices/sessions becoming visible to other caregivers.",
+        "Exercise concurrent edits, reconnect and manual refresh with explicit conflict handling and no duplicates."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "BLOCKED",
+      "remainingWork": "Automated multi-context tests are useful partial evidence; physical family-device demonstration remains unavailable.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
+    },
+    {
+      "id": "DEV-001",
+      "domain": "Mission extension",
+      "title": "Physical Pixel 10 acceptance",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          30,
+          37
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Install PWA, authenticate persistently, capture/import a camera log, correct/confirm it, enter a bottle, and synchronize across devices.",
+        "Check keyboard, night readability, touch targets, overflow, disconnection and restart."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "BLOCKED",
+      "remainingWork": "Physical Pixel 10 interaction/evidence is required.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
+    },
+    {
+      "id": "DEV-002",
+      "domain": "Mission extension",
+      "title": "Physical Pixel 9 acceptance",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          30,
+          37
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Install PWA, authenticate persistently, capture/import a camera log, correct/confirm it, enter a bottle, and synchronize across devices.",
+        "Check keyboard, night readability, touch targets, overflow, disconnection and restart."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "BLOCKED",
+      "remainingWork": "Physical Pixel 9 interaction/evidence is required.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
+    },
+    {
+      "id": "DEV-003",
+      "domain": "Mission extension",
+      "title": "Physical iPad acceptance",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          30,
+          37
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Complete required setup/shared-caregiver entry, OCR review and synchronized workflows on an actual iPad.",
+        "Check tablet layout, keyboard, touch, install/session/recovery behavior."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "BLOCKED",
+      "remainingWork": "Physical iPad interaction/evidence is required.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
+    },
+    {
+      "id": "PKG-001",
+      "domain": "Mission extension",
+      "title": "Canonical Android package disposition and acceptance",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          20,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Inspect reusable Capacitor/legacy wrappers and record which native package commitments belong to accepted scope.",
+        "Where promised, deliver a versioned package using canonical backend, secure pairing/persistent sessions and tested sync/install/upgrade behavior.",
+        "A scope change requires an explicit recorded owner decision; do not infer package acceptance from web emulation."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Native-aware web bridge and legacy client exist; canonical package and commitment disposition need qualification.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "PKG-002",
+      "domain": "Mission extension",
+      "title": "Canonical Windows package disposition and acceptance",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          2,
+          20,
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Inspect reusable legacy desktop wrapper and document the agreed desktop package contract.",
+        "Where promised, qualify canonical secure backend/session, installation, upgrade, restart and multi-device sync."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Legacy executable implementation is not acceptance of a new canonical desktop package.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "SETUP-001",
+      "domain": "Mission extension",
+      "title": "Fresh owner setup, caregiver provisioning and access recovery",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          30
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Fresh isolated installation completes owner/family creation, caretaker provisioning and replacement of setup defaults.",
+        "Restored startup and authorized access recovery work without changing protected family production access.",
+        "Actual family onboarding decisions and required mobile checks are documented."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Release restoration evidence exists; fresh setup and physical onboarding remain unaccepted.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
+    },
+    {
+      "id": "MOD-001",
+      "domain": "Mission extension",
+      "title": "Module registration, dependencies and runtime controls",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          50
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Registry validates version compatibility/dependencies, configuration, licenses and health.",
+        "Owner can enable/disable approved modules reversibly while preserving canonical data and module migrations.",
+        "Disabled or incompatible modules cannot become active by unsafe arbitrary downloads.",
+        "Module migrations declare canonical-schema compatibility and safe dependency ordering; enable/disable validates configuration and health without deleting underlying care records."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Build-time registry/CLI controls exist; complete in-app dependency/version/health experience remains.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "MOD-002",
+      "domain": "Mission extension",
+      "title": "Owner-approved module installation/update and rollback",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          35,
+          50
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Reviewed compatible updates are presented with source/license/change details and require existing owner approval boundary.",
+        "Migration, backup, health and rollback rules preserve canonical data; update failure leaves explicit recoverable state.",
+        "Draft PR35 intake configuration is not an updater implementation.",
+        "Use normal repository review and existing protected promotion approval; arbitrary runtime code downloads and unattended unreviewed deployment cannot satisfy owner-approved updates."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Implement complete module/update experience after contract review.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "CAM-001",
+      "domain": "Mission extension",
+      "title": "Mono Eye/Monai camera integration",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          21,
+          50
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Define the approved camera contract and source/license boundaries.",
+        "Qualify protected live access, failure states and mobile behavior without exposing family streams or creating another care database."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Planned camera module has no accepted runtime integration.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "UP-001",
+      "domain": "Mission extension",
+      "title": "Reviewed upstream maintenance and attribution",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          31,
+          33,
+          34,
+          36,
+          50
+        ]
+      },
+      "priority": "P2",
+      "acceptanceCriteria": [
+        "Pinned upstream changes are inventoried, compatibility/license reviewed, tested and proposed through PRs.",
+        "Preserve custom features/attribution and deployment contracts; no automatic merge or version-only upgrade.",
+        "Compare the pinned Sprout custom base and verified Baby Buddy target using actual changelogs/source changes; source/license review alone does not establish runtime feature parity."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Existing watch/pins cover discovery; review compatible outstanding upstream changes and exact acceptance.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "REL-001",
+      "domain": "Mission extension",
+      "title": "Exact-source CI and immutable image provenance",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          20,
+          29,
+          50
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Current released source is reviewed/merged, exact-SHA acceptance/operations/Compose pass, image provenance identifies its source.",
+        "Production promotion uses the accepted immutable image and preserves repository protections."
+      ],
+      "implementationReferences": [
+        "scripts/promote-release.ps1",
+        "docs/release-data-preservation.md"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published previous-release operational receipts; independently reobserved runtime at start of this execution."
+          }
+        ],
+        "preview": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Protected synthetic preview, same immutable release."
+          }
+        ],
+        "production": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published rollout, preservation, backup/restore and authenticated smoke receipts."
+          }
+        ],
+        "device": []
+      },
+      "status": "VERIFIED PASS",
+      "remainingWork": "",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "REL-002",
+      "domain": "Mission extension",
+      "title": "Protected isolated preview",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          20,
+          29,
+          50
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Preview uses only its own synthetic data/config/files volumes and exact candidate identity.",
+        "Healthy startup, synthetic acceptance and authenticated browser smoke pass; production identity remains unchanged during preview."
+      ],
+      "implementationReferences": [
+        "scripts/promote-release.ps1",
+        "docs/release-data-preservation.md"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published previous-release operational receipts; independently reobserved runtime at start of this execution."
+          }
+        ],
+        "preview": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Protected synthetic preview, same immutable release."
+          }
+        ],
+        "production": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published rollout, preservation, backup/restore and authenticated smoke receipts."
+          }
+        ],
+        "device": []
+      },
+      "status": "VERIFIED PASS",
+      "remainingWork": "",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "REL-003",
+      "domain": "Mission extension",
+      "title": "Private migration and actual previous-image rollback",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          20,
+          30,
+          50
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Private snapshot restoration and actual candidate entrypoint/migration checks preserve preexisting data.",
+        "Actual previous immutable image starts on migrated synthetic clones; required events/ledger/source files survive and owned resources are cleaned."
+      ],
+      "implementationReferences": [
+        "scripts/promote-release.ps1",
+        "docs/release-data-preservation.md"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published previous-release operational receipts; independently reobserved runtime at start of this execution."
+          }
+        ],
+        "preview": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Protected synthetic preview, same immutable release."
+          }
+        ],
+        "production": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published rollout, preservation, backup/restore and authenticated smoke receipts."
+          }
+        ],
+        "device": []
+      },
+      "status": "VERIFIED PASS",
+      "remainingWork": "",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "REL-004",
+      "domain": "Mission extension",
+      "title": "Production backup, original-volume and record preservation",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          20,
+          30,
+          50
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Fresh consistent backup passes isolated restoration before promotion.",
+        "Original three production volumes remain; every captured original application row/column is preserved, SQLite integrity passes and sequences never decrease.",
+        "Document snapshot/cutover coverage and never restore data automatically after live writes."
+      ],
+      "implementationReferences": [
+        "scripts/promote-release.ps1",
+        "docs/release-data-preservation.md"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published previous-release operational receipts; independently reobserved runtime at start of this execution."
+          }
+        ],
+        "preview": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Protected synthetic preview, same immutable release."
+          }
+        ],
+        "production": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published rollout, preservation, backup/restore and authenticated smoke receipts."
+          }
+        ],
+        "device": []
+      },
+      "status": "VERIFIED PASS",
+      "remainingWork": "",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "REL-005",
+      "domain": "Mission extension",
+      "title": "Live health, protected TLS/Access and read-only smoke",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          20,
+          25,
+          30,
+          50
+        ]
+      },
+      "priority": "P0",
+      "acceptanceCriteria": [
+        "Running revision/image and healthy startup are observed on production, with bounded log review.",
+        "Valid TLS and unauthenticated Cloudflare Access redirects are retained; authenticated read-only smoke verifies the app."
+      ],
+      "implementationReferences": [
+        "scripts/promote-release.ps1",
+        "docs/release-data-preservation.md"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published previous-release operational receipts; independently reobserved runtime at start of this execution."
+          }
+        ],
+        "preview": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Protected synthetic preview, same immutable release."
+          }
+        ],
+        "production": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/releases/tag/sat-tracker-2026-11-02",
+            "revision": "64c69c4b35df1161b2846c4f4e663e44e70d74a5",
+            "scope": "Published rollout, preservation, backup/restore and authenticated smoke receipts."
+          }
+        ],
+        "device": []
+      },
+      "status": "VERIFIED PASS",
+      "remainingWork": "",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "GOV-001",
+      "domain": "Mission extension",
+      "title": "Every issue, PR and preserved recovery item has evidence-based disposition",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          21,
+          29,
+          35,
+          39,
+          49,
+          50
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Inventory all open issues and relevant closed residual scope; distinguish issue labels from verified acceptance.",
+        "Resolve implementation issues only after complete evidence; preserve recovery branches/worktrees/stashes and independently review draft PR35.",
+        "Exclude Fleet-Control-Hub work from this app mission without changing unrelated projects.",
+        "Residual acceptance in closed #11/#12/#29/#37/#38 remains explicitly tracked until completed or legitimately superseded; a closed-state count cannot hide missing work."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Current open issues, draft PR #35 and closed residual criteria are inventoried. Private PR1/recovery comparison, rendered/current-CI review of #35 and legitimate residual issue resolution remain open.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "GOV-002",
+      "domain": "Mission extension",
+      "title": "Canonical acceptance ledger and honest completion calculation",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          21,
+          29,
+          50
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Every accepted scope item maps to a stable contract; duplicates are mapped rather than silently removed.",
+        "Statuses/evidence distinguish implementation, automated tests, preview, production and physical acceptance.",
+        "Percent is verified required contracts divided by all required contracts, including blocked/unimplemented; desired items are reported separately.",
+        "Ledger records its source/release checkpoint and cannot turn sparse evidence or issue closure into PASS.",
+        "Complete the detailed mission/issue/source-parity mapping and independent final counterexample audit before certifying scopeComplete; any newly found required behavior joins the denominator."
+      ],
+      "implementationReferences": [
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/69"
+      ],
+      "evidence": {
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/BabyTracker-Master/actions/runs/41448835813",
+            "scope": "Operations acceptance includes the ledger validator and meaningful negative evidence/counting tests; it does not certify the complete product scope.",
+            "revision": "a07289755b9a142e300f5367eba48ede8b999f1d"
+          }
+        ],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "PR #69 added a validated ledger; this audit maps detailed mission/issue criteria and adds three omitted capabilities. Complete pinned source-parity reconciliation, package/recovery scope decisions and independent final audit before certifying the denominator.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "GOV-003",
+      "domain": "Mission extension",
+      "title": "Durable private continuation and sanitized release publication",
+      "required": true,
+      "source": {
+        "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
+        "issues": [
+          21,
+          49,
+          50
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Handoff records exact source/runtime, branches/processes, tests, private receipt locations, next task and preservation constraints.",
+        "Public notes contain no family records/scans/secrets and distinguish release acceptance from complete product acceptance.",
+        "The continuation includes a self-contained NEXT CHATGPT WEB PRO EXECUTION PROMPT with exact unfinished operation and preservation/release gates; never include secrets or raw family evidence."
+      ],
+      "implementationReferences": [],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Prior private handoff exists. Update exact runtime/release receipts, unfinished operations and the next prompt after this continuation; this source-only audit does not publish a new release.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "OCR-003",
+      "domain": "Mission extension",
+      "title": "Reusable versioned document-form templates",
+      "required": true,
+      "source": {
+        "spec": "GitHub issue #26",
+        "issues": [
+          26
+        ]
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Define reusable field/column/page mappings with explicit version, ownership and source provenance.",
+        "Template preview, correction, duplicate rules and review requirements preserve canonical authorization; templates never auto-confirm extracted records.",
+        "Actual API/database/browser tests cover template creation, revision, reuse and incompatible document layouts."
+      ],
+      "implementationReferences": [],
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Generic OCR review is implemented; reusable versioned mapping templates remain required and are not implied by file upload support."
+    },
+    {
+      "id": "CARE-001",
+      "domain": "Family",
+      "title": "Caregiver handoff summary",
+      "required": true,
+      "source": {
+        "spec": "docs/PRODUCT_VISION.md",
+        "issues": [
+          22,
+          24
+        ],
+        "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/22"
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Provide a family/child-scoped handoff view of active sessions and recent feed, diaper, sleep and medication events with timestamps and caregiver attribution.",
+        "Distinguish confirmed history from pending/failed local changes and make freshness/session state clear before another caregiver takes over.",
+        "Apply role and shared-device session boundaries from PAR-002/PAR-003; combine filters without exposing another family and verify the actual handoff workflow with synthetic records."
+      ],
+      "implementationReferences": [
+        "application/src/components/DailyStats/index.tsx",
+        "docs/PRODUCT_VISION.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Existing dashboard/timeline data are related primitives; no accepted dedicated caregiver handoff contract or end-to-end summary/freshness/session evidence is present. This inventory requires implementation and review, not a user-supplied dataset.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "DQ-001",
+      "domain": "Data integrity",
+      "title": "Cross-domain data-quality detection and safe resolution",
+      "required": true,
+      "source": {
+        "spec": "GitHub issue #27",
+        "issues": [
+          27
+        ],
+        "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/27"
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Detect overlapping sleep, invalid/negative durations, duplicate feeds/diapers, implausible conversions, conflicting active timers, far-future timestamps, import/manual conflicts and milk inventory inconsistency.",
+        "Reuse family/child-scoped checks across UI, API and import boundaries; display actionable warnings with their source records and explicit unresolved state.",
+        "Caregivers can resolve or explicitly accept flagged records with actor/provenance; warnings never silently delete or overwrite history.",
+        "Actual database and browser tests cover cross-domain conflicts, cross-family rejection, concurrent corrections and preservation of unrelated/later-edited records."
+      ],
+      "implementationReferences": [
+        "application/src/lib/ocr/",
+        "application/src/lib/bottle-journal/"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "IN PROGRESS",
+      "remainingWork": "Existing import/Journal duplicate and revision controls are partial primitives. Implement the reusable cross-domain rule set, visible resolution dashboard and real-database acceptance; no external family inputs block synthetic development.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    },
+    {
+      "id": "SLP-001",
+      "domain": "Sleep AI",
+      "title": "Prospective sleep-model evaluation and version governance",
+      "required": true,
+      "source": {
+        "spec": "docs/SLEEP_INTELLIGENCE.md",
+        "issues": [
+          7,
+          8,
+          9,
+          28
+        ],
+        "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/28"
+      },
+      "priority": "P1",
+      "acceptanceCriteria": [
+        "Persist immutable prediction snapshots before outcomes, including child, model/version, available-history cutoff, interval and relevant feature context; hindsight data cannot alter the recorded prediction.",
+        "Report MAE, median absolute error and interval coverage by nap index, time of day and age; compare personalized candidates with deterministic and rolling-median baselines.",
+        "A candidate cannot become default without a reproducible benchmark and declared improvement rule; failed/sparse-data candidates retain the accepted baseline.",
+        "Model rollback preserves historical version attribution and caregiver-visible explanations; actual API/database/dashboard tests verify promotion, rollback and no hindsight leakage."
+      ],
+      "implementationReferences": [
+        "docs/SLEEP_INTELLIGENCE.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "Implement prospective registry/evaluation and reproducible synthetic fixtures alongside baseline prediction contracts. Real-world personalization quality will require suitable prospective histories, but that does not block the versioning/evaluation infrastructure.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production"
+      ]
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "2026-11-02-reviewed-implementation",
+      "status": "IMPLEMENTATION_AND_SYNTHETIC_ACCEPTANCE",
+      "scope": [
+        "PAR-004",
+        "PAR-034",
+        "PAR-052",
+        "PAR-063",
+        "PAR-065",
+        "OCR-001",
+        "JRN-001"
+      ],
+      "reference": "docs/sat-tracker-source-parity-2026-11-02.md",
+      "implementationReferences": [
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/68",
+        "application/src/lib/importers/baby-buddy/medication-map.ts"
+      ],
+      "evidenceScope": "Independent source reviews and a combined normal build plus27 disposable browser checks passed. Exact final CI and runtime release receipts are required for promotion; no physical device or representative handwriting claim.",
+      "remainingWork": "Retain every broad parent contract and its missing runtime/device/corpus evidence; this checkpoint does not change accepted contract counts."
+    },
+    {
+      "id": "2026-11-02-resume-source-audit",
+      "revision": "a07289755b9a142e300f5367eba48ede8b999f1d",
+      "status": "MERGED_SOURCE_AND_CI_ONLY",
+      "scope": [
+        "PAR-004",
+        "PAR-034",
+        "PAR-052",
+        "PAR-063",
+        "PAR-065",
+        "PAR-066",
+        "OCR-001",
+        "JRN-001",
+        "GOV-002"
+      ],
+      "reference": "docs/sat-tracker-scope-audit-2026-11-02.md",
+      "implementationReferences": [
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/68",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/69",
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/70"
+      ],
+      "evidenceScope": "Live GitHub inspection confirmed all five PRs merged and application/operations/Compose/image workflows successful on a072897. Current runtime, physical devices, genuine handwriting and historical migration are not inferred. Existing five release PASS contracts remain bound to the published 64c69c4 release.",
+      "remainingWork": "Complete the interrupted exact-image release gates and all remaining broad contracts. Preserve draft PR35, recovery refs, worktrees and stashes."
+    }
+  ],
+  "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."
+}

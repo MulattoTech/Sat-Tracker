@@ -1,0 +1,45 @@
+# Synthetic acceptance environment. These volumes are deliberately independent
+# of the live babytracker-sprout deployment and its three persistence volumes.
+name: babytracker-ocr-staging
+services:
+  app:
+    image: ${BABYTRACKER_STAGING_IMAGE:-babytracker:ocr-staging}
+    build:
+      context: .
+      args:
+        ENABLE_NOTIFICATIONS: 'false'
+        DATABASE_PROVIDER: sqlite
+    container_name: babytracker-ocr-staging
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:3124:3000'
+    cpus: 2.0
+    mem_limit: 3g
+    pids_limit: 256
+    environment:
+      NODE_ENV: production
+      DATABASE_PROVIDER: sqlite
+      ENABLE_NOTIFICATIONS: 'false'
+      ENABLE_LOG: 'false'
+      BABYTRACKER_OCR_ENABLED: 'true'
+      BABYTRACKER_SYNTHETIC_STAGING: 'true'
+      TZ: UTC
+    volumes:
+      - staging-db:/db
+      - staging-env:/app/env
+      - staging-files:/app/Files
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', '--silent', '--output', '/dev/null', 'http://127.0.0.1:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+volumes:
+  staging-db:
+  staging-env:
+  staging-files:
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: '${BABYTRACKER_STAGING_SUBNET:-10.254.73.0/28}'

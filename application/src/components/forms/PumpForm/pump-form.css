@@ -1,0 +1,34 @@
+/* Dark mode overrides for PumpForm component */
+
+/* Make unit buttons more visible in dark mode */
+html.dark .unit-button {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Make amount unit indicators more visible in dark mode */
+html.dark .amount-unit {
+  background-color: #374151 !important; /* gray-700 */
+  border-color: #4b5563 !important; /* gray-600 */
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Improve increment/decrement button visibility in dark mode */
+html.dark .increment-button,
+html.dark .decrement-button {
+  background-image: linear-gradient(to right, #0d9488, #059669) !important; /* dark teal to emerald gradient */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+html.dark .increment-button:hover,
+html.dark .decrement-button:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2) !important;
+}
+html.dark .pump-review-hint {
+  color: #d1d5db;
+}
+
+html.dark .pump-conflict-panel {
+  background-color: #292015;
+  border-color: #d97706;
+  color: #fef3c7;
+}

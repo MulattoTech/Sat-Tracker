@@ -1,0 +1,132 @@
+/* Dark mode overrides for TimeEntry component */
+html.dark .time-entry-container {
+  color: #e5e7eb !important; /* gray-200 */
+  background-color: #1f2937 !important; /* gray-800 */
+}
+
+html.dark .time-entry-header {
+  background-image: linear-gradient(to right, #0d9488, #065f46) !important; /* teal-700 to emerald-800 */
+}
+
+html.dark .time-entry-clock-face {
+  background-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .time-entry-hour-marker,
+html.dark .time-entry-minute-marker {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .time-entry-hour-marker-inner {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .time-entry-hour-marker-selected,
+html.dark .time-entry-minute-marker-selected {
+  background-color: #0d9488 !important; /* teal-700 */
+  color: #f9fafb !important; /* gray-50 */
+}
+
+html.dark .time-entry-clock-hand {
+  background-color: #14b8a6 !important; /* teal-500 */
+}
+
+html.dark .time-entry-clock-center {
+  background-color: #14b8a6 !important; /* teal-500 */
+}
+
+html.dark .time-entry-footer {
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .time-entry-clear-button,
+html.dark .time-entry-cancel-button {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .time-entry-ok-button {
+  background-image: linear-gradient(to right, #0d9488, #059669) !important; /* teal-700 to emerald-600 */
+}
+
+/* Clock face styles */
+.time-entry-clock-face {
+  position: relative;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  /* Minimal touch restrictions - only prevent text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Remove touch-action restrictions to allow normal touch behavior */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.time-entry-clock-hand {
+  height: 80px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Minimal restrictions - let touch events flow naturally */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.time-entry-selection-circle {
+  /* Minimal restrictions - let touch events flow naturally */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.time-entry-hour-marker,
+.time-entry-minute-marker {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.time-entry-hour-marker:hover:not(.time-entry-hour-marker-selected),
+.time-entry-minute-marker:hover:not(.time-entry-minute-marker-selected) {
+  background-color: rgba(20, 184, 166, 0.1); /* teal-500 with opacity */
+}
+
+.time-entry-minute-tick-marker {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.time-entry-minute-tick-marker:hover:not(.time-entry-minute-tick-marker-selected) {
+  background-color: rgba(20, 184, 166, 0.5); /* teal-500 with opacity */
+}
+
+/* AM/PM toggle styles */
+.time-entry-ampm-button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.time-entry-ampm-button:hover:not(.time-entry-ampm-button-selected) {
+  color: rgba(20, 184, 166, 0.8); /* teal-500 with opacity */
+}
+
+/* Footer button styles */
+.time-entry-footer button {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+/* Responsive styles */
+@media (max-width: 640px) {
+  .time-entry-clock-face {
+    width: 240px;
+    height: 240px;
+  }
+  
+  .time-entry-hour-marker {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}

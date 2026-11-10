@@ -1,0 +1,698 @@
+import React, { useEffect, useState, useRef, Suspense } from 'react';
+import ChangelogModal from '@/src/components/modals/changelog';
+import FeedbackPage from '@/src/components/forms/FeedbackForm/FeedbackPage';
+import dynamic from 'next/dynamic';
+import { X, Settings, LogOut, MessageSquare, CreditCard, Clock, Loader2, ExternalLink } from 'lucide-react';
+import NavCountBubble from '@/src/components/ui/nav-count-bubble';
+import { Badge } from '@/src/components/ui/badge';
+import { LanguageSelector } from './language-selector';
+import { isNativeApp } from '@/src/utils/native-app';
+import { openExternal, MANAGE_SUBSCRIPTION_URL } from '@/src/utils/external-link';
+import { sideNavFooterButtons, trialCtaMode } from '@/src/utils/shell-chrome';
+
+// Loading fallback is a component so it can use the localization hook
+const PaymentModalLoading = () => {
+  const { t } = useLocalization();
+  return (
+    <div role="status" className="flex items-center justify-center p-4">
+      <Loader2 className="h-6 w-6 animate-spin text-teal-600" aria-hidden="true" />
+      <span className="sr-only">{t('Loading...')}</span>
+    </div>
+  );
+};
+
+// Lazy load PaymentModal to prevent Stripe initialization in self-hosted mode
+const PaymentModal = dynamic(
+  () => import('@/src/components/account-manager/PaymentModal'),
+  {
+    ssr: false,
+    loading: () => <PaymentModalLoading />
+  }
+);
+import { Button } from '@/src/components/ui/button';
+import ThemeToggle from '@/src/components/ui/theme-toggle';
+import { ShareButton } from '@/src/components/ui/share-button';
+import { Label } from '@/src/components/ui/label';
+import Image from 'next/image';
+import { useTheme } from '@/src/context/theme';
+import { useDeployment } from '@/app/context/deployment';
+import { useLocalization } from '@/src/context/localization';
+import { useTimezone } from '@/app/context/timezone';
+import { formatDateLong } from '@/src/utils/dateFormat';
+import { cn } from '@/src/lib/utils';
+import { sideNavStyles, triggerButtonVariants } from './side-nav.styles';
+import { SideNavProps, SideNavTriggerProps, SideNavItemProps } from './side-nav.types';
+import { ReactNode } from 'react';
+import './side-nav.css'; // Import the CSS file with dark mode overrides
+import packageInfo from '@/package.json';
+import { fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+
+// Interface for the FooterButton component
+interface FooterButtonProps {
+  icon: ReactNode;
+  label: string;
+  onClick: () => void;
+  ariaLabel?: string;
+}
+
+// Interface for account status
+interface AccountStatus {
+  accountId: string;
+  email: string;
+  firstName: string;
+  lastName?: string;
+  verified: boolean;
+  hasFamily: boolean;
+  familySlug?: string;
+  familyName?: string;
+  betaparticipant: boolean;
+  closed: boolean;
+  closedAt?: string;
+  planType?: string;
+  planExpires?: string;
+  trialEnds?: string;
+  subscriptionActive: boolean;
+  accountStatus: 'active' | 'inactive' | 'trial' | 'expired' | 'closed' | 'no_family';
+}
+
+/**
+ * FooterButton component
+ * 
+ * A button used in the footer of the side navigation
+ */
+const FooterButton: React.FC<FooterButtonProps> = ({
+  icon,
+  label,
+  onClick,
+  ariaLabel,
+}) => {
+  return (
+    <button
+      className={cn(sideNavStyles.settingsButton, "side-nav-settings-button")}
+      onClick={onClick}
+      aria-label={ariaLabel}
+    >
+      <span className={sideNavStyles.settingsIcon}>{icon}</span>
+      <span className={sideNavStyles.settingsLabel}>{label}</span>
+    </button>
+  );
+};
+
+/**
+ * SideNavTrigger component
+ * 
+ * A button that toggles the side navigation menu
+ */
+export const SideNavTrigger: React.FC<SideNavTriggerProps> = ({
+  onClick,
+  isOpen,
+  className,
+  children,
+}) => {
+  const { t } = useLocalization();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(triggerButtonVariants({ isOpen }), className)}
+      aria-label={t('Open navigation menu')}
+      aria-expanded={isOpen}
+    >
+      {children}
+    </button>
+  );
+};
+
+/**
+ * SideNavItem component
+ * 
+ * An individual navigation item in the side navigation menu
+ */
+export const SideNavItem: React.FC<SideNavItemProps> = ({
+  path,
+  label,
+  icon,
+  isActive,
+  onClick,
+  className,
+  badge,
+}) => {
+  return (
+    <button
+      className={cn(
+        sideNavStyles.navItem,
+        isActive && sideNavStyles.navItemActive,
+        className,
+        isActive && "active" // Add active class for CSS targeting
+      )}
+      onClick={() => onClick(path)}
+    >
+      {icon && <span className={sideNavStyles.navItemIcon}>{icon}</span>}
+      <span className={sideNavStyles.navItemLabel}>{label}</span>
+      {badge && <span className="ml-auto">{badge}</span>}
+    </button>
+  );
+};
+
+/**
+ * SideNav component
+ * 
+ * A responsive side navigation menu that slides in from the left
+ */
+/**
+ * SideNav component
+ * 
+ * A responsive side navigation menu that slides in from the left
+ */
+export const SideNav: React.FC<SideNavProps> = ({
+  isOpen,
+  onClose,
+  currentPath,
+  onNavigate,
+  onSettingsClick,
+  onLogout,
+  isAdmin,
+  className,
+  nonModal = false,
+  familySlug,
+  familyName,
+  onSwitchFamily,
+}) => {
+  const { theme } = useTheme();
+  const { isSaasMode } = useDeployment();
+  const { t } = useLocalization();
+  const { dateFormat } = useTimezone();
+  const [isSystemDarkMode, setIsSystemDarkMode] = useState<boolean>(false);
+  const [showChangelog, setShowChangelog] = useState<boolean>(false);
+  const [showFeedback, setShowFeedback] = useState<boolean>(false);
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
+  const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
+  const [isAccountAuth, setIsAccountAuth] = useState<boolean>(false);
+  const [unreadFeedbackCount, setUnreadFeedbackCount] = useState<number>(0);
+  const [hasNewUpdates, setHasNewUpdates] = useState<boolean>(false);
+  const [photosEnabled, setPhotosEnabled] = useState<boolean>(false);
+  const [inShell, setInShell] = useState<boolean>(false);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    fetchPhotosEnabled().then(setPhotosEnabled);
+  }, []);
+
+  useEffect(() => {
+    setInShell(isNativeApp());
+  }, []);
+
+  // Restore focus to the element that opened the nav when it closes (modal mode)
+  useEffect(() => {
+    if (nonModal) return;
+    if (isOpen) {
+      returnFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    } else if (returnFocusRef.current) {
+      returnFocusRef.current.focus();
+      returnFocusRef.current = null;
+    }
+  }, [isOpen, nonModal]);
+
+  // Check if user has seen the current version's changelog
+  useEffect(() => {
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return;
+
+    const checkForUpdates = async () => {
+      try {
+        const response = await fetch('/api/changelog/seen', {
+          headers: { 'Authorization': `Bearer ${authToken}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.success && data.data) {
+          setHasNewUpdates(data.data.hasNewUpdates);
+        }
+      } catch {
+        // Non-critical
+      }
+    };
+
+    checkForUpdates();
+  }, []);
+
+  // Fetch unread feedback count (admin replies the user hasn't read)
+  useEffect(() => {
+    if (!isSaasMode) return;
+    const authToken = localStorage.getItem('authToken');
+    if (!authToken) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch('/api/feedback', {
+          headers: { 'Authorization': `Bearer ${authToken}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.success && data.data) {
+          let count = 0;
+          for (const thread of data.data) {
+            if (thread.replies) {
+              count += thread.replies.filter(
+                (r: { viewed: boolean; submitterName: string | null }) =>
+                  !r.viewed && r.submitterName === 'Admin'
+              ).length;
+            }
+          }
+          setUnreadFeedbackCount(count);
+        }
+      } catch {
+        // Non-critical
+      }
+    };
+
+    fetchUnreadCount();
+  }, [isSaasMode, showFeedback]);
+
+  // Fetch account status if in SaaS mode and authenticated
+  useEffect(() => {
+    const fetchAccountStatus = async () => {
+      if (!isSaasMode) return;
+
+      const authToken = localStorage.getItem('authToken');
+      if (!authToken) {
+        setIsAccountAuth(false);
+        return;
+      }
+
+      // Check if this is account-based authentication
+      try {
+        const payload = authToken.split('.')[1];
+        const decodedPayload = JSON.parse(atob(payload));
+        const isAccountBased = decodedPayload.isAccountAuth || false;
+        setIsAccountAuth(isAccountBased);
+
+        if (!isAccountBased) return;
+
+        // Fetch account status
+        const response = await fetch('/api/accounts/status', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setAccountStatus(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching account status:', error);
+      }
+    };
+
+    fetchAccountStatus();
+  }, [isSaasMode]);
+
+  // Check if system is in dark mode
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      setIsSystemDarkMode(darkModeMediaQuery.matches);
+
+      const handleChange = (e: MediaQueryListEvent) => {
+        setIsSystemDarkMode(e.matches);
+      };
+
+      darkModeMediaQuery.addEventListener('change', handleChange);
+      return () => darkModeMediaQuery.removeEventListener('change', handleChange);
+    }
+  }, []);
+  
+  // Close the side nav when pressing Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen && !nonModal) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Prevent scrolling when side nav is open in modal mode
+    if (isOpen && !nonModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, onClose, nonModal]);
+
+  return (
+    <>
+      {/* Overlay - only shown in modal mode */}
+      {!nonModal && (
+        <div 
+          className={cn(
+            sideNavStyles.overlay,
+            isOpen ? sideNavStyles.overlayOpen : sideNavStyles.overlayClosed
+          )}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Side Navigation Panel */}
+      <div
+        className={cn(
+          nonModal ? sideNavStyles.containerNonModal : sideNavStyles.container,
+          !nonModal && (isOpen ? sideNavStyles.containerOpen : sideNavStyles.containerClosed),
+          className,
+          "side-nav" // Add this class for direct CSS targeting
+        )}
+        role={nonModal ? "navigation" : "dialog"}
+        aria-modal={nonModal ? "false" : "true"}
+        aria-label="Main navigation"
+      >
+        {/* Header - matching the structure of the green bar in the main layout */}
+        <header className="w-full bg-white sticky top-0 z-40 side-nav-header pt-[env(safe-area-inset-top)]">
+          <div className="mx-auto">
+            <div className={cn("flex justify-between items-center min-h-20", sideNavStyles.header)}>
+              <div className="flex items-center gap-3 flex-1">
+                {/* Logo positioned to center between app name and family name */}
+                <div className="flex items-center">
+                  <Image
+                    src="/sat-tracker.svg"
+                    alt="Sat Tracker"
+                    width={40}
+                    height={40}
+                    className={sideNavStyles.logo}
+                    priority
+                  />
+                </div>
+
+                {/* App name and family name container */}
+                <div className="flex flex-col justify-center flex-1">
+                  {isSaasMode ? (
+                    <button
+                      onClick={() => {
+                        window.location.href = '/?src=nav-home';
+                      }}
+                      className="text-left cursor-pointer hover:opacity-80 transition-opacity"
+                      aria-label="Go to home page"
+                    >
+                      <span className={cn(sideNavStyles.appName, "side-nav-app-name")}>{t('Sat Tracker')}</span>
+                    </button>
+                  ) : (
+                    <span className={cn(sideNavStyles.appName, "side-nav-app-name")}>{t('Sat Tracker')}</span>
+                  )}
+
+                  {/* Family name with share button */}
+                  {familyName && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Label className="text-sm text-gray-600 truncate">
+                        {familyName}
+                      </Label>
+                      {familySlug && (
+                        <ShareButton
+                          familySlug={familySlug}
+                          familyName={familyName}
+                          variant="ghost"
+                          size="sm"
+                          showText={false}
+                          className="h-5 w-5 p-0"
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Only show close button in modal mode */}
+              {!nonModal && (
+                <button
+                  onClick={onClose}
+                  className={cn(sideNavStyles.closeButton, "side-nav-close-button")}
+                  aria-label="Close navigation"
+                >
+                  <X size={20} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Navigation Items */}
+        <nav className={sideNavStyles.navItems}>
+          <SideNavItem
+            path="/bottle-journal"
+            label={t('Bottle Journal')}
+            isActive={currentPath.endsWith('/bottle-journal')}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
+          <SideNavItem
+            path="/log-entry"
+            label={t('Log Entry')}
+            isActive={currentPath === '/log-entry'}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
+          <SideNavItem
+            path="/full-log"
+            label={t('Full Log')}
+            isActive={currentPath === '/full-log'}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
+          <SideNavItem
+            path="/calendar"
+            label={t('Calendar')}
+            isActive={currentPath === '/calendar'}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
+          {photosEnabled && (
+            <SideNavItem
+              path="/photos"
+              label={t('Photos')}
+              isActive={currentPath === '/photos'}
+              onClick={onNavigate}
+              className="side-nav-item"
+            />
+          )}
+          <SideNavItem
+            path="/reports"
+            label={t('Reports')}
+            isActive={currentPath === '/reports'}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
+          {isAdmin && (
+            <SideNavItem
+              path="/ocr-import"
+              label={t('Document import')}
+              isActive={currentPath.endsWith('/ocr-import')}
+              onClick={onNavigate}
+              className="side-nav-item"
+            />
+          )}
+          <SideNavItem
+            path="/nursery-mode"
+            label={t('Nursery Mode')}
+            isActive={currentPath === '/nursery-mode'}
+            onClick={onNavigate}
+            className="side-nav-item"
+          />
+        </nav>
+
+        {/* Version display at bottom of nav items */}
+        <div className="w-full text-center mb-4">
+          <div className="flex items-center justify-center gap-2">
+            {hasNewUpdates ? (
+              <button
+                type="button"
+                className="inline-flex cursor-pointer"
+                onClick={() => setShowChangelog(true)}
+              >
+                <Badge
+                  variant="default"
+                  className="new-updates-badge text-[10px] px-1.5 py-0"
+                >
+                  {t('New Updates')}: v{packageInfo.version}
+                </Badge>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="text-xs text-gray-500 cursor-pointer hover:text-teal-600 transition-colors"
+                onClick={() => setShowChangelog(true)}
+                aria-label={t('View changelog')}
+              >
+                v{packageInfo.version}
+              </button>
+            )}
+            <span className="text-xs text-gray-400">•</span>
+            <LanguageSelector />
+          </div>
+          
+          {/* Feedback link - only shown in SaaS mode */}
+          {isSaasMode && (
+            <div className="mt-2">
+              <button
+                className="flex items-center justify-center w-full text-xs text-gray-500 hover:text-emerald-600 transition-colors cursor-pointer"
+                onClick={() => setShowFeedback(true)}
+              >
+                <MessageSquare className="h-3 w-3 mr-1" aria-hidden="true" />
+                {t('Send Feedback')}
+                {unreadFeedbackCount > 0 && (
+                  <NavCountBubble
+                    count={unreadFeedbackCount}
+                    variant="accent"
+                    className="ml-1.5 scale-90"
+                    label={t('unread')}
+                  />
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Trial information and payment button - only shown in SaaS mode for accounts in trial */}
+          {isSaasMode && isAccountAuth && accountStatus && (
+            <>
+              {/* Show trial info if user is in trial and not a beta participant */}
+              {accountStatus.trialEnds &&
+               !accountStatus.subscriptionActive &&
+               !accountStatus.betaparticipant &&
+               accountStatus.accountStatus === 'trial' && (
+                <div className="mt-4 px-4">
+                  <div className={cn("bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2", "side-nav-trial-container")}>
+                    <div className={cn("flex items-center justify-center text-amber-700", "side-nav-trial-header")}>
+                      <Clock className="h-4 w-4 mr-1" aria-hidden="true" />
+                      <span className="text-xs font-medium">{t('Trial Version')}</span>
+                    </div>
+                    <div className="text-center">
+                      <p className={cn("text-xs text-amber-600", "side-nav-trial-text")}>
+                        {t('Ending')}: {formatDateLong(new Date(accountStatus.trialEnds), dateFormat)}
+                      </p>
+                    </div>
+                    {trialCtaMode(inShell) === 'external' ? (
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        variant="outline"
+                        onClick={() => openExternal(MANAGE_SUBSCRIPTION_URL)}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" aria-hidden="true" />
+                        {t('Manage your subscription at sprout-track.com')}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white"
+                        onClick={() => setShowPaymentModal(true)}
+                      >
+                        <CreditCard className="h-3 w-3 mr-1" aria-hidden="true" />
+                        {t('Buy Now')}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Changelog Modal */}
+        <ChangelogModal
+          open={showChangelog}
+          onClose={() => {
+            setShowChangelog(false);
+            if (hasNewUpdates) {
+              const authToken = localStorage.getItem('authToken');
+              if (authToken) {
+                fetch('/api/changelog/seen', {
+                  method: 'PUT',
+                  headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ version: packageInfo.version }),
+                }).then(() => setHasNewUpdates(false)).catch(() => {});
+              }
+            }
+          }}
+          version={packageInfo.version}
+        />
+
+        {/* Feedback Page - always mounted in SaaS mode so slide transition works */}
+        {isSaasMode && (
+          <FeedbackPage
+            isOpen={showFeedback}
+            onClose={() => setShowFeedback(false)}
+          />
+        )}
+
+        {/* Payment Modal - only shown in SaaS mode, never mounted in-shell (IAP compliance) */}
+        {!inShell && isSaasMode && isAccountAuth && accountStatus && (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
+            accountStatus={{
+              accountStatus: accountStatus.accountStatus,
+              planType: accountStatus.planType || null,
+              subscriptionActive: accountStatus.subscriptionActive,
+              trialEnds: accountStatus.trialEnds || null,
+              planExpires: accountStatus.planExpires || null,
+              subscriptionId: null, // This will be fetched by the modal if needed
+            }}
+            onPaymentSuccess={() => {
+              setShowPaymentModal(false);
+              // Refresh account status after successful payment
+              const fetchAccountStatus = async () => {
+                const authToken = localStorage.getItem('authToken');
+                if (!authToken) return;
+
+                try {
+                  const response = await fetch('/api/accounts/status', {
+                    headers: {
+                      'Authorization': `Bearer ${authToken}`
+                    }
+                  });
+
+                  if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                      setAccountStatus(data.data);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error refreshing account status:', error);
+                }
+              };
+              fetchAccountStatus();
+            }}
+          />
+        )}
+
+        {/* Footer with Theme Toggle, Settings and Logout / shell Exit */}
+        <div className={cn(sideNavStyles.footer, "side-nav-footer")}>
+          <ThemeToggle className="mb-2" />
+          {sideNavFooterButtons(inShell).map((btn) =>
+            btn === 'settings' ? (
+              <FooterButton key={btn} icon={<Settings aria-hidden="true" />} label={t('Settings')} onClick={onSettingsClick} />
+            ) : btn === 'logout' ? (
+              <FooterButton key={btn} icon={<LogOut aria-hidden="true" />} label={t('Logout')} onClick={onLogout} />
+            ) : (
+              <FooterButton key={btn} icon={<LogOut aria-hidden="true" />} label={t('Exit to My Families')} onClick={onSwitchFamily ?? onLogout} />
+            )
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default SideNav;

@@ -1,0 +1,273 @@
+# PWA and Notifications
+
+## Overview
+
+Sprout Track is a Progressive Web App with push notification support, Wake Lock API integration, and a dedicated nursery mode designed for wall-mounted tablets. The PWA architecture enables offline-capable, app-like behavior on mobile and desktop browsers.
+
+> **Running inside the native app?** When the web app is loaded by the Capacitor mobile shell, three things in this document behave differently: the service worker is not registered, wake lock is driven natively by the shell observing the WebView URL rather than by anything in this app, and notifications are delivered through a second native channel (FCM on Android, direct APNs on iOS) rather than the service worker. See [Native App Integration](./NativeAppIntegration.md).
+
+## PWA Installation
+
+### Dynamic Manifest
+
+The PWA manifest is generated dynamically per family so that "Add to Home Screen" launches directly into the family's URL rather than the root page.
+
+- **Static manifest:** `public/manifest.json` — used for the root/marketing page (`start_url: "/"`)
+- **Dynamic manifest:** `GET /api/manifest/[slug]` — returns a manifest scoped to the family URL (`start_url` and `scope` set to `/{slug}/`)
+- **Server-side injection:** The `app/(app)/[slug]/layout.tsx` and `app/(nursery)/[slug]/layout.tsx` server component layouts use `generateMetadata` to set the `<link rel="manifest">` href to the dynamic endpoint. This ensures the correct manifest is in the HTML before any JavaScript runs, which is critical for Safari.
+
+### Browser Support
+
+| Feature | Chrome | Safari | Firefox |
+|---------|--------|--------|---------|
+| Standalone mode (`display: "standalone"`) | Full support | Full support | Not supported — opens with browser chrome |
+| App name from manifest | Yes | Yes | No — uses page title |
+| App icon from manifest | Yes | Yes | Unreliable |
+| Theme color (status bar) | Yes | Yes (`black-translucent`) | Not supported — stays white |
+| Scoped `start_url` | Yes | Yes | Partially — URL is correct but other manifest fields ignored |
+
+**Firefox limitation:** Firefox on Android does not fully implement the Web App Manifest spec. It creates bookmark-style home screen shortcuts rather than true PWA installations. The white status bar, missing icon, and incorrect app name in Firefox are known browser limitations and cannot be resolved on the application side. Chrome and Safari are the recommended browsers for PWA installation.
+
+## Service Worker
+
+**File:** `public/sw.js`
+
+The service worker handles push notification display and click behavior. It is minimal — focused on notifications rather than offline caching.
+
+Registration is gated by `shouldRegisterServiceWorker()` (`src/utils/native-app.ts`): it requires service worker support, a secure context, **and** that the app is not running inside the native shell. Inside the shell there is nothing to install and native push does not route through the service worker.
+
+### Push Event Handling
+When a push notification arrives:
+1. Parses the notification payload (title, body, icon, badge, data)
+2. Displays the notification using `self.registration.showNotification()`
+3. Supports custom icons and badge images
+
+### Notification Click Handling
+When a user clicks a notification:
+1. Closes the notification
+2. Checks if the app is already open in a tab
+3. If open: focuses that tab and navigates to the relevant page
+4. If not open: opens a new window to the app
+
+### Service Worker Updates
+Supports `skip-waiting` for immediate activation of updated service workers.
+
+## Push Notification Architecture
+
+### VAPID Key Management
+- Keys generated via `POST /api/notifications/generate-vapid` or `npm run setup:vapid`
+- Stored in `NotificationConfig` table
+- Private key encrypted with AES-256-GCM before storage
+- Public key served via `GET /api/notifications/vapid-key`
+
+### Subscription Flow
+
+```
+1. Client requests VAPID public key
+   GET /api/notifications/vapid-key → { vapidPublicKey }
+
+2. Browser subscribes to push service
+   PushManager.subscribe({ applicationServerKey: vapidPublicKey })
+
+3. Client sends subscription to server
+   POST /api/notifications/subscribe
+   Body: { endpoint, keys: { p256dh, auth }, deviceLabel? }
+
+4. Server stores PushSubscription record
+   Fields: endpoint, p256dh, auth, familyId, caretakerId/accountId
+```
+
+The `NotificationSplashModal` component (`src/components/modals/NotificationSplashModal/`) walks users through this flow — permission request, subscription, and initial per-baby preference setup — using the client helpers in `src/lib/notifications/client.ts`.
+
+### Notification Preferences
+Granular control per subscription, per baby, per event type:
+
+```
+NotificationPreference {
+  subscriptionId     → Which device/browser
+  babyId             → Which baby
+  eventType          → ACTIVITY_CREATED | FEED_TIMER_EXPIRED | DIAPER_TIMER_EXPIRED | MEDICINE_TIMER_EXPIRED
+  activityTypes      → JSON array of specific activity types (null = all)
+  timerIntervalMinutes → Minutes between repeat timer notifications
+  enabled            → On/off toggle
+}
+```
+
+**API:** `GET/PUT /api/notifications/preferences`
+
+### Sending Notifications
+
+#### Activity-Triggered
+**File:** `src/lib/notifications/activityHook.ts`
+
+After an activity log is created (feed, diaper, sleep, etc.), the system:
+1. Queries `NotificationPreference` for subscriptions wanting `ACTIVITY_CREATED` for this baby and activity type
+2. Builds notification payload (title, body with activity details)
+3. Sends via Web Push API to each matching subscription
+4. Logs results to `NotificationLog`
+
+#### Timer-Based (Cron)
+**File:** `src/lib/notifications/timerCheck.ts`
+**Endpoint:** `POST /api/notifications/cron` (protected by `NOTIFICATION_CRON_SECRET`)
+
+Runs on a schedule (via Docker dcron) to check for overdue timers:
+
+| Timer Type | Source | Threshold |
+|------------|--------|-----------|
+| Feed timer | Last `FeedLog.time` (breast feeds use `startTime`) | `Baby.feedWarningTime` (default "03:00") |
+| Diaper timer | Last `DiaperLog.time` | `Baby.diaperWarningTime` (default "02:00") |
+| Medicine timer | Last `MedicineLog.time` | `Medicine.doseMinTime` |
+
+The feed timer check is skipped while a baby has an active breastfeeding session (`ActiveBreastFeed`).
+
+For each expired timer:
+1. Finds subscriptions with matching `NotificationPreference` (event type + baby)
+2. Checks `timerIntervalMinutes` to avoid notification spam
+3. Sends push notification
+4. Updates `lastTimerNotifiedAt`
+
+#### Feedback Replies
+**File:** `src/lib/notifications/feedbackHook.ts`
+
+When an admin replies to user feedback, a push notification is sent directly to all of the author's active subscriptions, bypassing the `NotificationPreference` system.
+
+### Native Push Channel
+
+Alongside every web-push send site above, the same payload is delivered to native
+device tokens by the `src/lib/notifications/nativePush.ts` dispatcher. **iOS does
+not go through Firebase** — Android uses FCM HTTP v1 (`fcmPush.ts`), iOS uses
+direct APNs over HTTP/2 (`apnsPush.ts`). Each transport no-ops independently when
+its own credentials are absent, and an unconfigured platform is skipped rather
+than recorded as a failed delivery. The two channels are independent and
+complementary:
+
+| | Web push | Native push |
+|---|---|---|
+| Transport | Web Push / VAPID | FCM HTTP v1 (Android) / direct APNs (iOS) |
+| Stored as | `PushSubscription` | `DeviceToken` |
+| Registered by | `src/lib/notifications/client.ts` (service worker) | the shell — `src/services/push.ts` in `mobile-app-v1`, posted to `/api/notifications/device-tokens` |
+| Enabled by | `NotificationConfig` + VAPID keys | `FCM_SERVICE_ACCOUNT_JSON` (Android) / `APNS_*` env vars (iOS) |
+| Display | `public/sw.js` | OS notification centre |
+| Logged in `NotificationLog` | Yes | No |
+
+Native sends are fire-and-forget beside the web-push call, and reuse the matched
+`NotificationPreference` and its localized payload — there is no separate
+preference surface. An unconfigured deployment no-ops with zero network calls.
+Full detail in [Native App Integration](./NativeAppIntegration.md).
+
+### Failure Handling
+- `PushSubscription.failureCount` increments on send failure
+- `lastFailureAt` and `lastSuccessAt` tracked per subscription
+- Subscriptions with repeated failures can be auto-cleaned
+
+### Notification Logging
+- `NotificationLog` records every send attempt
+- Fields: subscriptionId, eventType, activityType, babyId, success, errorMessage, httpStatus, payload
+- Retention controlled by `NotificationConfig.logRetentionDays` (default 30)
+- Cleanup handled by `src/lib/notifications/cleanup.ts`
+
+### Internationalization
+**File:** `src/lib/notifications/i18n.ts`
+
+Notification content is translated based on the subscriber's language preference. Activity names and timer messages are localized.
+
+## Wake Lock API
+
+**File:** `src/hooks/useWakeLock.ts`
+
+Prevents the device screen from sleeping. Critical for nursery mode where a tablet displays activity tiles all day.
+
+- Auto-acquires wake lock on component mount
+- Re-acquires when page becomes visible again (after tab switch)
+- Gracefully handles browsers that don't support the API
+- Provides `isActive` and `isSupported` status
+
+The mechanism is resolved by `chooseWakeLockMechanism()` (`src/utils/native-app.ts`), which still has a `KeepAwake` branch — but the shell no longer ships that plugin, so in practice it resolves to `navigator.wakeLock` or unsupported. `isSupported` reflects the resolved mechanism, not the browser API alone.
+
+**Inside the native shell, nothing in this app drives the wake lock.** The shell's JS stops running once the WebView is handed to the server, so keep-awake and immersive mode for nursery mode are driven natively by observing the WebView URL — `NurseryAwareViewController.swift` (KVO on `webView.url`) and `NurseryAwareWebViewClient.java` (`doUpdateVisitedHistory`) in `mobile-app-v1`. Changing the nursery route means changing those two files.
+
+## Fullscreen API
+
+**File:** `src/hooks/useFullscreen.ts`
+
+Enables immersive fullscreen display. Used in nursery mode for a distraction-free tablet experience.
+
+- Cross-browser support (webkit, moz, ms prefixes)
+- `toggle()` function for one-button fullscreen control
+- Listens to all vendor-prefixed fullscreen change events
+
+## Nursery Mode
+
+**Route:** `app/(nursery)/[slug]/nursery-mode/`
+
+A dedicated, simplified interface designed for wall-mounted tablets in daycare/nursery settings.
+
+### Design
+- Separate route group with its own layout (no main app navigation)
+- Large activity tiles for quick one-tap logging
+- Configurable color palette (hue, brightness, saturation) via `useNurseryColors`
+- Configurable visible tiles via `useNurserySettings`
+- Uses Wake Lock to keep screen on
+- Optional fullscreen mode
+
+### Settings
+Stored as JSON in `Settings.nurseryModeSettings`, managed via `useNurserySettings` hook:
+
+```typescript
+{
+  hue: 230,           // Color hue (0-360)
+  brightness: 15,     // Brightness (0-100, <50 = dark)
+  saturation: 25,     // Color saturation (0-100)
+  visibleTiles: ['feed', 'pump', 'diaper', 'sleep']
+}
+```
+
+### Color System
+The `useNurseryColors` hook generates a complete HSLA color palette from the settings:
+- 16 computed colors: text, subtext, border, tileBg, btnBg, accent, etc.
+- Brightness below 50% activates dark palette, above 50% activates light palette
+- All colors derived from the single hue value for visual harmony
+
+## Docker Notification Setup
+
+Push notifications are controlled via Docker build arg (enabled by default):
+
+```dockerfile
+ARG ENABLE_NOTIFICATIONS=true
+```
+
+When enabled:
+- `dcron` is installed for cron job scheduling
+- VAPID keys are generated if not present
+- Cron job configured to call `/api/notifications/cron` at the specified interval
+- `NOTIFICATION_CRON_SECRET` env var secures the cron endpoint
+
+**Environment variables:**
+- `ENABLE_NOTIFICATIONS` — Feature flag
+- `NOTIFICATION_CRON_SECRET` — Cron endpoint auth
+- `NOTIFICATION_LOG_RETENTION_DAYS` — Log cleanup threshold
+
+## Key Files
+
+- `public/manifest.json` — Static PWA manifest (root/marketing page)
+- `app/api/manifest/[slug]/route.ts` — Dynamic family-scoped manifest endpoint
+- `public/sw.js` — Service worker (push events, notification clicks)
+- `src/lib/notifications/push.ts` — Push notification sending (web push / VAPID)
+- `src/lib/notifications/nativePush.ts` — Native push dispatcher (token query, per-platform routing, lifecycle)
+- `src/lib/notifications/fcmPush.ts` — Android transport (FCM HTTP v1)
+- `src/lib/notifications/apnsPush.ts` — iOS transport (direct APNs over HTTP/2, no Firebase)
+- `app/api/notifications/device-tokens/route.ts` — Native token registration endpoint (the shell registers; this app does not)
+- `src/lib/notifications/activityHook.ts` — Activity-triggered notifications
+- `src/lib/notifications/timerCheck.ts` — Timer expiration checks
+- `src/lib/notifications/feedbackHook.ts` — Feedback reply notifications
+- `src/lib/notifications/config.ts` — VAPID key management
+- `src/lib/notifications/client.ts` — Client-side notification API
+- `src/lib/notifications/i18n.ts` — Notification translations
+- `src/lib/notifications/cleanup.ts` — Log retention cleanup
+- `src/components/modals/NotificationSplashModal/` — Onboarding UI for enabling notifications
+- `src/hooks/useWakeLock.ts` — Wake Lock API hook
+- `src/hooks/useFullscreen.ts` — Fullscreen API hook
+- `src/hooks/useNurserySettings.ts` — Nursery settings management
+- `src/hooks/useNurseryColors.ts` — Nursery color palette generation
+- `app/api/notifications/` — All notification API routes
+- `app/(nursery)/[slug]/nursery-mode/` — Nursery mode page

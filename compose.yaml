@@ -1,10 +1,15 @@
 name: babytracker
 
-# Phase 0: one authoritative activity store (Sprout Track), not two competing databases.
-# All extensions will integrate through stable boundaries instead of patching the running image.
+# Canonical BabyTracker application with the existing authoritative data volumes.
+# Build from this repository; never replace or delete production volumes.
 services:
   sprout:
-    image: ${SPROUT_IMAGE:-sprouttrack/sprout-track:1.6.7}
+    image: ${BABYTRACKER_IMAGE:-babytracker:local}
+    build:
+      context: ./application
+      args:
+        ENABLE_NOTIFICATIONS: "true"
+        DATABASE_PROVIDER: sqlite
     container_name: babytracker-sprout
     restart: unless-stopped
     environment:
@@ -13,6 +18,7 @@ services:
       DATABASE_PROVIDER: sqlite
       TZ: ${TZ:-America/Chicago}
       ENABLE_NOTIFICATIONS: "true"
+      BABYTRACKER_OCR_ENABLED: ${BABYTRACKER_OCR_ENABLED:-true}
       APP_URL: ${APP_URL:-}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
     ports:

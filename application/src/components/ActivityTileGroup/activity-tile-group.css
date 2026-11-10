@@ -1,0 +1,114 @@
+/* Gradient background for ActivityTileGroup - same for light and dark mode */
+/* Left-to-right gradient: teal-600 (#0d9488) to teal-700 (#0f766e) */
+/* Diagonal edge: left side 25% down, right side 75% down */
+.activity-tile-group {
+  /* White background in light mode */
+  background-color: white;
+  /* Ensure pseudo-element is positioned correctly */
+  position: relative;
+}
+
+/* Gradient background using pseudo-element to keep it behind content */
+/* Background stays static while tiles scroll horizontally */
+.activity-tile-group::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  /* Base horizontal gradient */
+  background-image: linear-gradient(
+    to right,
+    rgba(13, 148, 136, 1) 0%,
+    rgba(15, 118, 110, 1) 100%
+  );
+  /* Clip-path creates diagonal edge: left at 50%, right at 25% */
+  clip-path: polygon(0 0, 100% 0, 100% 25%, 0 50%);
+  -webkit-clip-path: polygon(0 0, 100% 0, 100% 25%, 0 50%);
+  pointer-events: none; /* Allow clicks to pass through */
+}
+
+/* Ensure content is above the background */
+.activity-tile-group > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Dark mode overrides for ActivityTileGroup component */
+html.dark .activity-tile-group {
+  /* Gray-800 background in dark mode - matches TimelineV2DailyStats */
+  background-color: #1f2937 !important;
+}
+
+html.dark .activity-tile-group::before {
+  /* Same gradient in dark mode */
+  background-image: linear-gradient(
+    to right,
+    rgba(13, 148, 136, 1) 0%,
+    rgba(15, 118, 110, 1) 100%
+  ) !important;
+  clip-path: polygon(0 0, 100% 0, 100% 25%, 0 50%) !important;
+  -webkit-clip-path: polygon(0 0, 100% 0, 100% 25%, 0 50%) !important;
+}
+
+html.dark .activity-dropdown-item {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .activity-dropdown-item:hover {
+  background-color: #374151 !important; /* dark:hover:bg-gray-700 */
+}
+
+html.dark .activity-dropdown-item-drag-button {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .activity-dropdown-item-drag-button:hover {
+  background-color: #4b5563 !important; /* gray-600 */
+}
+
+/* Keyboard move up/down menu items in dark mode */
+html.dark .activity-dropdown-item-move-button {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Disabled boundary items (first row up / last row down) in dark mode.
+   Radix marks disabled menu items with the data-disabled attribute. */
+html.dark .activity-dropdown-item-move-button[data-disabled] {
+  opacity: 0.4 !important;
+}
+
+/* Disabled items don't use pointer-events-none (it would retarget presses to the
+   draggable row), so suppress the hover/focus backgrounds that the shared
+   .hover-background and .dropdown-menu-item dark rules would otherwise apply */
+html.dark .activity-dropdown-item-move-button[data-disabled]:hover,
+html.dark .activity-dropdown-item-move-button[data-disabled]:focus {
+  background-color: transparent !important;
+}
+
+/* Draggable item highlight in dark mode */
+html.dark .draggable-highlight {
+  background-color: rgba(6, 78, 59, 0.2) !important; /* dark:bg-emerald-900/20 */
+}
+
+/* Hover background for buttons in dark mode */
+html.dark .hover-background:hover {
+  background-color: #374151 !important; /* dark:hover:bg-gray-700 */
+}
+
+/* Text color for icons in dark mode */
+html.dark .icon-text {
+  color: #9ca3af !important; /* dark:text-gray-400 */
+}
+
+/* Background color for draggable items in dark mode */
+html.dark .draggable-background {
+  background-color: #374151 !important; /* dark:bg-gray-700 */
+}
+
+/* Hover styles for draggable items in dark mode */
+html.dark .hover-emerald {
+  background-color: rgba(6, 78, 59, 0.2) !important; /* dark:hover:bg-emerald-900/20 */
+}

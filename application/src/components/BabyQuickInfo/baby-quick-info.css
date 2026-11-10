@@ -1,0 +1,205 @@
+/* Dark mode overrides for BabyQuickInfo component */
+
+/* Tab navigation */
+html.dark .baby-quick-info-tab-container {
+  border-color: #6b7280 !important; /* gray-500 */
+}
+
+/* Tab layout */
+.baby-quick-info-tab-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .baby-quick-info-tab-container {
+    justify-content: flex-start;
+  }
+}
+
+html.dark .baby-quick-info-tab-button {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .baby-quick-info-tab-button:hover {
+  background-color: #374151 !important; /* gray-700 */
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-tab-button-active {
+  background-color: #1f2937 !important; /* gray-800 */
+  color: #5eead4 !important; /* teal-300 */
+  border-color: #5eead4 !important; /* teal-300 */
+}
+
+/* Section styling */
+html.dark .baby-quick-info-section-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Activity items */
+html.dark .baby-quick-info-activity-item {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .baby-quick-info-activity-icon-container {
+  background-color: rgba(13, 148, 136, 0.2) !important; /* teal-600 with opacity */
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .baby-quick-info-activity-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .baby-quick-info-activity-time {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-relative-time {
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .baby-quick-info-empty-message {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+/* Contact items */
+html.dark .baby-quick-info-contact-item {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .baby-quick-info-contact-name {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .baby-quick-info-contact-role {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-contact-detail {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .baby-quick-info-contact-icon {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+/* Allergen items */
+html.dark .baby-quick-info-allergen-item {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .baby-quick-info-allergen-name {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .baby-quick-info-allergen-badge {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important; /* amber-400 */
+}
+
+html.dark .baby-quick-info-allergen-type-badge {
+  background-color: rgba(13, 148, 136, 0.2) !important; /* teal-600 with opacity */
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .baby-quick-info-allergen-source-tag {
+  background-color: #374151 !important; /* gray-700 */
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .baby-quick-info-allergen-reaction,
+html.dark .baby-quick-info-allergen-notes {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .baby-quick-info-allergen-meta {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-allergen-link {
+  color: #5eead4 !important; /* teal-300 */
+}
+
+html.dark .baby-quick-info-allergen-form {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+}
+
+html.dark .baby-quick-info-allergen-form-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Stats items */
+html.dark .baby-quick-info-stat-card {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .baby-quick-info-stat-title {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-stat-value {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+/* Event items */
+html.dark .baby-quick-info-event-item {
+  background-color: #1f2937 !important; /* gray-800 */
+  border-color: #374151 !important; /* gray-700 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Event type colors for dark mode */
+html.dark .baby-quick-info-event-appointment {
+  border-left-color: #60a5fa !important; /* blue-400 */
+}
+
+html.dark .baby-quick-info-event-caretaker-schedule {
+  border-left-color: #4ade80 !important; /* green-400 */
+}
+
+html.dark .baby-quick-info-event-reminder {
+  border-left-color: #facc15 !important; /* yellow-400 */
+}
+
+html.dark .baby-quick-info-event-custom {
+  border-left-color: #c084fc !important; /* purple-400 */
+}
+
+html.dark .baby-quick-info-event-default {
+  border-left-color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-event-title {
+  color: #e5e7eb !important; /* gray-200 */
+}
+
+html.dark .baby-quick-info-event-time {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-event-location {
+  color: #d1d5db !important; /* gray-300 */
+}
+
+html.dark .baby-quick-info-event-location-icon {
+  color: #6b7280 !important; /* gray-500 */
+}
+
+/* Loading and error states */
+html.dark .baby-quick-info-loading-text {
+  color: #9ca3af !important; /* gray-400 */
+}
+
+html.dark .baby-quick-info-error-text {
+  color: #ef4444 !important; /* red-500 */
+}

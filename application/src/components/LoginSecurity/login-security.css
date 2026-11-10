@@ -1,0 +1,117 @@
+/* Dark mode overrides for LoginSecurity component */
+
+html.dark .login-container {
+  background-color: #1f2937; /* gray-800 */
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .login-title {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .login-description {
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .login-card {
+  background-color: #374151; /* gray-700 */
+  border-color: #4b5563; /* gray-600 */
+}
+
+html.dark .login-card-title {
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .login-card-description {
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .login-input {
+  background-color: #4b5563; /* gray-600 */
+  border-color: #6b7280; /* gray-500 */
+  color: #e5e7eb; /* gray-200 */
+}
+
+html.dark .login-input::placeholder {
+  color: #9ca3af; /* gray-400 */
+}
+
+html.dark .login-input:focus {
+  border-color: #5eead4; /* teal-300 */
+  ring-color: rgba(94, 234, 212, 0.5); /* teal-300 with opacity */
+}
+
+html.dark .login-button {
+  background-color: #0d9488; /* teal-600 */
+  color: #f3f4f6; /* gray-100 */
+}
+
+html.dark .login-button:hover:not(:disabled) {
+  background-color: #0f766e; /* teal-700 */
+}
+
+html.dark .login-error {
+  color: #f87171; /* red-400 */
+}
+
+/* Field highlighting styles */
+.login-field-active {
+  background-color: rgba(20, 184, 166, 0.05); /* teal-500 with very low opacity */
+  border: 1px solid rgba(20, 184, 166, 0.2); /* teal-500 with low opacity */
+}
+
+.login-field-inactive {
+  background-color: transparent;
+  border: 1px solid transparent;
+}
+
+/* Dark mode field highlighting */
+html.dark .login-field-active {
+  background-color: rgba(94, 234, 212, 0.05); /* teal-300 with very low opacity */
+  border: 1px solid rgba(94, 234, 212, 0.15); /* teal-300 with low opacity */
+}
+
+html.dark .login-field-inactive {
+  background-color: transparent;
+  border: 1px solid transparent;
+}
+
+/* ID Box styles */
+.login-id-box {
+  border-color: #d1d5db; /* gray-300 */
+  background-color: #f9fafb; /* gray-50 */
+}
+
+.login-id-box-active {
+  border-color: #0d9488; /* teal-600 */
+  background-color: #f0fdfa; /* teal-50 */
+}
+
+.login-id-box-inactive {
+  border-color: #d1d5db; /* gray-300 */
+  background-color: #f9fafb; /* gray-50 */
+}
+
+.login-id-text {
+  color: #111827; /* gray-900 */
+}
+
+/* Dark mode ID Box styles */
+html.dark .login-id-box {
+  border-color: #4b5563; /* gray-600 */
+  background-color: #1f2937; /* gray-800 */
+}
+
+html.dark .login-id-box-active {
+  border-color: #5eead4; /* teal-300 */
+  background-color: rgba(94, 234, 212, 0.1); /* teal-300 with low opacity */
+}
+
+html.dark .login-id-box-inactive {
+  border-color: #4b5563; /* gray-600 */
+  background-color: #1f2937; /* gray-800 */
+}
+
+html.dark .login-id-text {
+  color: #e5e7eb; /* gray-200 */
+}
