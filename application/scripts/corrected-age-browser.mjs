@@ -153,6 +153,12 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await editor.getByLabel('Additional days at birth', { exact: true }).fill(days);
   };
   const assertForm = async (editor, weeks, days) => {
+    // These drawers retain their previous render until the opening effect
+    // hydrates the selected profile. Wait for actionability and exact values.
+    await editor.getByLabel('Gestational weeks at birth', { exact: true }).click({ trial: true });
+    await until(async () => await editor.getByLabel('Gestational weeks at birth', { exact: true }).inputValue() === weeks
+      && await editor.getByLabel('Additional days at birth', { exact: true }).inputValue() === days,
+    `profile editor to hydrate ${weeks || 'blank'} weeks and ${days || 'blank'} additional days`);
     assert.equal(await editor.getByLabel('Gestational weeks at birth', { exact: true }).inputValue(), weeks);
     assert.equal(await editor.getByLabel('Additional days at birth', { exact: true }).inputValue(), days);
     assert.equal(await editor.getByTestId('gestational-age-inputs').count(), 1);
