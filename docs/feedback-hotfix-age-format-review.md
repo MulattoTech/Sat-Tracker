@@ -61,10 +61,11 @@ experiment:
    The test reports counts and booleans only—not private key material,
    public recipient values, plaintext, or full paths.
 
-The workflow has no production network/domain/secret access, no deployment
-credentials, no Docker volume mounts and no real backup inputs. It does
-not attempt to turn the historical `scripts/backup.ps1` (which stops and
-restarts production and writes plaintext) into a live acquisition pipeline.
+The workflow has no production domain access, no deployment credentials,
+no Docker volume mounts and no real backup inputs. Building the pinned CLI
+requires ordinary Go module downloads. It does not attempt to turn the
+historical `scripts/backup.ps1` (which stops and restarts production and
+writes plaintext) into a live acquisition pipeline.
 
 ## What this does and does not prove
 
@@ -74,6 +75,15 @@ identities. Both decryptions use the same CLI implementation and OS, so
 they **do not prove independent implementation/cross-platform recovery**.
 Do not call this an audited backup or a successful restoration of real care
 records, image encryption configuration, or encrypted media.
+
+**Important streaming-decryption boundary:** a decrypting CLI can output
+partial plaintext before detecting a damaged later chunk or truncated final
+chunk. Never stream recovered bytes directly into production volumes or treat
+partial output as a restored backup. A future restored-data pipeline must
+stage to an isolated disposable area, require a successful final decryption
+exit, independently validate bytes and data, and only then consider a
+separately approved restoration. Likewise, ciphertext producers must avoid
+publishing incomplete output before a verified successful exit.
 
 Before using this approach with sensitive family data:
 
