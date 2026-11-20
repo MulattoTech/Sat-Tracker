@@ -3,7 +3,33 @@
 The canonical machine-readable inventory is [sat-tracker-acceptance-ledger.json](sat-tracker-acceptance-ledger.json).
 The issue-by-issue audit is [sat-tracker-issue-dispositions-2026-11-02.json](sat-tracker-issue-dispositions-2026-11-02.json).
 
-This is a **provisional evidence acceptance inventory**, independently reconciled
+## Current mandatory scope — November 19, 2026
+
+The [mandatory feature reconciliation](sat-tracker-mandatory-coverage-2026-11-19.md)
+maps the complete owner-supplied baby-care mission against source
+`236856df566064a6ea720e95b9ffbfcd84a724ec`, existing contracts and open/closed
+issue ownership. Scope version **`2026-11-19-v3`** preserves every previous ID,
+status and evidence item, expands detailed criteria within 51 existing contracts,
+and adds only **DEV-004 — Apple Watch architecture, companion workflows and
+physical acceptance** ([#98](https://github.com/MulattoTech/Sat-Tracker/issues/98)).
+
+The current provisional inventory contains **104 Required contracts and one
+Desired contract**: **5 VERIFIED PASS, 76 IN PROGRESS, 6 BLOCKED and 17 NOT
+IMPLEMENTED** among Required rows. No contract becomes PASS through this audit.
+`scopeComplete` remains false, so the validated acceptance percentage is null.
+These are recorded contract states, not a claim that all current workflows were
+retested. Missing subfeatures of existing IN PROGRESS rows are explicitly listed
+in the reconciliation.
+
+Observed running production/preview revision `b24ccc9cd70076cb1d8e0fed477e14d0cf533444`
+differs from audited source. The five historical release-control PASS records
+remain pinned to their recorded `64c69c4` evidence, not silently reassigned to the
+observed runtime or future builds. Production promotion still requires fresh
+exact-image qualification and explicit approval.
+
+## Historical November 2 evidence baseline
+
+The earlier **provisional evidence acceptance inventory** was independently reconciled
 against merged source `a07289755b9a142e300f5367eba48ede8b999f1d`. The five accepted
 release controls remain anchored to released revision
 64c69c4b35df1161b2846c4f4e663e44e70d74a5 and release
@@ -12,7 +38,7 @@ It is not a claim that only a small percentage of the source exists. Audited mai
 source is not automatically the deployed source; a new promotion needs its own
 exact-image runtime receipts.
 
-## Scope and counting
+## Historical scope and counting
 
 The inventory preserves all 77 original feature-matrix capabilities, including
 76 Required and one Desired (SQLite). It adds 24 distinct cross-cutting mission
@@ -28,7 +54,7 @@ prospective model evaluation/version governance. It expands detailed criteria
 within existing rows for overlapping behavior instead of counting each test or
 implementation slice as another accepted feature.
 
-There are **103 inventoried required contracts** and one Desired contract.
+At that checkpoint there were **103 inventoried required contracts** and one Desired contract.
 Scope version `2026-11-02-v2` has 5 VERIFIED PASS, 76 IN PROGRESS,
 6 BLOCKED and 16 NOT IMPLEMENTED. No existing status becomes PASS in this audit.
 
@@ -50,7 +76,7 @@ Blocked and unimplemented requirements remain in that denominator. Desired
 items are shown separately. Source presence, passing unit tests, a merged PR,
 or a closed issue cannot independently establish full contract acceptance.
 
-## Merged continuation source
+## Historical merged continuation source
 
 PRs [#66](https://github.com/MulattoTech/BabyTracker-Master/pull/66) through
 [#70](https://github.com/MulattoTech/BabyTracker-Master/pull/70) add structured OCR
@@ -130,7 +156,7 @@ Malformed input returns validation errors. When any validation error exists,
 `verifiedPass` and `acceptancePercent` are null; `claimedPass` is diagnostic only.
 An invalid file cannot emit an accepted count or a 100% acceptance result.
 
-## Open issue and PR disposition
+## Historical November 2 issue and PR disposition
 
 The source audit rechecked 33 open issues, of which 32 belong to the app mission, and
 one preserved draft PR (#35). Existing labels use an older P1-P5 scale; the
