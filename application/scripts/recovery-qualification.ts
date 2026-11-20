@@ -293,7 +293,7 @@ async function main() {
       assert.equal(verified.verified, true);
       assert.equal(verified.filesRestored, 8);
       assert.equal(verified.recordsRestored, 77);
-      assert.match(verified.integrityTag!, /^[a-f\\d]{64}$/);
+      assert.match(verified.integrityTag!, /^[a-f0-9]{64}$/);
     });
     await check('production_readers', async () => {
       const inputPath = path.join(destination.directory, 'reader-input.json');
