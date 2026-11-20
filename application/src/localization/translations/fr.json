@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Revérifier la dose enregistrée",
   "A dose is waiting for confirmation on this browser.": "Une dose attend une confirmation dans ce navigateur.",
   "Review saved dose": "Vérifier la dose enregistrée",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Cette dose figure peut-être déjà dans le journal de soins. Vérifiez-le avant d’écarter la demande enregistrée dans ce navigateur. Aucune entrée de soins ne sera supprimée. Continuer ?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Cette dose figure peut-être déjà dans le journal de soins. Vérifiez-le avant d’écarter la demande enregistrée dans ce navigateur. Aucune entrée de soins ne sera supprimée. Continuer ?",
+  "Signing out...": "Déconnexion en cours...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "La déconnexion n’a pas pu être confirmée. Réessayez ou revenez à la connexion une fois la requête arrêtée.",
+  "Retry sign-out": "Réessayer la déconnexion",
+  "Return to sign-in": "Revenir à la connexion",
+  "The sign-in page did not open. Try again.": "La page de connexion ne s’est pas ouverte. Réessayez."
 }

@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Gespeicherte Dosis erneut prüfen",
   "A dose is waiting for confirmation on this browser.": "In diesem Browser wartet eine Dosis auf Bestätigung.",
   "Review saved dose": "Gespeicherte Dosis prüfen",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Diese Dosis ist möglicherweise bereits im Pflegeprotokoll eingetragen. Prüfen Sie es, bevor Sie die gespeicherte Anfrage dieses Browsers verwerfen. Es werden keine Pflegeeinträge gelöscht. Fortfahren?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Diese Dosis ist möglicherweise bereits im Pflegeprotokoll eingetragen. Prüfen Sie es, bevor Sie die gespeicherte Anfrage dieses Browsers verwerfen. Es werden keine Pflegeeinträge gelöscht. Fortfahren?",
+  "Signing out...": "Abmeldung läuft...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Die Abmeldung konnte nicht bestätigt werden. Versuchen Sie es erneut oder kehren Sie nach Ende der Anfrage zur Anmeldung zurück.",
+  "Retry sign-out": "Abmeldung erneut versuchen",
+  "Return to sign-in": "Zur Anmeldung zurückkehren",
+  "The sign-in page did not open. Try again.": "Die Anmeldeseite wurde nicht geöffnet. Versuchen Sie es erneut."
 }

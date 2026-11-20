@@ -3,12 +3,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { useDeployment } from '../../app/context/deployment';
-import {
-  isRootSlugPath,
-  loadFamilyBySlugWithRetry,
-  refreshAuthToken,
-  should401AttemptRefresh,
-} from '@/src/utils/session-timeout';
+import { loadFamilyBySlugWithRetry } from '@/src/utils/session-timeout';
+import { createAuthFetchInterceptor } from '@/src/utils/session-fetch';
 
 interface Family {
   id: string;
@@ -211,82 +207,12 @@ export function FamilyProvider({ children, onLogout }: { children: ReactNode; on
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Store the original fetch function
     const originalFetch = window.fetch;
-
-    // Override fetch to automatically add Authorization header and intercept 401 responses
-    window.fetch = async (...args) => {
-      try {
-        // Get auth token from localStorage
-        const authToken = localStorage.getItem('authToken');
-
-        // Only add Authorization header for API calls to our own backend
-        const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request)?.url;
-        // Ensure url is a string before calling string methods
-        const isApiCall = url && typeof url === 'string' && (url.startsWith('/api') || url.includes('/api/'));
-
-        // If this is an API call and we have a token, add the Authorization header
-        if (isApiCall && authToken) {
-          const options = args[1] || {};
-          const headers = new Headers(options.headers || {});
-
-          // Only add header if not already present
-          if (!headers.has('Authorization')) {
-            headers.set('Authorization', `Bearer ${authToken}`);
-          }
-
-          // Update the request with the new headers
-          args[1] = {
-            ...options,
-            headers
-          };
-        }
-
-        let response = await originalFetch(...args);
-
-        // On a 401 from an API call (excluding auth endpoints), attempt one
-        // token refresh-and-retry before treating the session as over. A
-        // resumed PWA can fire several requests with a stale token in parallel;
-        // refreshAuthToken shares a single in-flight refresh between them
-        // (issue #209, candidate 2).
-        if (response.status === 401 && should401AttemptRefresh(url)) {
-          const refreshed = await refreshAuthToken(originalFetch);
-
-          if (refreshed) {
-            // Session is still alive — replay the original request once with the new token
-            const newToken = localStorage.getItem('authToken');
-            if (typeof args[0] === 'string') {
-              const retryOptions: RequestInit = { ...(args[1] || {}) };
-              const retryHeaders = new Headers(retryOptions.headers || {});
-              if (newToken) {
-                retryHeaders.set('Authorization', `Bearer ${newToken}`);
-              }
-              retryOptions.headers = retryHeaders;
-              response = await originalFetch(args[0], retryOptions);
-            }
-          } else {
-            // Refresh failed — the session is genuinely over, trigger logout.
-            // BUT: Don't trigger logout if we're on the root slug page (login
-            // page). The login page expects 401s and handles authentication.
-            const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-            if (!isRootSlugPath(currentPath) && onLogout) {
-              // Trigger logout after a short delay to avoid interfering with the current call stack
-              setTimeout(() => {
-                onLogout('logout-401');
-              }, 100);
-            }
-          }
-        }
-
-        return response;
-      } catch (error) {
-        throw error;
-      }
-    };
-
-    // Restore original fetch on cleanup
+    const interceptor = createAuthFetchInterceptor({ fetchFn: originalFetch, onLogout });
+    window.fetch = interceptor.fetch;
     return () => {
-      window.fetch = originalFetch;
+      interceptor.dispose();
+      if (window.fetch === interceptor.fetch) window.fetch = originalFetch;
     };
   }, [onLogout]);
 

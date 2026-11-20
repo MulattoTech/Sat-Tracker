@@ -215,50 +215,9 @@ export async function validateFamilySlugWithRetry(
   return (await loadFamilyBySlugWithRetry(slug, options)).outcome;
 }
 
-// Single in-flight refresh shared by every caller (the layout's expiry check
-// and the global 401 interceptor) so parallel 401s trigger exactly one
-// POST /api/auth/refresh-token.
-let inFlightRefresh: Promise<boolean> | null = null;
-
-/**
- * Refresh the access token using the HTTP-only refresh token cookie and store
- * it in localStorage. Concurrent calls share one request. Pass the original
- * (un-intercepted) fetch when calling from a fetch interceptor.
- */
-export function refreshAuthToken(fetchFn: typeof fetch = fetch): Promise<boolean> {
-  if (inFlightRefresh) return inFlightRefresh;
-  inFlightRefresh = doRefresh(fetchFn).finally(() => {
-    inFlightRefresh = null;
-  });
-  return inFlightRefresh;
-}
-
-async function doRefresh(fetchFn: typeof fetch): Promise<boolean> {
-  try {
-    const response = await fetchFn('/api/auth/refresh-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.success && data.data?.token) {
-        localStorage.setItem('authToken', data.data.token);
-        // Reset unlock time for PIN-based users
-        if (localStorage.getItem('unlockTime')) {
-          localStorage.setItem('unlockTime', Date.now().toString());
-        }
-        return true;
-      }
-    }
-    return false;
-  } catch (error) {
-    console.error('Error refreshing access token:', error);
-    return false;
-  }
-}
-
-/** Test-only: clear the shared in-flight refresh promise. */
-export function __resetRefreshStateForTests(): void {
-  inFlightRefresh = null;
-}
+// Preserve the existing refresh API while sharing its ownership and cookie
+// ordering with the document's logout transition.
+export {
+  refreshAuthToken,
+  __resetSessionLifecycleForTests as __resetRefreshStateForTests,
+} from './session-lifecycle';

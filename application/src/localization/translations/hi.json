@@ -3284,5 +3284,10 @@
   "Check saved dose again": "सहेजी गई खुराक फिर जाँचें",
   "A dose is waiting for confirmation on this browser.": "इस ब्राउज़र में एक खुराक की पुष्टि की प्रतीक्षा है।",
   "Review saved dose": "सहेजी गई खुराक की समीक्षा करें",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "यह खुराक पहले से देखभाल लॉग में हो सकती है। इस ब्राउज़र का सहेजा गया अनुरोध हटाने से पहले लॉग की समीक्षा करें। देखभाल का कोई रिकॉर्ड नहीं हटाया जाएगा। जारी रखें?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "यह खुराक पहले से देखभाल लॉग में हो सकती है। इस ब्राउज़र का सहेजा गया अनुरोध हटाने से पहले लॉग की समीक्षा करें। देखभाल का कोई रिकॉर्ड नहीं हटाया जाएगा। जारी रखें?",
+  "Signing out...": "साइन आउट हो रहा है...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "साइन आउट की पुष्टि नहीं हो सकी। दोबारा कोशिश करें या अनुरोध रुकने के बाद साइन इन पर लौटें।",
+  "Retry sign-out": "साइन आउट फिर से करें",
+  "Return to sign-in": "साइन इन पर लौटें",
+  "The sign-in page did not open. Try again.": "साइन इन पेज नहीं खुला। फिर से कोशिश करें।"
 }

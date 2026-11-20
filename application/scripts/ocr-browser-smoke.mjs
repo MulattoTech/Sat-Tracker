@@ -24,6 +24,7 @@ import { verifyNurserySleepRecovery } from './nursery-sleep-browser.mjs';
 import { verifyMedicineDoseRecovery } from './medicine-dose-recovery-browser.mjs';
 import { verifyNurseryQuickCare } from './nursery-quick-care-browser.mjs';
 import { verifyFamilyReadBoundaries } from './family-read-boundary-http.mjs';
+import { verifyLogoutLifecycle } from './logout-lifecycle-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -354,6 +355,8 @@ try {
   report.nurseryUndoChecksPassed = true;
   report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
   report.nurserySleepRecoveryChecksPassed = true;
+  report.checks.push(...await verifyLogoutLifecycle({ base, db, scratch, reportDir }));
+  report.logoutLifecycleChecksPassed = true;
   report.checks.push(...await verifyMedicineDoseRecovery({ base, db, scratch, reportDir }));
   report.medicineDoseRecoveryChecksPassed = true;
   report.checks.push(...await verifyNurseryQuickCare({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));

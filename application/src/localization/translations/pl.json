@@ -3288,5 +3288,10 @@
   "Check saved dose again": "Sprawdź zapisaną dawkę ponownie",
   "A dose is waiting for confirmation on this browser.": "Dawka oczekuje na potwierdzenie w tej przeglądarce.",
   "Review saved dose": "Przejrzyj zapisaną dawkę",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Ta dawka może już znajdować się w dzienniku opieki. Sprawdź go przed odrzuceniem żądania zapisanego w tej przeglądarce. Żadne wpisy opieki nie zostaną usunięte. Kontynuować?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Ta dawka może już znajdować się w dzienniku opieki. Sprawdź go przed odrzuceniem żądania zapisanego w tej przeglądarce. Żadne wpisy opieki nie zostaną usunięte. Kontynuować?",
+  "Signing out...": "Wylogowywanie...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Nie udało się potwierdzić wylogowania. Spróbuj ponownie lub wróć do logowania po zatrzymaniu żądania.",
+  "Retry sign-out": "Ponów wylogowanie",
+  "Return to sign-in": "Wróć do logowania",
+  "The sign-in page did not open. Try again.": "Strona logowania nie została otwarta. Spróbuj ponownie."
 }

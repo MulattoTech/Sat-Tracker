@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Verificați din nou doza salvată",
   "A dose is waiting for confirmation on this browser.": "O doză așteaptă confirmarea în acest browser.",
   "Review saved dose": "Verificați doza salvată",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Această doză poate fi deja în jurnalul de îngrijire. Verificați-l înainte de a renunța la cererea salvată în acest browser. Nicio înregistrare de îngrijire nu va fi ștearsă. Continuați?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Această doză poate fi deja în jurnalul de îngrijire. Verificați-l înainte de a renunța la cererea salvată în acest browser. Nicio înregistrare de îngrijire nu va fi ștearsă. Continuați?",
+  "Signing out...": "Se deconectează...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Deconectarea nu a putut fi confirmată. Încercați din nou sau reveniți la autentificare după oprirea cererii.",
+  "Retry sign-out": "Reîncercați deconectarea",
+  "Return to sign-in": "Reveniți la autentificare",
+  "The sign-in page did not open. Try again.": "Pagina de autentificare nu s-a deschis. Încercați din nou."
 }

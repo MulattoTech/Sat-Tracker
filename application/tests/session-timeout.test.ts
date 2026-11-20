@@ -391,6 +391,7 @@ describe('refreshAuthToken', () => {
     expect(fetchFn).toHaveBeenCalledWith('/api/auth/refresh-token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: expect.any(AbortSignal),
     });
   });
 

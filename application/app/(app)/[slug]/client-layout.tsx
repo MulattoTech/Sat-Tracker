@@ -49,6 +49,8 @@ import {
 } from '@/src/utils/native-relock';
 import { consumeInjectedSession } from '@/src/utils/native-session';
 import { isSessionUnlocked } from '@/src/utils/session-state';
+import { captureAuthSession, isAuthSessionCurrent, isLogoutInProgress, logoutAuthSession } from '@/src/utils/session-lifecycle';
+import LogoutTransition, { useLogoutPhase } from '@/src/components/LoginSecurity/LogoutTransition';
 // Loading fallback is a component so it can use the localization hook
 const PaymentModalLoading = () => {
   const { t } = useLocalization();
@@ -81,6 +83,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { family } = useFamily();
   const { selectedBaby, setSelectedBaby, sleepingBabies } = useBaby();
   const { isSaasMode, notificationsEnabled } = useDeployment();
+  const logoutPhase = useLogoutPhase();
   const { t } = useLocalization();
   const [mounted, setMounted] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -151,7 +154,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
   // Refresh the access token using the HTTP-only refresh token cookie
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
-    if (isRefreshingRef.current) return false;
+    // Repeated expiry checks join the shared request; "already refreshing"
+    // is not a failed authentication result.
+    if (isRefreshingRef.current) return refreshAuthToken();
     isRefreshingRef.current = true;
 
     try {
@@ -355,67 +360,17 @@ function AppContent({ children }: { children: React.ReactNode }) {
   
   // `reason` becomes a short `src` query param on the destination so unexpected
   // bounces to the homepage can be diagnosed from the resulting URL (issue #209)
-  const handleLogout = async (reason: string = 'logout-user') => {
-    // Get the token to invalidate it server-side
-    const token = localStorage.getItem('authToken');
-    const currentCaretakerId = localStorage.getItem('caretakerId');
-
-    // Check if this is an account holder
-    let isAccountAuth = false;
-    if (token) {
-      try {
-        const payload = token.split('.')[1];
-        const decodedPayload = JSON.parse(atob(payload));
-        isAccountAuth = decodedPayload.isAccountAuth || false;
-      } catch (error) {
-        console.error('Error parsing JWT token during logout:', error);
-      }
-    }
-    
-    // Call the logout API to clear server-side cookies and invalidate the token
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
-    
-    // Clear all client-side authentication data including JWT token
-    localStorage.removeItem('unlockTime');
-    localStorage.removeItem('caretakerId');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('accountUser'); // Clear account user info
-    localStorage.removeItem('attempts');
-    localStorage.removeItem('lockoutTime');
-    
-    // Dispatch a custom event to notify components about caretaker change
-    if (currentCaretakerId) {
-      const caretakerChangedEvent = new CustomEvent('caretakerChanged', {
-        detail: { caretakerId: null }
-      });
-      window.dispatchEvent(caretakerChangedEvent);
-    }
-    
-    // Reset state
+  const handleLogout = useCallback((reason: string = 'logout-user') => logoutAuthSession(owner => {
     setIsUnlocked(false);
     setCaretakerName('');
     setIsAdmin(false);
     setSideNavOpen(false);
-    
-    // Clear baby selection
     setSelectedBaby(null);
     setBabies([]);
-    
-    // Account holders go to the home page with the login modal open,
-    // PIN users go to family root (which shows login UI)
     if (navigateToShell({ type: 'loggedOut', reason })) return;
-    router.push(logoutDestination({ isAccountAuth, familySlug, reason }));
-  };
+    // Keep the old document blocked until the destination document mounts.
+    window.location.href = logoutDestination({ isAccountAuth: owner.isAccountAuth, familySlug, reason });
+  }), [familySlug, setSelectedBaby]);
 
 
   // Check if screen is wider than 600px
@@ -538,6 +493,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   // Add continuous authentication check and redirect
   useEffect(() => {
     if (!mounted) return;
+    let active = true;
     
     // Skip auth check entirely if we're on root slug page (page component handles login UI)
     const isRootSlugPage = pathname === `/${familySlug}` || pathname === `/${familySlug}/`;
@@ -545,9 +501,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
     // Function to check authentication status
     const checkAuthStatus = () => {
       // If on root slug page, skip auth checks - page component handles it
-      if (isRootSlugPage) {
+      if (isRootSlugPage || isLogoutInProgress()) {
         return;
       }
+      const authOwner = captureAuthSession();
       
       const authToken = localStorage.getItem('authToken');
       const unlockTime = localStorage.getItem('unlockTime');
@@ -598,7 +555,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
             // Token already expired — try refresh before logging out
             console.log('JWT token has expired, attempting refresh...');
             refreshAccessToken().then(success => {
-              if (!success) {
+              if (!success && active && isAuthSessionCurrent(authOwner)) {
                 console.log('Refresh failed, logging out...');
                 handleLogout('logout-refresh-failed');
               }
@@ -655,6 +612,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       const authCheckInterval = setInterval(checkAuthStatus, 1000);
       
       return () => {
+        active = false;
         clearInterval(authCheckInterval);
       };
     }
@@ -808,6 +766,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
     
     return `/${familySlug}/${path}`;
   };
+
+  if (logoutPhase !== 'idle') return <LogoutTransition />;
 
   // Check if we're on the root slug page and not authenticated
   // In this case, show only the page content (login UI) without app UI (header, side nav)
@@ -1038,58 +998,13 @@ export default function AppLayout({
   // Define handleLogout function within the layout scope.
   // `reason` becomes a short `src` query param on the destination so unexpected
   // bounces to the homepage can be diagnosed from the resulting URL (issue #209)
-  const handleLogout = async (reason: string = 'logout-user') => {
-    // Get the token to invalidate it server-side
-    const token = localStorage.getItem('authToken');
-    const currentCaretakerId = localStorage.getItem('caretakerId');
-
-    // Check if this is an account holder
-    let isAccountAuth = false;
-    if (token) {
-      try {
-        const payload = token.split('.')[1];
-        const decodedPayload = JSON.parse(atob(payload));
-        isAccountAuth = decodedPayload.isAccountAuth || false;
-      } catch (error) {
-        console.error('Error parsing JWT token during logout:', error);
-      }
-    }
-
-    // Call the logout API to clear server-side cookies and invalidate the token
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
-
-    // Clear all client-side authentication data including JWT token
-    localStorage.removeItem('unlockTime');
-    localStorage.removeItem('caretakerId');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('accountUser'); // Clear account user info
-    localStorage.removeItem('attempts');
-    localStorage.removeItem('lockoutTime');
-
-    // Dispatch a custom event to notify components about caretaker change
-    if (currentCaretakerId) {
-      const caretakerChangedEvent = new CustomEvent('caretakerChanged', {
-        detail: { caretakerId: null }
-      });
-      window.dispatchEvent(caretakerChangedEvent);
-    }
-
-    // Redirect account holders to the home page (with the login modal open)
-    // and PIN users to family root (which shows login UI)
+  const handleLogout = useCallback((reason: string = 'logout-user') => {
     const familySlug = window.location.pathname.split('/')[1];
-    if (navigateToShell({ type: 'loggedOut', reason })) return;
-    window.location.href = logoutDestination({ isAccountAuth, familySlug, reason });
-  };
+    return logoutAuthSession(owner => {
+      if (navigateToShell({ type: 'loggedOut', reason })) return;
+      window.location.href = logoutDestination({ isAccountAuth: owner.isAccountAuth, familySlug, reason });
+    });
+  }, []);
 
   return (
     <DeploymentProvider>

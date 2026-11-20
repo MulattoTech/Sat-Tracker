@@ -15,6 +15,8 @@ import FeedbackPage from '@/src/components/forms/FeedbackForm/FeedbackPage';
 import { useLocalization } from '@/src/context/localization';
 import { literata, alegreyaSans } from '@/src/components/landing/fonts';
 
+import { captureAuthSession, isAuthSessionCurrent, isLogoutInProgress, logoutAuthSession } from '@/src/utils/session-lifecycle';
+import LogoutTransition, { useLogoutPhase } from '@/src/components/LoginSecurity/LogoutTransition';
 import './account-button.css';
 import '@/src/components/ui/storybook-drawer/storybook-drawer.css';
 
@@ -77,6 +79,7 @@ export function AccountButton({
   loggedInClassName
 }: AccountButtonProps) {
   const { t } = useLocalization();
+  const logoutPhase = useLogoutPhase();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [accountStatus, setAccountStatus] = useState<AccountStatus | null>(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -84,8 +87,11 @@ export function AccountButton({
 
   // Check authentication status on component mount and when localStorage changes
   useEffect(() => {
+    let active = true;
     const checkAuthStatus = async () => {
-      const token = localStorage.getItem('authToken');
+      if (!active || isLogoutInProgress()) return;
+      const owner = captureAuthSession();
+      const token = owner.token;
       
       if (token) {
         try {
@@ -95,9 +101,11 @@ export function AccountButton({
               'Authorization': `Bearer ${token}`
             }
           });
+          if (!active || !isAuthSessionCurrent(owner)) return;
 
           if (response.ok) {
             const data = await response.json();
+            if (!active || !isAuthSessionCurrent(owner)) return;
             if (data.success) {
               setAccountStatus(data.data);
               setIsLoggedIn(true);
@@ -109,6 +117,7 @@ export function AccountButton({
             handleLogout();
           }
         } catch (error) {
+          if (!active || !isAuthSessionCurrent(owner)) return;
           console.error('Error fetching account status:', error);
           // Fall back to localStorage data for offline scenarios
           const userInfo = localStorage.getItem('accountUser');
@@ -154,40 +163,17 @@ export function AccountButton({
     };
 
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    return () => {
+      active = false;
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      // Call the logout API to invalidate the token server-side
-      const token = localStorage.getItem('authToken');
-      if (token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Logout API error:', error);
-      // Continue with client-side logout even if API fails
-    }
-
-    // Clear client-side auth data
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('accountUser');
-    localStorage.removeItem('unlockTime');
-    localStorage.removeItem('caretakerId');
-    
-    // Update state
+  const handleLogout = () => logoutAuthSession(() => {
     setIsLoggedIn(false);
     setAccountStatus(null);
-    
-    // Redirect to home page (reason code identifies deliberate logouts — issue #209)
     window.location.href = '/?src=logout-user';
-  };
+  }, fetch, ['authToken', 'accountUser', 'unlockTime', 'caretakerId']);
 
   const handleFamilyLink = () => {
     // Update activity timer when navigating
@@ -234,6 +220,8 @@ export function AccountButton({
   };
 
   // Hide button if logged in and hideWhenLoggedIn is true
+  if (logoutPhase !== 'idle') return <LogoutTransition />;
+
   if (isLoggedIn && hideWhenLoggedIn) {
     return null;
   }

@@ -78,6 +78,7 @@ try {
   assert.equal(browser.medicineDoseRecoveryChecksPassed, true, 'Actual USER dose entry, durable first-request recovery, exact replay, bounded failures and cross-tab owner guards must run');
   assert.equal(browser.nurseryQuickCareRecoveryChecksPassed, true, 'Original quick diaper/food intents, lost-response replay, exact Undo, browser restart, bounded auth and cross-tab ownership must run');
   assert.equal(browser.familyReadBoundaryChecksPassed, true, 'Authenticated HTTP family boundaries for timeline/export labels and hook activities, status, measurements and history-derived references must run');
+  assert.equal(browser.logoutLifecycleChecksPassed, true, 'One owned logout transition, stale-session suppression, cookie ordering, aborted failure recovery and terminal navigation must run');
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

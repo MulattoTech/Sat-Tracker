@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Comprobar de nuevo la dosis",
   "A dose is waiting for confirmation on this browser.": "Hay una dosis pendiente de confirmación en este navegador.",
   "Review saved dose": "Revisar dosis guardada",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Esta dosis podría estar ya en el registro de cuidados. Revísalo antes de descartar la solicitud guardada en este navegador. No se eliminará ningún registro de cuidados. ¿Continuar?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Esta dosis podría estar ya en el registro de cuidados. Revísalo antes de descartar la solicitud guardada en este navegador. No se eliminará ningún registro de cuidados. ¿Continuar?",
+  "Signing out...": "Cerrando sesión...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "No se pudo confirmar el cierre de sesión. Reinténtalo o vuelve a iniciar sesión cuando la solicitud se haya detenido.",
+  "Retry sign-out": "Reintentar cierre de sesión",
+  "Return to sign-in": "Volver a iniciar sesión",
+  "The sign-in page did not open. Try again.": "No se abrió la página de inicio de sesión. Inténtalo de nuevo."
 }

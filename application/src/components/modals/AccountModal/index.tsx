@@ -4,6 +4,8 @@ import TermsOfUseModal from '@/src/components/modals/terms-of-use';
 import { useLocalization } from '@/src/context/localization';
 import { StorybookDrawer } from '@/src/components/ui/storybook-drawer';
 import { CheckCircle } from 'lucide-react';
+import { isLogoutInProgress } from '@/src/utils/session-lifecycle';
+import { useLogoutPhase } from '@/src/components/LoginSecurity/LogoutTransition';
 
 interface AccountModalProps {
   open: boolean;
@@ -21,6 +23,7 @@ export default function AccountModal({
   resetToken,
 }: AccountModalProps) {
   const { t } = useLocalization();
+  const logoutPhase = useLogoutPhase();
   const [mode, setMode] = useState<'login' | 'register' | 'forgot-password' | 'verify' | 'reset-password'>(initialMode);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -133,7 +136,7 @@ export default function AccountModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || isLogoutInProgress()) return;
 
     // Validate email
     if (!validateEmail(formData.email)) {
@@ -581,6 +584,10 @@ export default function AccountModal({
     verify: { title: t('Verify your email.') },
     'reset-password': { title: t('Set a new password.') },
   };
+
+  // Parent-owned drawers can outlive AccountButton's render, so the drawer
+  // itself must stop new submissions while that document is signing out.
+  if (logoutPhase !== 'idle') return null;
 
   return (
     <>

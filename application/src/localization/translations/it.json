@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Ricontrolla la dose salvata",
   "A dose is waiting for confirmation on this browser.": "Una dose è in attesa di conferma in questo browser.",
   "Review saved dose": "Controlla la dose salvata",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Questa dose potrebbe essere già nel registro delle cure. Controllalo prima di scartare la richiesta salvata in questo browser. Nessuna registrazione delle cure verrà eliminata. Continuare?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Questa dose potrebbe essere già nel registro delle cure. Controllalo prima di scartare la richiesta salvata in questo browser. Nessuna registrazione delle cure verrà eliminata. Continuare?",
+  "Signing out...": "Disconnessione in corso...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Non è stato possibile confermare la disconnessione. Riprova o torna all’accesso dopo l’interruzione della richiesta.",
+  "Retry sign-out": "Riprova la disconnessione",
+  "Return to sign-in": "Torna all’accesso",
+  "The sign-in page did not open. Try again.": "La pagina di accesso non si è aperta. Riprova."
 }

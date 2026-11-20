@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Check saved dose again",
   "A dose is waiting for confirmation on this browser.": "A dose is waiting for confirmation on this browser.",
   "Review saved dose": "Review saved dose",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?",
+  "Signing out...": "Signing out...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.",
+  "Retry sign-out": "Retry sign-out",
+  "Return to sign-in": "Return to sign-in",
+  "The sign-in page did not open. Try again.": "The sign-in page did not open. Try again."
 }

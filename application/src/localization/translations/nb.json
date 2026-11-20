@@ -3284,5 +3284,10 @@
   "Check saved dose again": "Sjekk lagret dose igjen",
   "A dose is waiting for confirmation on this browser.": "En dose venter på bekreftelse i denne nettleseren.",
   "Review saved dose": "Se gjennom lagret dose",
-  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Denne dosen kan allerede være i omsorgsloggen. Se gjennom loggen før du forkaster forespørselen som er lagret i denne nettleseren. Ingen omsorgsoppføringer blir slettet. Fortsette?"
+  "This dose may already be in the care log. Review it before dismissing this browser's saved request. No care records will be deleted. Continue?": "Denne dosen kan allerede være i omsorgsloggen. Se gjennom loggen før du forkaster forespørselen som er lagret i denne nettleseren. Ingen omsorgsoppføringer blir slettet. Fortsette?",
+  "Signing out...": "Logger ut...",
+  "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Utloggingen kunne ikke bekreftes. Prøv igjen, eller gå tilbake til innlogging når forespørselen har stoppet.",
+  "Retry sign-out": "Prøv utlogging på nytt",
+  "Return to sign-in": "Tilbake til innlogging",
+  "The sign-in page did not open. Try again.": "Innloggingssiden ble ikke åpnet. Prøv igjen."
 }

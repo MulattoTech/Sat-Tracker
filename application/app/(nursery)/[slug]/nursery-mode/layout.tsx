@@ -1,5 +1,8 @@
 'use client';
 
+import { useCallback } from 'react';
+import { logoutAuthSession } from '@/src/utils/session-lifecycle';
+import LogoutTransition, { useLogoutPhase } from '@/src/components/LoginSecurity/LogoutTransition';
 import { Newsreader } from 'next/font/google';
 import { DeploymentProvider } from '@/app/context/deployment';
 import { LocalizationProvider } from '@/src/context/localization';
@@ -23,30 +26,10 @@ export default function NurseryLayout({
 }) {
   // `reason` becomes a short `src` query param on the destination so unexpected
   // bounces to the homepage can be diagnosed from the resulting URL (issue #209)
-  const handleLogout = async (reason: string = 'logout-user') => {
-    const token = localStorage.getItem('authToken');
-
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-      });
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
-
-    localStorage.removeItem('unlockTime');
-    localStorage.removeItem('caretakerId');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('accountUser');
-    localStorage.removeItem('attempts');
-    localStorage.removeItem('lockoutTime');
-
+  const logoutPhase = useLogoutPhase();
+  const handleLogout = useCallback((reason: string = 'logout-user') => logoutAuthSession(() => {
     window.location.href = `/?src=${reason}`;
-  };
+  }), []);
 
   return (
     <div className={newsreader.variable} style={{ background: '#0a0a1a', minHeight: '100vh' }}>
@@ -57,7 +40,7 @@ export default function NurseryLayout({
               <ThemeProvider>
                 <ToastProvider>
                   <PwaServiceWorker />
-                  {children}
+                  {logoutPhase === 'idle' ? children : <LogoutTransition />}
                 </ToastProvider>
               </ThemeProvider>
             </BabyProvider>
