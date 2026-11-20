@@ -198,29 +198,58 @@ async function run() {
     await inspection.waitFor(); await screenshot('recovery-mobile-reviewed');
   });
   await check('rejected_commit_preserves_review_and_draft', async () => {
-    const interception = Promise.withResolvers();
-    await page.route(base + '/api/recovery/commit', async route => {
-      try {
-        const originalBody = route.request().postDataBuffer();
-        assert.ok(originalBody?.includes(Buffer.from(fixture.archiveSha256)));
-        const changed = Buffer.from(originalBody.toString('latin1').replace(fixture.archiveSha256, '0'.repeat(64)), 'latin1');
-        await route.continue({ postData: changed });
-        interception.resolve();
-      } catch (error) {
-        // Route callbacks run as events; make failures reject the awaited scenario and reach cleanup.
-        interception.reject(error);
-      }
-    }, { times: 1 });
-    const response = page.waitForResponse(response => response.url() === base + '/api/recovery/commit');
-    const [rejectedResponse] = await Promise.all([response, interception.promise,
-      page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click()]);
-    assert.equal(rejectedResponse.status(), 409);
-    await page.locator('main.recovery-panel').getByRole('alert').filter({
-      hasText: 'Inspect this exact archive before recovering it.',
-    }).waitFor();
-    await verifyDraft(); await verifyEmpty();
-    assert.ok((await page.getByTestId('recovery-inspection').textContent()).includes(fixture.archiveSha256));
-    await screenshot('recovery-mobile-rejected-commit');
+    // Keep the selected File intact; Chromium's intercepted postDataBuffer can omit its bytes.
+    const mutation = await page.evaluateHandle(({ expectedDigest, expectedBytes }) => {
+      const originalFetch = window.fetch;
+      const state = { calls: 0, modified: false, error: null,
+        restore: () => { window.fetch = originalFetch; }, restored: () => window.fetch === originalFetch };
+      window.fetch = async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input, location.href);
+        const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+        if (url.origin === location.origin && url.pathname === '/api/recovery/commit' && method.toUpperCase() === 'POST') {
+          state.restore(); state.calls++;
+          try {
+            const body = init?.body;
+            if (!(body instanceof FormData)) throw new Error('Commit mutation requires the original browser FormData');
+            const archive = body.get('archive'), sourceKey = body.get('sourceKey');
+            const selected = document.querySelector('main.recovery-panel input[type="file"]')?.files?.[0];
+            if (!(archive instanceof File) || archive !== selected || archive.size !== expectedBytes ||
+              body.get('archiveSha256') !== expectedDigest || typeof sourceKey !== 'string') {
+              throw new Error('Commit mutation did not receive the reviewed archive and original recovery fields');
+            }
+            body.set('archiveSha256', '0'.repeat(64));
+            state.filePreserved = body.get('archive') === archive;
+            state.keyPreserved = body.get('sourceKey') === sourceKey;
+            state.archiveBytes = archive.size; state.modified = true;
+          } catch (error) { state.error = error.message; throw error; }
+        }
+        return originalFetch.call(window, input, init);
+      };
+      return state;
+    }, { expectedDigest: fixture.archiveSha256, expectedBytes: fixture.bytes.length });
+    try {
+      const response = page.waitForResponse(response => response.url() === base + '/api/recovery/commit' && response.request().method() === 'POST');
+      const modified = until(async () => {
+        const state = await mutation.evaluate(state => ({ modified: state.modified, error: state.error }));
+        if (state.error) throw new Error(state.error);
+        return state.modified;
+      }, 'one real commit FormData digest mutation');
+      const [rejectedResponse] = await Promise.all([response, modified,
+        page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click()]);
+      assert.deepEqual(await mutation.evaluate(state => ({ calls: state.calls, filePreserved: state.filePreserved,
+        keyPreserved: state.keyPreserved, archiveBytes: state.archiveBytes, fetchRestored: state.restored() })),
+      { calls: 1, filePreserved: true, keyPreserved: true, archiveBytes: fixture.bytes.length, fetchRestored: true });
+      assert.equal(rejectedResponse.status(), 409);
+      await page.locator('main.recovery-panel').getByRole('alert').filter({
+        hasText: 'Inspect this exact archive before recovering it.',
+      }).waitFor();
+      await verifyDraft(); await verifyEmpty();
+      assert.ok((await page.getByTestId('recovery-inspection').textContent()).includes(fixture.archiveSha256));
+      await screenshot('recovery-mobile-rejected-commit');
+    } finally {
+      await mutation.evaluate(state => state.restore());
+      await mutation.dispose();
+    }
   });
   await check('real_ui_commit_exact_metadata_and_media', async () => {
     const response = page.waitForResponse(response => response.url() === base + '/api/recovery/commit');
