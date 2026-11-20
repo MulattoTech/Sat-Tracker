@@ -6,6 +6,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { PrismaClient } from '@prisma/client';
+import type { BabyUpdate } from '../app/api/types';
 
 type Check = { name: string; status: 'PASS' | 'FAIL'; error?: string };
 const report = {
@@ -120,22 +121,36 @@ async function main() {
         WHERE table_schema = 'public' AND table_name = 'Baby' AND column_name = 'gestationalAgeDays'`;
       assert.deepEqual(columns, [{ data_type: 'integer', is_nullable: 'YES', column_default: null }]);
     });
-    await check('Prisma PostgreSQL writes retain whole days, preserve omission and clear only on explicit null', async () => {
+    await check('Production scalar validation and PostgreSQL writes retain whole days, preserve omission and clear only on explicit null', async () => {
+      const { readCareWrite, careFields, careIdentifier, CareWriteError } = await import('../app/api/utils/care-write');
+      // PostgreSQL integer coercion is not the application's validation
+      // boundary. Exercise the same strict scalar reader as the real PUT route
+      // before any Prisma write, and prove rejected inputs leave rows intact.
+      const updateProfile = async (patch: Record<string, unknown>) => {
+        const { id, ...data } = await readCareWrite<BabyUpdate>(new Request('http://localhost/api/baby', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: childIds[0], ...patch }),
+        }), { ...careFields.baby, id: careIdentifier }, ['id']);
+        return prisma.baby.update({ where: { id }, data });
+      };
       for (const gestationalAgeDays of [1, 315, 235]) {
-        const baby = await prisma.baby.update({ where: { id: childIds[0] }, data: { gestationalAgeDays } });
+        const baby = await updateProfile({ gestationalAgeDays });
         assert.equal(baby.gestationalAgeDays, gestationalAgeDays);
         assert.equal(baby.birthDate.toISOString(), birthDate.toISOString());
       }
-      const unchanged = await prisma.baby.update({ where: { id: childIds[0] }, data: { firstName: 'Corrected synthetic name' } });
+      const unchanged = await updateProfile({ firstName: 'Corrected synthetic name' });
       assert.equal(unchanged.gestationalAgeDays, 235);
       const prior = await snapshot(prisma);
-      await assert.rejects(prisma.baby.update({ where: { id: childIds[0] }, data: { gestationalAgeDays: 234.5 } }));
-      assert.deepEqual(await snapshot(prisma), prior);
-      const cleared = await prisma.baby.update({ where: { id: childIds[0] }, data: { gestationalAgeDays: null } });
+      for (const gestationalAgeDays of [234.5, '235', 0, 316]) {
+        await assert.rejects(updateProfile({ gestationalAgeDays }),
+          error => error instanceof CareWriteError && error.status === 400);
+        assert.deepEqual(await snapshot(prisma), prior);
+      }
+      const cleared = await updateProfile({ gestationalAgeDays: null });
       assert.equal(cleared.gestationalAgeDays, null);
       assert.equal(cleared.birthDate.toISOString(), birthDate.toISOString());
       assert.deepEqual((await snapshot(prisma)).notes, before.notes);
-      await prisma.baby.update({ where: { id: childIds[0] }, data: { gestationalAgeDays: 235 } });
+      await updateProfile({ gestationalAgeDays: 235 });
     });
     await check('Canonical JSON backup restores known, null and legacy-omitted gestation with exact birth and care values', async () => {
       const { exportToJSON, importFromJSON } = await import('../app/api/utils/db-backup');
