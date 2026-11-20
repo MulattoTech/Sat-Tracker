@@ -4338,6 +4338,32 @@
       ],
       "evidenceScope": "Source and requirement mapping only. Detailed criteria are expanded within existing IDs and one Apple Watch contract is added. Original statuses and evidence remain unchanged; no test, preview, deployment, physical-device or whole-product acceptance is inferred from this audit. Existing five release-control PASS records remain tied to their recorded 64c69c4 release.",
       "remainingWork": "Implement and qualify the bounded current-source OCR/PIN work and next core-feature slices, update existing issue owners, retain watch issue #98, and continue the ledger. Production promotion requires separate explicit release approval and fresh exact-image safeguards."
+    },
+    {
+      "id": "2026-11-19-ocr-review-and-session-recovery",
+      "revision": "c43371363ec354bbb8848510953fff16bafd6db5",
+      "status": "IMPLEMENTATION_AND_LOCAL_VERIFICATION",
+      "scope": [
+        "PAR-002",
+        "PAR-003",
+        "PAR-019",
+        "PAR-052",
+        "PAR-066",
+        "SETUP-001",
+        "GOV-001",
+        "GOV-002",
+        "GOV-003"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/pull/99",
+      "implementationReferences": [
+        "https://github.com/MulattoTech/Sat-Tracker/pull/97",
+        "https://github.com/MulattoTech/Sat-Tracker/commit/27b6c5ae74e56a2893697f95b09534693fa9831f",
+        "https://github.com/MulattoTech/Sat-Tracker/commit/28836661a006bb318f512dd67ae4f614a8e728ba",
+        "application/src/components/OcrImport/review-helpers.ts",
+        "application/tests/ocr-review-ui.test.ts"
+      ],
+      "evidenceScope": "The existing unpublished logout-session correction was recovered and independently reviewed. Eleven new OCR summary regressions failed before the correction; selected source timezone and explicit repeated-clock choices now determine elapsed sleep and rejected rows are excluded. Fresh combined local verification at c433713: 278 targeted tests passed, TypeScript passed, operations ran 44 tests (34 passed, 10 platform skips), and the ledger validator plus 13 ledger tests passed. Source reviews found no blocking findings. Full hosted application/browser gates are tracked in PR97 and PR99 and were still pending when this checkpoint was written. No new broad contract PASS, production promotion, handwriting or physical-device acceptance is claimed.",
+      "remainingWork": "Inspect and resolve the fresh complete browser gate, merge only qualified exact heads, and retain the current deployed b24ccc9 image until a separately qualified and approved release. Continue the next ready core/OCR or family-workflow slice from the mandatory coverage queue. Existing Project board discovery is blocked by missing read:project scope; issues/ledger were maintained without new credentials or a competing board."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."
