@@ -208,3 +208,147 @@ jobs:
           path: application/test-results/photo-integrity-postgres-report.json
           if-no-files-found: warn
           retention-days: 7
+
+  portable-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: application
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: sat_tracker_recovery_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sat_tracker_recovery_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SAT_TRACKER_SYNTHETIC_TEST: '1'
+      SAT_TRACKER_RECOVERY_TEST_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/sat_tracker_recovery_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: application/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Verify all four isolated recovery provider directions
+        run: node --import tsx scripts/recovery-qualification.ts
+      - name: Require complete current-source recovery provider evidence
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const r = JSON.parse(fs.readFileSync('test-results/portable-recovery-report.json', 'utf8'));
+          assert.equal(r.gitRevision, process.env.GITHUB_SHA); assert.equal(r.workflowSha, process.env.GITHUB_SHA);
+          assert.equal(r.syntheticOnly, true); assert.equal(r.status, 'PASS'); assert.equal(r.mode, 'full-matrix');
+          assert.match(r.postgresVersion, /^PostgreSQL 17\./);
+          assert.deepEqual(r.clientProviders, ['sqlite', 'postgresql']);
+          assert.deepEqual(r.directions.map(d => `${d.source}->${d.destination}`), [
+            'sqlite->sqlite', 'sqlite->postgresql', 'postgresql->sqlite', 'postgresql->postgresql',
+          ]);
+          for (const direction of r.directions) {
+            assert.equal(direction.status, 'PASS'); assert.equal(direction.checks.length, 13);
+            assert.ok(direction.checks.every(check => check.status === 'PASS'));
+            assert.equal(new Set(direction.checks.map(check => check.id)).size, 13);
+            assert.equal(direction.tableCount, 66); assert.equal(direction.recordCount, 77);
+            assert.equal(direction.filesRestored, 8); assert.equal(direction.ocrOmissions, 3);
+            assert.equal(direction.authenticatedMetadataValues, 17);
+            assert.equal(direction.readers.status, 'PASS'); assert.equal(direction.readers.checkCount, 15); assert.equal(direction.readers.cleanupVerified, true);
+            const readers = JSON.parse(fs.readFileSync('test-results/' + direction.readers.artifact, 'utf8'));
+            assert.equal(readers.gitRevision, process.env.GITHUB_SHA); assert.equal(readers.provider, direction.destination);
+            assert.equal(readers.syntheticOnly, true); assert.equal(readers.status, 'PASS'); assert.equal(readers.checks.length, 15);
+            assert.ok(readers.checks.every(check => check.status === 'PASS')); assert.equal(new Set(readers.checks.map(check => check.id)).size, 15);
+            assert.deepEqual(readers.errors, []); assert.deepEqual(readers.cleanup.errors, []);
+            assert.equal(readers.normalStartupUsed, false); assert.equal(readers.recoveryModeRetained, true);
+            assert.deepEqual(readers.retention, { purgedDocumentCount: 2, addedAuditCount: 2, unchangedModelCount: 64, filesUnchanged: true });
+            for (const key of ['clientClosed', 'clockRestored', 'syntheticSecretsCleared']) assert.equal(readers.cleanup[key], true);
+          }
+          assert.deepEqual(r.errors, []); assert.deepEqual(r.cleanup.errors, []);
+          for (const field of ['attempted', 'clientsClosed', 'ownedSchemasRemoved', 'ownedFilesRemoved', 'canonicalClientUnchanged']) assert.equal(r.cleanup[field], true);
+          JS
+      - name: Prepare isolated synthetic browser build configuration
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { randomBytes } from 'node:crypto';
+          const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sat-recovery-build-'));
+          const key = randomBytes(32).toString('hex'), secret = randomBytes(32).toString('hex');
+          console.log(`::add-mask::${key}`); console.log(`::add-mask::${secret}`);
+          const values = {
+            SAT_TRACKER_RECOVERY_BUILD_DIR: directory,
+            DATABASE_PROVIDER: 'sqlite', DATABASE_URL: 'file:' + path.join(directory, 'application.db'),
+            LOG_DATABASE_URL: 'file:' + path.join(directory, 'api-logs.db'),
+            ENC_HASH: key, JWT_SECRET: secret, ENABLE_LOG: 'false', ENABLE_NOTIFICATIONS: 'false',
+            NEXT_TELEMETRY_DISABLED: '1', DEPLOYMENT_MODE: 'selfhosted', SAT_TRACKER_SOURCE_REVISION: process.env.GITHUB_SHA,
+          };
+          fs.appendFileSync(process.env.GITHUB_ENV, Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n') + '\n');
+          JS
+      - name: Generate browser fixture clients and build current application
+        run: npm run prisma:generate && npm run prisma:generate:log && npm run build
+      - name: Install recovery browser
+        run: npx playwright install --with-deps chromium
+      - name: Verify actual isolated recovery browser flow
+        timeout-minutes: 5
+        run: node --import tsx scripts/acceptance-recovery-browser.mjs
+      - name: Require complete current-source recovery browser evidence
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const r = JSON.parse(fs.readFileSync('test-results/portable-recovery-browser-report.json', 'utf8'));
+          assert.equal(r.gitRevision, process.env.GITHUB_SHA); assert.equal(r.workflowSha, process.env.GITHUB_SHA);
+          assert.equal(r.syntheticOnly, true); assert.equal(r.status, 'PASS');
+          assert.ok(r.archiveBytes > 10 * 1024 * 1024);
+          assert.equal(r.retentionOmissionCount, 3);
+          assert.deepEqual(r.checks.map(check => check.id), [
+            'isolated_startup_and_api_gate', 'operator_capability_not_family_auth',
+            'mobile_keyboard_and_destination_status', 'invalid_key_retains_selected_archive_and_draft',
+            'complete_inspection_and_changed_input_invalidates_review', 'rejected_commit_preserves_review_and_draft',
+            'real_ui_commit_exact_metadata_and_media', 'complete_destination_is_sealed_and_not_activated',
+          ]);
+          assert.ok(r.checks.every(check => check.status === 'PASS'));
+          assert.deepEqual(r.errors, []); assert.deepEqual(r.cleanup.errors, []);
+          for (const field of ['browserClosed', 'serverExited', 'databaseClosed', 'ownedFilesRemoved', 'canonicalClientUnchanged']) assert.equal(r.cleanup[field], true);
+          assert.equal(r.receipt.verified, true); assert.equal(r.receipt.activationRequired, true);
+          assert.equal(r.receipt.tablesRestored, 66); assert.equal(r.receipt.recordsRestored, 77); assert.equal(r.receipt.filesRestored, 8);
+          assert.equal(r.receipt.archiveSha256, r.archiveSha256);
+          JS
+      - name: Remove owned synthetic browser build state
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          const directory = process.env.SAT_TRACKER_RECOVERY_BUILD_DIR;
+          if (directory) {
+            assert.equal(path.dirname(directory), os.tmpdir());
+            assert.ok(path.basename(directory).startsWith('sat-recovery-build-'));
+            fs.rmSync(directory, { recursive: true, force: true }); assert.equal(fs.existsSync(directory), false);
+          }
+          JS
+      - name: Upload synthetic portable recovery evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portable-recovery-${{ github.sha }}
+          path: |
+            application/test-results/portable-recovery-report.json
+            application/test-results/portable-recovery-browser-report.json
+            application/test-results/portable-recovery-readers-*.json
+            application/test-results/recovery-browser-server.log
+            application/test-results/recovery-*.png
+          if-no-files-found: warn
+          retention-days: 7

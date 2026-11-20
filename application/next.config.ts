@@ -22,6 +22,9 @@ import type { NextConfig } from 'next';
  * that actually loads, so a single image serves both sqlite and postgresql.
  */
 const nextConfig: NextConfig = {
+  // Proxy clones bodies before invoking its handler. Match the recovery stream
+  // ceiling so valid large archives reach its independently bounded parser.
+  experimental: { proxyClientMaxBodySize: 512 * 1024 * 1024 + 64 * 1024 },
   serverExternalPackages: [
     // The main client is imported as `@prisma/client`; the log client is
     // generated to a custom output and imported directly as `.prisma/log-client`

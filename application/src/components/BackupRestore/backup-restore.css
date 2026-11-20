@@ -65,4 +65,13 @@ html.dark .migration-progress-container {
 
 html.dark .migration-progress-text {
   color: #93c5fd !important; /* blue-300 */
-} 
+}
+
+html.dark .recovery-panel {
+  color: #e5e7eb;
+}
+
+html.dark .recovery-summary {
+  border-color: #4b5563;
+  background-color: #1f2937;
+}

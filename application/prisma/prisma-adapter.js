@@ -43,6 +43,13 @@ function createPrismaAdapter(url, fallback = DEFAULT_DATABASE_URL) {
   const resolved = resolveDatabaseUrl(url, fallback);
   if (resolved.startsWith('postgresql://') || resolved.startsWith('postgres://')) {
     const { PrismaPg } = require('@prisma/adapter-pg');
+    const schema = new URL(resolved).searchParams.get('schema');
+    if (schema) {
+      if (!/^[a-z_][a-z0-9_]*$/.test(schema)) throw new Error('Unsupported PostgreSQL schema name.');
+      // Prisma's adapter schema and native/raw query search_path must agree.
+      // This also lets an isolated recovery destination use its own empty schema.
+      return new PrismaPg({ connectionString: resolved, options: `-c search_path=${schema}` }, { schema });
+    }
     return new PrismaPg({ connectionString: resolved });
   }
   const { PrismaBetterSqlite3 } = require('@prisma/adapter-better-sqlite3');

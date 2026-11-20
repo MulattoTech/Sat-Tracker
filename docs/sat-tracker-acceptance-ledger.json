@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "asOfRelease": "sat-tracker-2026-11-02",
-  "asOfSourceRevision": "c1a1b669f9c44492e4ff51888e9d52b2c1012012",
+  "asOfSourceRevision": "ffbf14be5e9feab0b5981e069b67a3281a08f22a",
   "observedAtUTC": "2026-11-20",
   "scopeVersion": "2026-11-19-v3",
   "scopeComplete": false,
@@ -749,7 +749,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Scalar rash observations are qualified in merged PR102/main c1a1b669. Shared same-child attachment ownership, concurrent capacity and target-lifecycle protection are the owner-approved #16 package in progress. Portable media recovery, diaper capture with retained uploads/lost-response reconciliation, timestamped follow-ups, trends, complete handoff and pediatrician-report qualification remain under #5/#16/#19/#22. Obtain separate preview/production and required physical-device evidence; PAR-018 remains IN PROGRESS.",
+      "remainingWork": "Scalar rash observations are qualified in merged PR102/main c1a1b669. Shared photo ownership, capacity and lifecycle protection are qualified in merged PR103/main ffbf14be. The owner-approved complete portable metadata/encrypted-media recovery package is in progress under #16. Diaper capture with retained uploads/lost-response reconciliation, timestamped follow-ups, trends, complete handoff and pediatrician-report qualification remain under #5/#16/#19/#22. Obtain separate preview/production and required physical-device evidence; PAR-018 remains IN PROGRESS.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -1799,7 +1799,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "The approved #16 foundation implements shared family/child/live-target ownership across eight attachment targets, retained capacity, safe read projection, direct lookup, explicit malformed-link detach and coordinated care lifecycle. Finish exact-source hosted browser/PostgreSQL qualification and independent review before integration. Portable complete metadata/encrypted-file recovery, diaper capture/lost-response reconciliation, concurrent quota/orphan recovery, session-cache/offline/device and report evidence remain separate; no whole-contract PASS or deployment is inferred.",
+      "remainingWork": "Shared family/child/live-target ownership, retained capacity, safe read projection, direct lookup, historical detach and coordinated care lifecycle are qualified in PR103/main ffbf14be, including hosted browser and PostgreSQL races. Portable complete metadata/encrypted-file recovery is the owner-approved #16 package in progress. Diaper capture/lost-response reconciliation, concurrent quota/orphan recovery, session-cache/offline/device and report evidence remain separate; no whole-contract PASS or deployment is inferred.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -2855,7 +2855,8 @@
         "issues": [
           19,
           20,
-          30
+          30,
+          16
         ]
       },
       "priority": "P1",
@@ -2865,10 +2866,21 @@
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Consistent archives include database, log database, encrypted source files and required configuration.",
         "Isolated restore integrity and full-startup migration checks pass for the accepted image; real family recovery remains covered by SETUP-001.",
-        "User-facing backup/restore and authorized access recovery preserve consistent database, attachments and encryption configuration, beyond a CLI archive integrity check."
+        "User-facing backup/restore and authorized access recovery preserve consistent database, attachments and encryption configuration, beyond a CLI archive integrity check.",
+        "Portable recovery inventories every application model/scalar field and referenced retained encrypted file; counts, checksums, schema, declared dependencies and decryption preflight must pass before destination data writes.",
+        "Installation-owner backup authority and an explicit isolated recovery bootstrap capability are distinct from family ADMIN, system caretaker 00, account-owner and setup tokens. Recovery never overwrites or merges a populated destination.",
+        "All four SQLite/PostgreSQL source-destination directions preserve original identities, owners, timestamps, nulls, soft-deletes, links, favorites and provenance, with protected exact source ENC_HASH supplied separately.",
+        "Wrong keys, tampering, path/collision/schema failures, expired OCR, occupied destinations, rollback and uncertain-commit quarantine are verified. Legacy-incomplete inputs cannot silently become a complete recovery."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/lib/portable-recovery/engine.ts",
+        "application/src/lib/portable-recovery/archive.ts",
+        "application/src/lib/portable-recovery/metadata.ts",
+        "application/scripts/recovery-startup.ts",
+        "application/scripts/recovery-qualification.ts",
+        "application/scripts/acceptance-recovery-browser.mjs",
+        "application/documentation/Admin-Documentation/portable-recovery.md"
       ],
       "evidence": {
         "tests": [],
@@ -2877,7 +2889,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "The owner-approved #16 package implements versioned complete application metadata and referenced encrypted-media recovery into isolated empty SQLite/PostgreSQL destinations, exact source-key separation, owner/bootstrap authority and legacy-incomplete diagnostics. Finish independent exact-source provider/browser CI, integration and immutable image qualification. This portable format explicitly excludes diagnostic logs/environment replay; the broader full operational backup, accepted-image startup, activation, preview/production and real-family/device recovery criteria remain open.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -4541,6 +4553,19 @@
       ],
       "evidenceScope": "Owner-approved #16 source package enforces family/child/live-target ownership across all eight photo target types and every writer, retained four-photo capacity, safe metadata projection/direct lookup, explicit historical detach and coordinated care deletion/move/Undo. Full local verification passed 3,115 tests in 185 files, nonincremental TypeScript and production build. Nine separate-process SQLite cases observed actual contention and subsequent commits from both clients; four retry-policy tests reject ambiguous replay. Independent backend/read/lifecycle/QA reviews resolved a rejected-caption editor-close defect and found no remaining blocker. Twelve separately bounded browser scenarios and fifteen PostgreSQL checks including nine observed lock races are mandatory hosted gates; local Chromium socket creation is blocked with EPERM and supplies no browser PASS. No deployment or whole-contract acceptance follows.",
       "remainingWork": "Inspect exact-source hosted application/browser/PostgreSQL/operations/configuration results; resolve actual failures and independently review fixes before merge. Preserve production and preview b24ccc9 and existing volumes. Next bounded package is complete versioned metadata/encrypted-media recovery with explicit restore authority and isolated destination verification; diaper capture/retry, quota/orphan, session/offline/device and reporting acceptance remain separate."
+    },
+    {
+      "id": "2026-11-20-photo-foundation-final-main-qualified",
+      "revision": "ffbf14be5e9feab0b5981e069b67a3281a08f22a",
+      "status": "SOURCE_AND_IMAGE_QUALIFIED_NOT_DEPLOYED",
+      "scope": [
+        "PAR-018",
+        "PAR-044",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/pull/103",
+      "evidenceScope": "Final main acceptance run 44725734068 attempt 2 passed: 3,115 tests/185 files; service34; runtime186 with all19 flags and original600s bound including rash12; separate photo12/240s; PostgreSQL15 with nine observed lock races. Operations44 and configuration checks passed. Immutable candidate ghcr.io/mulattotech/babytracker-master@sha256:1193672b27f666b7682bb2df172e03a485430a82ccc2a3f445b5803940814e74 was verified. These are synthetic source/image receipts; no deployment or physical-device PASS is inferred.",
+      "remainingWork": "Execute the separately approved portable metadata/encrypted-media recovery source package. Production and preview remain separately observed b24ccc9 on their original volumes. Broad PAR-018/PAR-044 remain open."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."
