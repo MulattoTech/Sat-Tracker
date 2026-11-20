@@ -60,7 +60,11 @@ preview will be left alone (it must), expected unavailability, write freeze,
 private backup destination, restore verification, and risks. The current
 `scripts/backup.ps1` **stops and restarts** the production `sprout` Compose
 service. This is a real interruption, not a read-only operation. A generic
-source-development approval does not authorize it.
+source-development approval does not authorize it. See
+[feedback-hotfix-encrypted-backup-prep.md](feedback-hotfix-encrypted-backup-prep.md)
+for the *source-only* encrypted-streaming prototype. Its real production
+acquisition adapter is deliberately disabled until a confidential destination,
+recoverable private passphrase and caregiver write freeze are approved.
 
 Quiescence requires all caregivers to stop entering new care records, safely
 finish/record active timers, reconcile any disconnected devices and pending
