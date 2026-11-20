@@ -4566,6 +4566,29 @@
       "reference": "https://github.com/MulattoTech/Sat-Tracker/pull/103",
       "evidenceScope": "Final main acceptance run 44725734068 attempt 2 passed: 3,115 tests/185 files; service34; runtime186 with all19 flags and original600s bound including rash12; separate photo12/240s; PostgreSQL15 with nine observed lock races. Operations44 and configuration checks passed. Immutable candidate ghcr.io/mulattotech/babytracker-master@sha256:1193672b27f666b7682bb2df172e03a485430a82ccc2a3f445b5803940814e74 was verified. These are synthetic source/image receipts; no deployment or physical-device PASS is inferred.",
       "remainingWork": "Execute the separately approved portable metadata/encrypted-media recovery source package. Production and preview remain separately observed b24ccc9 on their original volumes. Broad PAR-018/PAR-044 remain open."
+    },
+    {
+      "id": "2026-11-20-portable-metadata-and-media-recovery",
+      "revision": "91fddaab598409a5969a126e9e700a8b39294030",
+      "status": "IMPLEMENTATION_AND_LOCAL_VERIFICATION",
+      "scope": [
+        "PAR-018",
+        "PAR-044",
+        "PAR-070",
+        "SETUP-001",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/issues/16",
+      "implementationReferences": [
+        "application/src/lib/portable-recovery",
+        "application/scripts/recovery-startup.ts",
+        "application/scripts/recovery-qualification.ts",
+        "application/scripts/recovery-read-qualification.ts",
+        "application/scripts/acceptance-recovery-browser.mjs",
+        "application/documentation/Admin-Documentation/portable-recovery.md"
+      ],
+      "evidenceScope": "The owner-approved package inventories every application model/scalar and retained referenced ciphertext; preserves original identities, timestamps, nulls, relationships, trash and provenance; requires separately supplied exact source ENC_HASH; verifies bounded archive/schema/dependency/checksum/decryption preflight; and restores only into isolated empty destinations. Configured installation-owner downloads and a separate recovery capability replace destructive web restore/migration paths. Independent metadata/media/auth/engine/storage/startup/browser reviews resolved partial-schema initialization, native enum drift, OCR clock skew, plaintext disclosure, directory durability and post-finalization quarantine findings. Real production-reader qualification exposed a pre-existing foreign-family ADMIN feedback GET/DELETE bypass: two regressions failed before a narrow family guard and all eight permission cases passed afterward. The local full suite passed 3,417 tests/198 files during integration; subsequent final UI/localization/authority checks passed132/5files, TypeScript/build and operations/ledger checks passed. Final local SQLite-only qualification passed13 parent and15 actual authorized-reader checks over66models/77records/8restoredfiles, with exact2document/2audit retention effects and complete owned cleanup. This report remains PARTIAL until hosted PostgreSQL qualification; local synthetic evidence does not establish browser execution, deployment or real-family recovery.",
+      "remainingWork": "Require exact committed-source all-four-provider qualification with actual reader reports, the eight-scenario mobile recovery browser flow using an archive above10MiB, all unchanged existing application/runtime/photo/PostgreSQL/operations/configuration gates, independent final review, merge and fresh final-main/image proof. Production/preview activation, full operational backups including logs, physical devices and broad parent contracts remain separate. The next proposed source package is diaper attachment capture with retained failed uploads and request identity/lost-response reconciliation."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."
