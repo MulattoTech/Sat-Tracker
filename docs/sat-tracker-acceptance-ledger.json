@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "asOfRelease": "sat-tracker-2026-11-02",
-  "asOfSourceRevision": "2ed233ba0107996818f8b59d518142bd793d442d",
+  "asOfSourceRevision": "cb22a07055b2f512165dabab7dd663c3e2c57940",
   "observedAtUTC": "2026-11-20",
   "scopeVersion": "2026-11-19-v3",
   "scopeComplete": false,
@@ -717,16 +717,29 @@
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
         "application/src/components/forms/DiaperForm/",
-        "application/prisma/schema.prisma"
+        "application/prisma/schema.prisma",
+        "application/src/utils/diaperRash.ts",
+        "application/prisma/migrations/20261120100000_add_diaper_rash_observations/migration.sql",
+        "application/app/api/utils/nursery-quick-care.ts",
+        "application/app/api/utils/care-revision.ts",
+        "application/app/api/hooks/v1/diaper-rash.ts",
+        "application/src/components/FullLogTimeline/activity-pdf.ts",
+        "application/documentation/Architecture-Documentation/DiaperRash.md"
       ],
       "evidence": {
-        "tests": [],
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/Sat-Tracker/commit/8f4f72cf16e8a16a63153b8d7ea917e7ccb4bc4f",
+            "revision": "8f4f72cf16e8a16a63153b8d7ea917e7ccb4bc4f",
+            "scope": "Bounded scalar rash foundation: 565 focused tests across 12 files, nonincremental TypeScript, and production build passed locally. Real canonical and API-key routes cover true/false/null, limits, omission/clearing and scope rejection; SQLite migration and JSON/legacy/current SQLite restore preserve exact history. Frozen pre-upgrade Nursery request/receipt/Undo fixtures recover without duplicates and reject later or concurrent rash edits. Selected CSV/XLSX/PDF-source rows preserve text and range/family filters; formula-like CSV cells are literal. All 12 locales and UI payload/time semantics are tested. Independent source review found no blocking issues. Hosted 12-scenario browser/PDF rendering and eight-check PostgreSQL runtime evidence remain pending at this checkpoint."
+          }
+        ],
         "preview": [],
         "production": [],
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Existing DiaperLog and form provide blowout, cream and notes, but no explicit rash field or diaper photo control was found at 236856d. Add the one-tap rash workflow and authorized details/media/handoff/reporting, retaining existing diaper history.",
+      "remainingWork": "The approved one-tap scalar observation package is implemented in candidate 8f4f72c with scoped local verification. Complete exact-source hosted browser/PDF and PostgreSQL gates and merge qualified changes. Private same-child diaper photos and retained upload/link recovery, portable media backup, timestamped follow-up history, trends, complete handoff and pediatrician-report qualification remain under issues #5/#16/#19/#22. Obtain separate preview/production and required physical-device evidence; PAR-018 remains IN PROGRESS.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -1671,6 +1684,11 @@
             "reference": "https://github.com/MulattoTech/Sat-Tracker/commit/0601666a3c67b64521ca976903f0bd3e19357c1e",
             "revision": "0601666a3c67b64521ca976903f0bd3e19357c1e",
             "scope": "Profile/header foundation only: 253 focused tests across six files, full TypeScript and production build passed locally. Real API/SQLite tests verify both creation paths, strict whole-day validation, omission/null behavior, family rejection, exact birth/care preservation, the additive migration and actual JSON/legacy/current SQLite restore. Pure cases cover current/historical calendar age, gestational days, unknown/term/pre-due states, leap/month/DST/host-timezone boundaries. UI formatter/input and all-locale checks passed. Hosted browser/PostgreSQL execution, deployed and physical-device evidence remain pending at this checkpoint."
+          },
+          {
+            "reference": "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44696359448",
+            "revision": "cb22a07055b2f512165dabab7dd663c3e2c57940",
+            "scope": "Final merged profile/header foundation through PR #100 and PR #101: 2,845 tests / 176 files, TypeScript/build, 34 service checks, 174 runtime checks and all 18 flags passed. Includes 10 corrected-age browser checks and six PostgreSQL 17.12 compatibility checks; owned cleanup passed. Acceptance artifact 14611147194 SHA-256 6f0a26deeed01407848915422551a6d8228142cafd8e9f941eb7d0d7c140efe6 and separate PostgreSQL artifact 14611245683 were independently verified. Source/CI qualification only; no deployment or physical-device acceptance."
           }
         ],
         "preview": [],
@@ -1678,7 +1696,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "The optional gestational-age profile/API model, shared daily-age helper, both profile editors and child header are implemented in candidate 0601666 with scoped local verification. Complete hosted browser and PostgreSQL gates and qualified source merge. Extend the same contract deliberately to growth/reference charts, milestone interpretation, sleep planning and applicable import/report views; obtain preview/production and required device evidence. The derived due-date reference is not a separately recorded clinician due date. PAR-042 remains IN PROGRESS.",
+      "remainingWork": "The bounded optional gestational-age profile/API model, shared daily-age helper, both profile editors and child header are merged through PR100/PR101 and qualified on cb22a070. Extend the contract deliberately to growth/reference charts, milestone interpretation, sleep planning and applicable import/report views; obtain preview/production and required device evidence. The derived due-date reference is not a separately recorded clinician due date. PAR-042 remains IN PROGRESS.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -4405,6 +4423,53 @@
       ],
       "evidenceScope": "The owner approved the issue #15 profile/shared-age package after the previous source checkpoint. Candidate 0601666 adds nullable gestationalAgeDays without backfill; preserves birth precision; applies explicit calendar/timezone and AAP/WHO-derived correction semantics; updates both profile editors; labels chronological/corrected states in the child header; and refreshes selected profiles. Integrated local verification passed 253 tests, TypeScript and production build. Independent source/backend/harness reviews found no blocking issues. A mandatory browser module and separate guarded PostgreSQL 17 service job are implemented; their actual hosted outcomes must be attached through the PR before merge. This does not accept the whole PAR-042 contract or deploy production.",
       "remainingWork": "Inspect hosted browser and PostgreSQL results, resolve actual failures, independently review any fixes, and merge only qualified exact source. Current production/preview remains separately observed b24ccc9 and needs specific immutable-image preview/recovery/owner-release approval. Continue one-tap diaper-rash capture under issue #5 after this approved foundation, following the existing queue."
+    },
+    {
+      "id": "2026-11-20-corrected-age-merged-source",
+      "revision": "cb22a07055b2f512165dabab7dd663c3e2c57940",
+      "status": "MERGED_SOURCE_AND_CI_ONLY",
+      "scope": [
+        "PAR-001",
+        "PAR-042",
+        "PAR-050",
+        "PAR-055",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44696359448",
+      "implementationReferences": [
+        "https://github.com/MulattoTech/Sat-Tracker/pull/100",
+        "https://github.com/MulattoTech/Sat-Tracker/pull/101"
+      ],
+      "evidenceScope": "Final main cb22a070 and tree eabfa506f414557a865c6eee79125a4ea6a9ed72 passed full application, operations and deployment-configuration gates. 2,845 tests / 176 files, 34 service checks, 174 runtime checks, 18 flags, 10 corrected-age checks and 6 PostgreSQL checks passed. The independently verified image run 44697862162 published immutable sha256:aef3b3bfbf50ac42e716d1e4aa7aaaa4a996319eff43c8dc4e3823801f41789a without deployment. The PR #101 fixture correction reused isolated real schemas while retaining all per-test deadlines and restore assertions.",
+      "remainingWork": "Continue the approved issue #5 observational rash package. Production/preview remain separately observed b24ccc9 and need exact-image preview/recovery checks and separate release approval. No broad contract count/status, deployed workflow or physical-device evidence changes."
+    },
+    {
+      "id": "2026-11-20-diaper-rash-observation-foundation",
+      "revision": "8f4f72cf16e8a16a63153b8d7ea917e7ccb4bc4f",
+      "status": "IMPLEMENTATION_AND_LOCAL_VERIFICATION",
+      "scope": [
+        "PAR-016",
+        "PAR-018",
+        "PAR-055",
+        "PAR-058",
+        "SYNC-001",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/issues/5",
+      "implementationReferences": [
+        "application/src/utils/diaperRash.ts",
+        "application/prisma/migrations/20261120100000_add_diaper_rash_observations/migration.sql",
+        "application/app/api/utils/nursery-quick-care.ts",
+        "application/app/api/utils/care-revision.ts",
+        "application/app/api/hooks/v1/diaper-rash.ts",
+        "application/src/components/FullLogTimeline/activity-pdf.ts",
+        "application/documentation/Architecture-Documentation/DiaperRash.md",
+        "application/scripts/diaper-rash-browser.mjs",
+        "application/scripts/verify-diaper-rash-postgres.ts",
+        "application/tests/diaperRashMigration.integration.test.ts"
+      ],
+      "evidenceScope": "Owner-approved issue #5 source package adds nullable observational status and bounded caregiver details; canonical/hook APIs; active form, history/search and 12 locales; literal selected CSV/XLSX and new visual selected-range PDF; scalar backup compatibility; and preserved pre-upgrade Nursery identity/replay/Undo. Integrated local verification at 8f4f72c passed 565 focused tests, nonincremental TypeScript and production build. Independent backend/UI/compatibility/export/harness reviews found no blocking source findings. Local Chromium cannot create required sockets (EPERM), so real browser/PDF and PostgreSQL results must come from the mandatory hosted jobs before merge. Existing gate scenarios and deadlines are retained; the rash module adds 12 scenarios for 186 runtime checks and 19 flags. No production change or whole-contract PASS follows.",
+      "remainingWork": "Inspect hosted results, repair actual failures, independently review any fixes and merge only qualified exact source. Preserve deployed b24ccc9 containers and all three production volumes until separately approved exact-image release checks. Prepare the prerequisite private diaper-media package under #5/#16 without implementing it before next approval."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."
