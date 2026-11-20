@@ -449,7 +449,13 @@ export async function verifyPhotoIntegrity({ base, db, browser, reportDir, signa
       await page.getByRole('menuitemradio', { name: new RegExp('^' + sibling.firstName + '\\b') }).click();
       await until(() => new URL(page.url()).searchParams.get('babyId') === sibling.id, 'sibling selection');
       release.resolve(); await bounded(completed.promise, 5000, 'old-child direct response'); if (heldError) throw heldError;
-      await frames(); assert.equal(await panelClosed(detail), true); assert.equal((await page.getByLabel('Select Baby', { exact: true }).textContent()).includes(sibling.firstName), true);
+      await frames();
+      assert.equal(await panelClosed(detail), true, 'A late old-child response must not reopen the Photo drawer');
+      // The Select Baby dropdown trigger is icon-only; the adjacent Quick Stats
+      // button owns the selected child's visible name and accessible identity.
+      const siblingHeader = page.getByRole('button', { name: `${sibling.firstName}'s Quick Stats`, exact: true });
+      assert.equal(await siblingHeader.getByText(sibling.firstName, { exact: true }).textContent(), sibling.firstName,
+        'A late old-child response must preserve the selected sibling header');
       await page.unroute('**/api/photos/' + primary.id, delayed); releases.delete(release.resolve);
       assert.equal(await db.photoLink.count({ where: { photoId: primary.id, activityType: 'feed', activityId: feedA.id } }), 1);
     });
