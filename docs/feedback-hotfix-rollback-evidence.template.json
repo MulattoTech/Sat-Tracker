@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "release": {
+    "release_revision": "f3ea00e6161f887d4802f2a41238eb6a36d8103c",
+    "production_baseline": "b24ccc9cd70076cb1d8e0fed477e14d0cf533444",
+    "candidate_image": "ghcr.io/mulattotech/babytracker-master@sha256:7521979f4e9af6b5c9ee6cbfa1ec1ec8adb812b5ee2ce915e22168343c2f4cad",
+    "previous_image_id": "sha256:1b4f57866debda9557d3ef073be61332f4440702daa5e8786245b198ea821756"
+  },
+  "evidence": {
+    "private_backup_sha256_verified": false,
+    "backup_includes_db_env_files": false,
+    "fresh_isolated_restore_verified": false,
+    "sqlite_integrity_and_foreign_keys_verified": false,
+    "media_ciphertext_and_readability_verified": false,
+    "source_key_configuration_identity_verified": false,
+    "previous_image_available": false,
+    "caregiver_write_freeze_confirmed": false,
+    "write_freeze_unbroken_since_backup": false,
+    "online_write_coverage_complete": false,
+    "offline_queue_coverage_complete": false,
+    "all_disconnected_devices_reconciled": false
+  },
+  "counts": {
+    "online_writes_since_backup": null,
+    "unreconciled_offline_writes": null
+  }
+}
