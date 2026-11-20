@@ -240,6 +240,27 @@ jobs:
           cache: npm
           cache-dependency-path: application/package-lock.json
       - run: npm ci --no-audit --no-fund
+      - name: Prepare isolated synthetic recovery configuration
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import os from 'node:os';
+          import path from 'node:path';
+          import { randomBytes } from 'node:crypto';
+          const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sat-recovery-build-'));
+          const key = randomBytes(32).toString('hex'), secret = randomBytes(32).toString('hex');
+          console.log(`::add-mask::${key}`); console.log(`::add-mask::${secret}`);
+          const values = {
+            SAT_TRACKER_RECOVERY_BUILD_DIR: directory,
+            DATABASE_PROVIDER: 'sqlite', DATABASE_URL: 'file:' + path.join(directory, 'application.db'),
+            LOG_DATABASE_URL: 'file:' + path.join(directory, 'api-logs.db'),
+            ENC_HASH: key, JWT_SECRET: secret, ENABLE_LOG: 'false', ENABLE_NOTIFICATIONS: 'false',
+            NEXT_TELEMETRY_DISABLED: '1', DEPLOYMENT_MODE: 'selfhosted', SAT_TRACKER_SOURCE_REVISION: process.env.GITHUB_SHA,
+          };
+          fs.appendFileSync(process.env.GITHUB_ENV, Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n') + '\n');
+          JS
+      - name: Generate canonical SQLite clients for production reader imports
+        run: npm run prisma:generate && npm run prisma:generate:log
       - name: Verify all four isolated recovery provider directions
         run: node --import tsx scripts/recovery-qualification.ts
       - name: Require complete current-source recovery provider evidence
@@ -275,27 +296,8 @@ jobs:
           assert.deepEqual(r.errors, []); assert.deepEqual(r.cleanup.errors, []);
           for (const field of ['attempted', 'clientsClosed', 'ownedSchemasRemoved', 'ownedFilesRemoved', 'canonicalClientUnchanged']) assert.equal(r.cleanup[field], true);
           JS
-      - name: Prepare isolated synthetic browser build configuration
-        run: |
-          node --input-type=module <<'JS'
-          import fs from 'node:fs';
-          import os from 'node:os';
-          import path from 'node:path';
-          import { randomBytes } from 'node:crypto';
-          const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sat-recovery-build-'));
-          const key = randomBytes(32).toString('hex'), secret = randomBytes(32).toString('hex');
-          console.log(`::add-mask::${key}`); console.log(`::add-mask::${secret}`);
-          const values = {
-            SAT_TRACKER_RECOVERY_BUILD_DIR: directory,
-            DATABASE_PROVIDER: 'sqlite', DATABASE_URL: 'file:' + path.join(directory, 'application.db'),
-            LOG_DATABASE_URL: 'file:' + path.join(directory, 'api-logs.db'),
-            ENC_HASH: key, JWT_SECRET: secret, ENABLE_LOG: 'false', ENABLE_NOTIFICATIONS: 'false',
-            NEXT_TELEMETRY_DISABLED: '1', DEPLOYMENT_MODE: 'selfhosted', SAT_TRACKER_SOURCE_REVISION: process.env.GITHUB_SHA,
-          };
-          fs.appendFileSync(process.env.GITHUB_ENV, Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n') + '\n');
-          JS
-      - name: Generate browser fixture clients and build current application
-        run: npm run prisma:generate && npm run prisma:generate:log && npm run build
+      - name: Build current application for the recovery browser
+        run: npm run build
       - name: Install recovery browser
         run: npx playwright install --with-deps chromium
       - name: Verify actual isolated recovery browser flow
