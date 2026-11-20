@@ -171,7 +171,10 @@ async function run() {
     await page.getByLabel('Source recovery key', { exact: true }).fill('0'.repeat(64));
     const response = page.waitForResponse(response => response.url() === base + '/api/recovery/inspect' && response.request().method() === 'POST');
     await page.getByRole('button', { name: 'Inspect backup', exact: true }).click();
-    assert.equal((await response).status(), 400); await page.getByRole('alert').waitFor();
+    assert.equal((await response).status(), 400);
+    await page.locator('main.recovery-panel').getByRole('alert').filter({
+      hasText: 'Encrypted content could not be authenticated with the supplied source key and original scope.',
+    }).waitFor();
     assert.equal(await page.getByLabel('Backup archive', { exact: true }).evaluate(input => input.files?.[0]?.name), 'synthetic-portable.zip');
     assert.equal(await page.getByLabel('Source recovery key', { exact: true }).inputValue(), '0'.repeat(64));
     assert.equal(await page.getByLabel('Recovery operator token', { exact: true }).inputValue(), fixture.operatorToken);
@@ -203,7 +206,10 @@ async function run() {
     });
     const response = page.waitForResponse(response => response.url() === base + '/api/recovery/commit');
     await page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click();
-    assert.equal((await response).status(), 409); await page.getByRole('alert').waitFor();
+    assert.equal((await response).status(), 409);
+    await page.locator('main.recovery-panel').getByRole('alert').filter({
+      hasText: 'Inspect this exact archive before recovering it.',
+    }).waitFor();
     await verifyDraft(); await verifyEmpty();
     assert.ok((await page.getByTestId('recovery-inspection').textContent()).includes(fixture.archiveSha256));
     await screenshot('recovery-mobile-rejected-commit');
