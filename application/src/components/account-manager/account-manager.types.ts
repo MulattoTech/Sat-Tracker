@@ -95,6 +95,7 @@ export interface BabyData {
   firstName: string;
   lastName: string;
   birthDate: string;
+  gestationalAgeDays?: number | null;
   gender?: string;
   inactive: boolean;
   feedWarningTime: string;

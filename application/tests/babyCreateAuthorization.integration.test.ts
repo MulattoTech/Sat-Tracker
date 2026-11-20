@@ -20,7 +20,7 @@ vi.mock('../app/api/utils/api-logger', () => ({
   getClientInfo: () => ({ ip: '127.0.0.27', userAgent: 'synthetic-baby-create-auth-test' }),
 }));
 import { POST as alternateCreate } from '../app/api/baby/create/route';
-import { POST as canonicalCreate } from '../app/api/baby/route';
+import { GET as canonicalGet, POST as canonicalCreate } from '../app/api/baby/route';
 import { POST as pinLogin } from '../app/api/auth/route';
 import { POST as accountLogin } from '../app/api/accounts/login/route';
 import { POST as setupLogin } from '../app/api/auth/token/route';
@@ -153,6 +153,41 @@ afterAll(async () => {
 
 describe.each(routes)('$routeName family authorization with real issued JWTs and migrated SQLite', ({ pathname, handler }) => {
   it.each([
+    { label: 'omitted unknown value', value: undefined },
+    { label: 'explicit unknown value', value: null },
+    { label: 'minimum whole day', value: 1 },
+    { label: 'weeks and additional days', value: 235 },
+    { label: 'maximum product input bound', value: 315 },
+  ])('persists and returns gestational age for $label without changing the birth instant', async ({ value }) => {
+    const birthDate = '2026-01-01T06:07:08.123Z';
+    const response = await handler(request(pathname, {
+      ...babyBody(familyA), birthDate, gestationalAgeDays: value,
+    }, tokens.user));
+    expect(response.status).toBe(pathname === '/api/baby/create' ? 201 : 200);
+    const { data } = await response.json();
+    expect(data).toMatchObject({ familyId: familyA, birthDate, gestationalAgeDays: value ?? null });
+    const stored = await actual.baby.findUniqueOrThrow({ where: { id: data.id } });
+    expect(stored.birthDate.toISOString()).toBe(birthDate);
+    expect(stored.gestationalAgeDays).toBe(value ?? null);
+    const read = await canonicalGet(new NextRequest(`http://localhost/api/baby?id=${data.id}`, {
+      headers: { Authorization: `Bearer ${tokens.user}` },
+    }));
+    expect(read.status).toBe(200);
+    expect((await read.json()).data).toMatchObject({ id: data.id, birthDate, gestationalAgeDays: value ?? null });
+  });
+
+  it.each([0, -1, 316, 234.5, '235', '', true, { set: 235 }, [235]].map(value => ({ value })))(
+    'rejects invalid gestational age $value without creating a child or completing setup', async ({ value }) => {
+      const before = await snapshot();
+      const response = await handler(request(pathname, {
+        ...babyBody(familyA), gestationalAgeDays: value,
+      }, tokens.user));
+      expect(response.status).toBe(400);
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+
+  it.each([
     { label: 'ordinary USER caretaker targets another family', credential: 'user', query: null },
     { label: 'family ADMIN caretaker targets another family', credential: 'admin', query: null },
     { label: 'account owner targets another family', credential: 'owner', query: null },
@@ -166,7 +201,7 @@ describe.each(routes)('$routeName family authorization with real issued JWTs and
     const before = await snapshot();
     const target = 'removeInvite' in testCase ? familyA : familyB;
     const route = `${pathname}${testCase.query ? `?familyId=${testCase.query}` : ''}`;
-    const response = await handler(request(route, babyBody(target), tokens[testCase.credential]));
+    const response = await handler(request(route, { ...babyBody(target), gestationalAgeDays: 235 }, tokens[testCase.credential]));
     const after = await snapshot();
     expect(response.status).toBe(403);
     expect(after).toEqual(before);

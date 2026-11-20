@@ -345,6 +345,7 @@ const FamilyPeopleTab: React.FC<FamilyPeopleTabProps> = ({
         baby={selectedBaby ? {
           ...selectedBaby,
           birthDate: new Date(selectedBaby.birthDate),
+          gestationalAgeDays: selectedBaby.gestationalAgeDays ?? null,
           gender: selectedBaby.gender as any,
           createdAt: new Date(),
           updatedAt: new Date(),

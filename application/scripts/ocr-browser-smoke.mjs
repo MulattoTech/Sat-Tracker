@@ -25,6 +25,7 @@ import { verifyMedicineDoseRecovery } from './medicine-dose-recovery-browser.mjs
 import { verifyNurseryQuickCare } from './nursery-quick-care-browser.mjs';
 import { verifyFamilyReadBoundaries } from './family-read-boundary-http.mjs';
 import { verifyLogoutLifecycle } from './logout-lifecycle-browser.mjs';
+import { verifyCorrectedAge } from './corrected-age-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -345,6 +346,9 @@ try {
   report.pumpingConflictChecksPassed = true;
   report.checks.push(...await verifyCareContactEditors({ base, db, family, baby, caretaker, context }));
   report.careContactEditorChecksPassed = true;
+  report.checks.push(...await verifyCorrectedAge({ base, db, browser, reportDir }));
+  report.correctedAgeChecksPassed = true;
+  report.screenshots.push(path.join(reportDir, 'corrected-age-default.png'), path.join(reportDir, 'corrected-age-storybook.png'));
   report.checks.push(...await verifyNurseryPumpRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.nurseryPumpRecoveryChecksPassed = true;
   report.checks.push(...await verifyNurseryBottle({ base, db, family, baby, caretaker, token, secret, context }));

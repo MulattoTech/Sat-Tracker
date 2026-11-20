@@ -6,13 +6,11 @@ A form component for creating and editing baby profiles in the Baby Tracker appl
 
 ```tsx
 import BabyForm from '@/src/components/forms/BabyForm';
-import { useFamily } from '@/src/context/family'; // Import family context
 
 // In your component
 const [showBabyForm, setShowBabyForm] = useState(false);
 const [selectedBaby, setSelectedBaby] = useState<Baby | null>(null);
 const [isEditing, setIsEditing] = useState(false);
-const { family } = useFamily(); // Get current family from context
 
 // To open the form for creating a new baby
 const handleAddBaby = () => {
@@ -34,7 +32,6 @@ const handleEditBaby = (baby: Baby) => {
   onClose={() => setShowBabyForm(false)}
   isEditing={isEditing}
   baby={selectedBaby}
-  familyId={family?.id} // Pass the current family ID
   onBabyChange={() => {
     // Handle data refresh after baby is created or updated
     fetchData();
@@ -51,7 +48,6 @@ const handleEditBaby = (baby: Baby) => {
 | `isEditing` | boolean | Yes | Determines if the form is in edit mode or create mode |
 | `baby` | Baby \| null | Yes | The baby object to edit (null when creating a new baby) |
 | `onBabyChange` | () => void | No | Callback function called after a baby is successfully created or updated |
-| `familyId` | string | No | The ID of the family this baby belongs to (for multi-family support) |
 | `appearance` | `'default' \| 'storybook'` | No | Defaults to `'default'` (the classic `FormPage` slide-in). `'storybook'` renders the form inside a stacked `StorybookDrawer` for use in the account manager (nests above the account-manager drawer via Radix portals). Both appearances share the same `formData` state, validation, and `handleSubmit` — only the presentation differs. |
 
 ## Features
@@ -61,6 +57,8 @@ const handleEditBaby = (baby: Baby) => {
 - Set warning times for feeding and diaper changes
 - Mark babies as inactive (when editing)
 - Form validation for required fields
+- Optional gestational weeks and additional days at birth, with visible validation
+- Separately labelled chronological and corrected ages using the shared age helper
 - Responsive layout for mobile and desktop
 - Multi-family support with family ID association
 
@@ -74,29 +72,35 @@ The BabyForm component uses the FormPage component from the UI library to create
 
 The component handles form submission by making API calls to the `/api/baby` endpoint with the appropriate HTTP method (POST for creating, PUT for updating).
 
+## Birth context and age display
+
+Both appearances compose the same `GestationalAgeFields` and `ChildAgeDisplay`.
+Whole weeks plus 0–6 additional days map to `gestationalAgeDays`, whose accepted
+range is 1–315 days. This ceiling is a product input limit, not a definition of
+prematurity. Weeks with blank additional days mean zero additional days; days
+without weeks are invalid. Both fields blank mean unknown, never a term birth.
+
+On an edit, untouched gestation is omitted from the PUT body. This also protects
+legacy cached profiles that lack the new field from clearing a newer stored
+value. Deliberately clearing the fields sends `null`. An unchanged birthday is
+also omitted so editing gestation cannot replace a stored birth timestamp with
+midnight. Selecting the same calendar birthday retains the original instant.
+
+The preview uses the existing timezone context's explicit browser IANA timezone.
+It does not invent a birth timezone or change growth, milestone, or sleep logic.
+Failed saves leave inputs in place and show a visible error. Successful saves
+dispatch `babyProfileChanged` so the main header can refresh from either form.
+
+Accessible field labels are “Gestational weeks at birth” and “Additional days at
+birth”. Validation uses `aria-invalid`, associated help/error text, and an alert.
+The fieldset test ID is `gestational-age-inputs`; the shared age display documents
+its own selectors. Browser acceptance must verify persisted values, immediate
+header refresh, explicit clearing, and preservation of untouched birth context.
+
 ## Multi-Family Support
 
-The component supports multi-family functionality by:
-- Accepting a `familyId` prop to associate the baby with a specific family
-- Including the family ID in the API request payload
-- Storing the family ID in the form data
-- Handling both new baby creation and updates with the correct family association
-
-When using this component in a multi-family context:
-```tsx
-import { useFamily } from '@/src/context/family';
-
-function BabyManagement() {
-  const { family } = useFamily(); // Get current family from context
-  
-  return (
-    <BabyForm
-      // Other props...
-      familyId={family?.id} // Pass the current family ID
-    />
-  );
-}
-```
+The API resolves family ownership from the authenticated session. This form does
+not accept a `familyId` prop or add family ownership fields to its write payload.
 
 ## Styling
 

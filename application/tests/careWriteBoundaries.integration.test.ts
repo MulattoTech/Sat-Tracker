@@ -24,7 +24,7 @@ import { POST as postBath, PUT as putBath } from '../app/api/bath-log/route';
 import { POST as postMilestone, PUT as putMilestone } from '../app/api/milestone-log/route';
 import { POST as postCatalog, PUT as putCatalog } from '../app/api/medicine/route';
 import { POST as postVaccine, PUT as putVaccine } from '../app/api/vaccine-log/route';
-import { POST as postBaby, PUT as putBaby } from '../app/api/baby/route';
+import { GET as getBaby, POST as postBaby, PUT as putBaby } from '../app/api/baby/route';
 import { POST as postAdjustment, PUT as putAdjustment } from '../app/api/breast-milk-adjustment/route';
 import { GET as getTimeline } from '../app/api/timeline/route';
 
@@ -100,8 +100,8 @@ beforeEach(async () => {
   await db.baby.deleteMany({ where: { id: { notIn: [ownChild, foreignChild] } } });
   await db.medicine.deleteMany({ where: { id: { notIn: [ownMedicine, foreignMedicine] } } });
   await db.family.updateMany({ data: { name: 'Synthetic Family', setupStage: 3 } });
-  await db.baby.update({ where: { id: ownChild }, data: { familyId: owner, firstName: 'Synthetic', deletedAt: null } });
-  await db.baby.update({ where: { id: foreignChild }, data: { familyId: foreign, firstName: 'Synthetic', deletedAt: null } });
+  await db.baby.update({ where: { id: ownChild }, data: { familyId: owner, firstName: 'Synthetic', deletedAt: null, gestationalAgeDays: null } });
+  await db.baby.update({ where: { id: foreignChild }, data: { familyId: foreign, firstName: 'Synthetic', deletedAt: null, gestationalAgeDays: null } });
   await db.medicine.updateMany({ data: { name: 'Synthetic medicine' } });
   await db.medicine.update({ where: { id: ownMedicine }, data: { familyId: owner } });
   await db.medicine.update({ where: { id: foreignMedicine }, data: { familyId: foreign } });
@@ -130,6 +130,71 @@ afterAll(async () => {
   await db?.$disconnect();
   if (directory) rmSync(directory, { recursive: true, force: true });
   if (previousSecret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previousSecret;
+});
+
+describe('baby gestational age corrections with real authorization and migrated SQLite', () => {
+  it('persists a correction, preserves omission, and clears only on explicit null without changing birth or care history', async () => {
+    const birthDate = '2026-01-01T06:07:08.123Z';
+    await db.baby.update({ where: { id: ownChild }, data: { birthDate: new Date(birthDate) } });
+    const before = await snapshot();
+    for (const [patch, expectedAge] of [
+      [{ gestationalAgeDays: 235 }, 235],
+      [{ firstName: 'Corrected synthetic name' }, 235],
+      [{ gestationalAgeDays: undefined }, 235],
+      [{ gestationalAgeDays: null }, null],
+    ] as const) {
+      const response = await putBaby(request('baby', ownChild, { id: ownChild, ...patch }));
+      expect(response.status).toBe(200);
+      expect((await response.json()).data).toMatchObject({ id: ownChild, birthDate, gestationalAgeDays: expectedAge });
+      const stored = await db.baby.findUniqueOrThrow({ where: { id: ownChild } });
+      expect(stored.birthDate.toISOString()).toBe(birthDate);
+      expect(stored.gestationalAgeDays).toBe(expectedAge);
+      const read = await getBaby(new NextRequest(`http://localhost/api/baby?id=${ownChild}`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      }));
+      expect(read.status).toBe(200);
+      expect((await read.json()).data).toMatchObject({ id: ownChild, birthDate, gestationalAgeDays: expectedAge });
+    }
+    const after = await snapshot();
+    expect({ ...after, babies: undefined }).toEqual({ ...before, babies: undefined });
+    expect(after.babies.find(baby => baby.id === foreignChild)).toEqual(before.babies.find(baby => baby.id === foreignChild));
+    const oldBaby = before.babies.find(baby => baby.id === ownChild)!;
+    const editedBaby = after.babies.find(baby => baby.id === ownChild)!;
+    expect({ ...editedBaby, firstName: oldBaby.firstName, updatedAt: oldBaby.updatedAt }).toEqual(oldBaby);
+    const listed = await getBaby(new NextRequest('http://localhost/api/baby', {
+      headers: { Authorization: `Bearer ${token()}` },
+    }));
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).data).toEqual([expect.objectContaining({ id: ownChild, gestationalAgeDays: null })]);
+  });
+
+  it.each([1, 315])('accepts the whole-day product input boundary %i', async gestationalAgeDays => {
+    const response = await putBaby(request('baby', ownChild, { id: ownChild, gestationalAgeDays }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.gestationalAgeDays).toBe(gestationalAgeDays);
+    expect((await db.baby.findUniqueOrThrow({ where: { id: ownChild } })).gestationalAgeDays).toBe(gestationalAgeDays);
+  });
+
+  it.each([0, -1, 316, 234.5, '235', '', true, { set: 235 }, [235]].map(value => ({ value })))(
+    'rejects gestational age $value without partially changing the profile or care history', async ({ value }) => {
+      await db.baby.update({ where: { id: ownChild }, data: { gestationalAgeDays: 235 } });
+      const before = await snapshot();
+      const response = await putBaby(request('baby', ownChild, {
+        id: ownChild, gestationalAgeDays: value, firstName: 'Must not change', birthDate: '2026-02-01T00:00:00Z',
+      }));
+      expect(response.status).toBe(400);
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+
+  it.each([
+    { body: { id: foreignChild, gestationalAgeDays: 235 }, status: 404 },
+    { body: { id: foreignChild, familyId: foreign, gestationalAgeDays: null }, status: 403 },
+  ])('rejects another family profile correction with status $status', async ({ body, status }) => {
+    const before = await snapshot();
+    expect((await putBaby(request('baby', foreignChild, body))).status).toBe(status);
+    expect(await snapshot()).toEqual(before);
+  });
 });
 
 describe('timeline preserves owned history while scoping expanded legacy relations', () => {

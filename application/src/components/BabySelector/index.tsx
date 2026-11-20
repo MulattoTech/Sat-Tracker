@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 import { Moon, ChevronDown } from 'lucide-react';
 import { BabySelectorProps } from './baby-selector.types';
 import {
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/src/components/ui/dropdown-menu";
 import { useLocalization } from '@/src/context/localization';
+import ChildAgeDisplay from '@/src/components/ChildAgeDisplay';
 
 /**
  * BabySelector Component
@@ -36,7 +37,7 @@ import { useLocalization } from '@/src/context/localization';
  *   onBabySelect={setSelectedBaby}
  *   babies={babies}
  *   sleepingBabies={sleepingBabies}
- *   calculateAge={calculateAge}
+ *   timeZone={userTimezone}
  *   onOpenQuickStats={handleOpenQuickStats}
  * />
  * ```
@@ -46,10 +47,11 @@ export const BabySelector: React.FC<BabySelectorProps> = ({
   onBabySelect,
   babies,
   sleepingBabies,
-  calculateAge,
+  timeZone,
   onOpenQuickStats
 }) => {
   const { t } = useLocalization();
+  const ageId = useId();
 
   return (
     <div className={babySelectorContainer(selectedBaby?.gender)}>
@@ -59,6 +61,7 @@ export const BabySelector: React.FC<BabySelectorProps> = ({
         className={babySelectorContent()}
         onClick={onOpenQuickStats}
         aria-label={selectedBaby ? `${selectedBaby.firstName}${t("'s Quick Stats")}` : undefined}
+        aria-describedby={selectedBaby ? ageId : undefined}
       >
         <div className={babySelectorNameContainer()}>
           <span className={babySelectorName()}>
@@ -69,9 +72,13 @@ export const BabySelector: React.FC<BabySelectorProps> = ({
           )}
         </div>
         {selectedBaby && (
-          <span className={babySelectorAge()}>
-            {calculateAge(selectedBaby.birthDate)}
-          </span>
+          <ChildAgeDisplay
+            id={ageId}
+            birthDate={selectedBaby.birthDate}
+            gestationalAgeDays={selectedBaby.gestationalAgeDays}
+            timeZone={timeZone}
+            className={babySelectorAge()}
+          />
         )}
       </button>
       
@@ -87,7 +94,7 @@ export const BabySelector: React.FC<BabySelectorProps> = ({
             <ChevronDown className="h-4 w-4" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-2rem)]">
           <DropdownMenuRadioGroup
             value={selectedBaby?.id || ''}
             onValueChange={(id) => {
@@ -105,9 +112,13 @@ export const BabySelector: React.FC<BabySelectorProps> = ({
                 value={baby.id}
                 className={babySelectorDropdownItem(baby.gender)}
               >
-                <div className="flex flex-col">
+                <div className="flex min-w-0 flex-col">
                   <span>{baby.firstName}{baby.inactive ? ` ${t('(Inactive)')}` : ''}</span>
-                  <span className="text-xs opacity-80">{calculateAge(baby.birthDate)}</span>
+                  <ChildAgeDisplay
+                    birthDate={baby.birthDate}
+                    gestationalAgeDays={baby.gestationalAgeDays}
+                    timeZone={timeZone}
+                  />
                 </div>
               </DropdownMenuRadioItem>
             ))}

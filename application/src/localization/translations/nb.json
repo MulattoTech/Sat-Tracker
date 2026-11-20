@@ -3290,5 +3290,17 @@
   "Retry sign-out": "Prøv utlogging på nytt",
   "Return to sign-in": "Tilbake til innlogging",
   "The sign-in page did not open. Try again.": "Innloggingssiden ble ikke åpnet. Prøv igjen.",
-  "Sleep periods awaiting valid times": "Søvnperioder som venter på gyldige tider"
+  "Sleep periods awaiting valid times": "Søvnperioder som venter på gyldige tider",
+  "Chronological age": "Kronologisk alder",
+  "Corrected age": "Korrigert alder",
+  "Gestational age at birth (optional)": "Svangerskapslengde ved fødsel (valgfritt)",
+  "Gestational weeks at birth": "Svangerskapsuker ved fødsel",
+  "Additional days at birth": "Ekstra dager ved fødsel",
+  "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.": "La begge feltene stå tomme hvis det er ukjent. La ekstra dager stå tomt for 0, eller skriv inn 0–6.",
+  "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.": "Skriv inn hele uker og 0–6 ekstra dager, fra 1 dag til 45 uker.",
+  "Age unavailable": "Alder er ikke tilgjengelig",
+  "Not applicable": "Ikke aktuelt",
+  "{age} before estimated due date": "{age} før beregnet termin",
+  "Select a birth date before saving.": "Velg en fødselsdato før du lagrer.",
+  "Unable to save baby. Please try again.": "Kunne ikke lagre barnet. Prøv igjen."
 }
