@@ -208,6 +208,65 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await page.screenshot({ path: file, fullPage: true, timeout: 5000 });
     report.screenshots.push(file);
   };
+  const assertInViewport = async (locator, label) => {
+    await locator.waitFor({ state: 'visible' });
+    const box = await locator.evaluate(node => {
+      const { left, top, right, bottom, width, height } = node.getBoundingClientRect();
+      return { left, top, right, bottom, width, height, viewportWidth: innerWidth, viewportHeight: innerHeight };
+    });
+    assert.ok(box.width > 0 && box.height > 0 && box.left >= -1 && box.top >= -1
+      && box.right <= box.viewportWidth + 1 && box.bottom <= box.viewportHeight + 1,
+    `${label} must fit the viewport: ${JSON.stringify(box)}`);
+  };
+  const assertNoHorizontalOverflow = async (page, area, label) => {
+    const widths = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth }));
+    assert.ok(widths.document <= widths.viewport + 1, `${label} document must not scroll horizontally: ${JSON.stringify(widths)}`);
+    const overflowing = await area.evaluate(node => [node, ...node.querySelectorAll('.form-page-content, .sb-pane-bd, [data-testid="gestational-age-inputs"], [data-testid="child-age-display"]')]
+      .filter(element => element.scrollWidth > element.clientWidth + 1)
+      .map(element => ({ tag: element.tagName, className: element.className, width: element.clientWidth, content: element.scrollWidth })));
+    assert.deepEqual(overflowing, [], `${label} content must not overflow horizontally`);
+  };
+  const responsiveEditor = async (page, editor, viewport, weeks, days, appearance) => {
+    await page.setViewportSize(viewport);
+    const profileLabels = appearance === 'default' ? ['First Name', 'Last Name', 'Birth Date'] : ['First name', 'Last name', 'Birth date'];
+    for (const name of profileLabels) {
+      const input = editor.getByLabel(name, { exact: true });
+      await input.click({ trial: true });
+      await assertInViewport(input, `${appearance} ${name} field`);
+    }
+    const group = editor.getByTestId('gestational-age-inputs');
+    await group.scrollIntoViewIfNeeded();
+    await fillGestation(editor, weeks, days);
+    await assertForm(editor, weeks, days);
+    await editor.getByLabel('Gestational weeks at birth', { exact: true }).click();
+    await page.keyboard.press('Tab');
+    assert.equal(await editor.getByLabel('Additional days at birth', { exact: true }).evaluate(node => node === document.activeElement), true,
+      'Keyboard traversal must reach the additional-days input at the responsive size');
+    for (const name of ['Cancel', appearance === 'default' ? 'Update' : 'Save changes']) {
+      const action = editor.getByRole('button', { name, exact: true });
+      await action.click({ trial: true });
+      await assertInViewport(action, `${appearance} ${name} action`);
+    }
+    await group.scrollIntoViewIfNeeded();
+    for (const label of await group.locator('label[for]').all()) await assertInViewport(label, `${appearance} gestation label`);
+    for (const name of ['Gestational weeks at birth', 'Additional days at birth']) {
+      const input = editor.getByLabel(name, { exact: true });
+      await input.click({ trial: true });
+      await assertInViewport(input, `${appearance} ${name} input`);
+    }
+    await assertNoHorizontalOverflow(page, editor, `${appearance} editor`);
+    report.evidence.push({ appearance, viewport, responsiveEditor: true, keyboardTraversal: true, labelsAndActionsVisible: true, horizontalOverflow: false });
+  };
+  const responsiveHeader = async (page, baby, appearance) => {
+    const area = header(page, baby);
+    await area.click({ trial: true });
+    for (const target of [area, area.getByTestId('chronological-age'), area.getByTestId('corrected-age'), page.getByLabel('Select Baby', { exact: true })]) {
+      await assertInViewport(target, `${appearance} child header`);
+    }
+    await page.getByLabel('Select Baby', { exact: true }).click({ trial: true });
+    await assertNoHorizontalOverflow(page, area, `${appearance} child header`);
+    report.evidence.push({ appearance, viewport: page.viewportSize(), responsiveHeader: true, ageLabelsVisible: true, childSelectionAccessible: true, horizontalOverflow: false });
+  };
 
   try {
     await db.family.create({ data: family });
@@ -279,12 +338,16 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await assertForm(editor, '32', '0');
     await fillGestation(editor, '34', '0');
     await screenshot(page, 'corrected-age-default.png');
+    await responsiveEditor(page, editor, { width: 390, height: 844 }, '34', '0', 'default');
+    await screenshot(page, 'corrected-age-default-phone.png');
     await save(page, editor, 238);
     await assertAge(page, preterm, 90, 48);
-    report.checks.push('Default editor saves gestation through the real API and immediately refreshes the selected child without rewriting the exact birth instant');
-
     await settings.getByRole('button', { name: 'Close', exact: true }).last().click();
     await until(() => panelClosed(settings), 'settings closing');
+    await responsiveHeader(page, preterm, 'default');
+    await screenshot(page, 'corrected-age-phone-header.png');
+    report.checks.push('Default editor saves gestation at 390×844 with accessible labels, keyboard input and actions, no horizontal overflow, and an immediately refreshed visible child header without rewriting the exact birth instant');
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await selectBaby(page, term);
     await assertAge(page, term, 42, 'Not applicable');
     await page.reload({ waitUntil: 'networkidle' });
@@ -354,15 +417,20 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await rejectInputs(story.page, panel, [['45', '1']], 'storybook');
     await fillGestation(panel, '33', '6');
     await screenshot(story.page, 'corrected-age-storybook.png');
+    await responsiveEditor(story.page, panel, { width: 768, height: 1024 }, '33', '6', 'storybook');
+    await screenshot(story.page, 'corrected-age-storybook-tablet.png');
     await save(story.page, panel, 237, 'storybook');
     // Radix hides the underlying header from accessibility while the account
     // drawer is open. Close that drawer before asserting the visible header.
     await manager.getByRole('button', { name: 'Close', exact: true }).click();
     await manager.waitFor({ state: 'hidden' });
     await assertAge(story.page, preterm, storyDays, storyDays - 43);
+    await responsiveHeader(story.page, preterm, 'storybook');
+    await screenshot(story.page, 'corrected-age-tablet-header.png');
+    await story.page.setViewportSize({ width: 1440, height: 1000 });
     ({ manager, panel } = await openStory());
     await assertForm(panel, '33', '6');
-    report.checks.push('Actual account storybook editor rejects overflow, saves exact weeks and days, and refreshes the selected child using the browser time zone');
+    report.checks.push('Actual account storybook editor rejects invalid gestation, saves at 768×1024 with accessible labels, keyboard input and actions, no horizontal overflow, and refreshes the visible child header using the browser time zone');
 
     await fillGestation(panel, '', '');
     await save(story.page, panel, null, 'storybook');
