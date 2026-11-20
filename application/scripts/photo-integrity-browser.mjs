@@ -461,7 +461,25 @@ export async function verifyPhotoIntegrity({ base, db, browser, reportDir, signa
     });
 
     await check('Delayed editor and gallery-repair responses preserve the newly opened record, its handles and its actionable controls', async () => {
-      await fullLog();
+      // The prior scenario deliberately leaves the sibling selected. Restore
+      // the fixture owner through the real selector before delaying any reads.
+      const [primaryTimeline] = await Promise.all([
+        page.waitForResponse(response => new URL(response.url()).pathname === '/api/timeline'
+          && new URL(response.url()).searchParams.get('babyId') === baby.id, { timeout: 5000 }),
+        (async () => {
+          await fullLog();
+          await page.getByLabel('Select Baby', { exact: true }).click();
+          await page.getByRole('menuitemradio', { name: new RegExp('^' + baby.firstName + '\\b') }).click();
+        })(),
+      ]);
+      await until(() => new URL(page.url()).searchParams.get('babyId') === baby.id, 'primary child URL before delayed record reads');
+      const primaryHeader = page.getByRole('button', { name: `${baby.firstName}'s Quick Stats`, exact: true });
+      assert.equal(await primaryHeader.getByText(baby.firstName, { exact: true }).textContent(), baby.firstName,
+        'The delayed record scenario must start with the primary child selected');
+      assert.equal(primaryTimeline.status(), 200, 'The primary child timeline must load before interception');
+      const primaryRows = (await primaryTimeline.json()).data;
+      assert.ok(Array.isArray(primaryRows) && primaryRows.every(row => row.babyId === baby.id), 'Timeline rows must belong to the selected primary child');
+      for (const feed of [feedA, feedB]) assert.ok(primaryRows.some(row => row.id === feed.id), `The primary timeline must contain ${feed.notes}`);
       let captured = deferred(), release = deferred(), completed = deferred(), heldError;
       releases.add(release.resolve);
       const delayedAttachment = async route => {
