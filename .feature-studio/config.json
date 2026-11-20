@@ -1,0 +1,14 @@
+{
+  "_managed_by": "FeatureStudio",
+  "schema_version": 1,
+  "owner": "MulattoTech",
+  "feature_spec_path": "feature-studio/specs",
+  "intake_issue_form": ".github/ISSUE_TEMPLATE/feature-studio.yml",
+  "central_control_plane": "MulattoTech/FeatureStudio",
+  "require_spec_review": true,
+  "require_human_merge_review": true,
+  "require_ci": true,
+  "agent_execution": "explicit-approved-revisions-only",
+  "allow_automatic_main_push": false,
+  "enable_github_writeback": false
+}

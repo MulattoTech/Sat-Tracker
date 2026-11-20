@@ -1,0 +1,70 @@
+# Managed by Feature Studio v1; see https://github.com/MulattoTech/FeatureStudio
+name: Feature Studio intake
+description: Describe a verifiable feature. This proposal never authorizes automated agents.
+title: "[Feature Studio] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a portable fallback for the richer private/local Feature Studio GUI.
+        No automatic execution, review, merge, or deployment is authorized by submitting this form.
+        Never include personal data, credentials, or private applicant documents.
+  - type: input
+    id: spec_id
+    attributes:
+      label: Feature Studio specification ID
+      description: Optional; generated in the GUI (FS-...).
+    validations:
+      required: false
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and user impact
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Expected user-visible outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Measurable acceptance criteria
+      description: One evidence-backed acceptance criterion per line.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Suggested priority
+      options: ["P0", "P1", "P2", "P3", "P4", "P5", "P6"]
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Affected product scope
+      options: ["full", "frontend", "backend", "ai", "infrastructure", "discover"]
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Known dependencies or blockers
+    validations:
+      required: false
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Security, privacy, compatibility and non-goals
+    validations:
+      required: false
+  - type: checkboxes
+    id: policy
+    attributes:
+      label: Workflow acknowledgement
+      options:
+        - label: This form does not start agents, authorize repository writes, or count as review.
+          required: true
