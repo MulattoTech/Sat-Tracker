@@ -123,11 +123,17 @@ def _recipient(age_keygen: str, work: Path, name: str) -> tuple[Path, str]:
 def check() -> dict:
     age_exe = shutil.which("age")
     keygen_exe = shutil.which("age-keygen")
+    rage_exe = shutil.which("rage")
     if not age_exe or not keygen_exe:
         raise QualificationError("PINNED_AGE_EXECUTABLES_MISSING")
+    if not rage_exe:
+        raise QualificationError("PINNED_RAGE_EXECUTABLE_MISSING")
     version = _run(age_exe, ["--version"]).stdout.decode("utf-8", errors="replace")
+    other_version = _run(rage_exe, ["--version"]).stdout.decode("utf-8", errors="replace")
     if "v1.3.2" not in version and "1.3.2" not in version:
         raise QualificationError("UNEXPECTED_AGE_VERSION")
+    if "0.12.1" not in other_version:
+        raise QualificationError("UNEXPECTED_RAGE_VERSION")
 
     # TemporaryDirectory contains only fake identities and fake care records.
     # The directory is deleted on all paths, including failed tests.
@@ -167,22 +173,56 @@ def check() -> dict:
             "-d", "-i", str(stranger), "-o", "-", str(output)
         ], expected_success=False)
 
+        # Cross-implementation: the *separate Rust rage* decoder must
+        # recover the same Go-age ciphertext with both Go-generated identities.
+        for key in (owner, recovery):
+            plaintext = _run(rage_exe, [
+                "-d", "-i", str(key), "-o", "-", str(output)
+            ]).stdout
+            if plaintext != snapshot:
+                raise QualificationError("RUST_DECODER_RECOVERY_MISMATCH")
+            _check_archive(plaintext, root)
+        _run(rage_exe, [
+            "-d", "-i", str(stranger), "-o", "-", str(output)
+        ], expected_success=False)
+
+        # Reverse direction: Rust rage encrypts the fabricated archive;
+        # Go age must decrypt it with either of the same synthetic identities.
+        rage_cipher = root / "fabricated-rage-snapshot.age"
+        _run(rage_exe, [
+            "-r", owner_recipient, "-r", recovery_recipient,
+            "-o", str(rage_cipher),
+        ], data=snapshot)
+        for key in (owner, recovery):
+            plaintext = _run(age_exe, [
+                "-d", "-i", str(key), "-o", "-", str(rage_cipher)
+            ]).stdout
+            if plaintext != snapshot:
+                raise QualificationError("GO_DECODER_RECOVERY_MISMATCH")
+
         # Explicitly alter and truncate a copy of *fabricated* ciphertext;
         # no corrupted output may be accepted as a valid recovery.
         tampered = root / "tampered.age"
         bad = bytearray(cipher)
         bad[-1] ^= 1
         tampered.write_bytes(bad)
-        _run(age_exe, ["-d", "-i", str(owner), "-o", "-", str(tampered)],
-             expected_success=False)
+        for decoder in (age_exe, rage_exe):
+            _run(decoder, ["-d", "-i", str(owner), "-o", "-", str(tampered)],
+                 expected_success=False)
         truncated = root / "truncated.age"
         truncated.write_bytes(cipher[:-20])
-        _run(age_exe, ["-d", "-i", str(owner), "-o", "-", str(truncated)],
-             expected_success=False)
+        for decoder in (age_exe, rage_exe):
+            _run(decoder, ["-d", "-i", str(owner), "-o", "-", str(truncated)],
+                 expected_success=False)
 
         return {
-            "status": "SYNTHETIC_AGE_RECOVERY_PASS",
+            "status": "SYNTHETIC_AGE_RAGE_INTEROP_PASS",
             "age_version_checked": "v1.3.2",
+            "rage_version_checked": "v0.12.1",
+            "independent_implementations_verified": 2,
+            "go_age_to_rust_rage_recovery_verified": True,
+            "rust_rage_to_go_age_recovery_verified": True,
+            "cross_platform_recovery_verified": False,
             "synthetic_only": True,
             "identity_sources": 3,
             "independent_recovery_identities_verified": 2,

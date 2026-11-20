@@ -42,9 +42,12 @@ It will fail closed if the official `age` and `age-keygen` executables
 are unavailable or report an unexpected version.
 
 The [dedicated CI workflow](../.github/workflows/age-backup-synthetic.yml)
-builds the official `filippo.io/age` CLI at the **fixed v1.3.2 release**
-using an ephemeral Linux runner and executes the standalone test. The
-experiment:
+builds the official Go `filippo.io/age` CLI at the **fixed v1.3.2
+release**, then downloads the separate Rust `rage` **v0.12.1** Linux binary
+from its official tagged GitHub release and checks the pinned SHA-256
+`c5d7ab41fbf1213590e89721fd2b8eb122e84518c155ce35866f1c5759a3a29f`
+before executing it. This adds a second implementation without installing
+software on the Windows host. The experiment:
 
 1. Creates two artificial SQLite databases, fake configuration names and
    artificial media, packed into `db/`, `env/`, and `files/` members.
@@ -52,11 +55,12 @@ experiment:
    recipients and the third is deliberately unrelated.
 3. Sends the fabricated tar.gz over a binary pipe to `age`; a plaintext
    archive **is never written to disk** by this experiment.
-4. Verifies each of the two recipient identities independently recovers
-   **exactly the same bytes**, with SQLite integrity and foreign-key checks
-   on disposable recovered fake databases.
-5. Verifies the unrelated identity cannot decrypt; separately verifies
-   tampered and truncated synthetic ciphertext are rejected.
+4. Verifies each recipient identity recovers **exactly the same bytes**
+   using both the **Go age** and **Rust rage** decryption implementations,
+   with SQLite integrity and foreign-key checks on disposable recovered fake
+   databases. It also encrypts with Rust rage and decrypts with Go age.
+5. Verifies the unrelated identity cannot decrypt in either implementation;
+   independently verifies both reject tampered and truncated fake ciphertext.
 6. Deletes the entire test-owned directory, including fake identities.
    The test reports counts and booleans only—not private key material,
    public recipient values, plaintext, or full paths.
@@ -70,9 +74,10 @@ writes plaintext) into a live acquisition pipeline.
 ## What this does and does not prove
 
 Passing synthetic age tests is promising evidence of **format
-interoperability with the official CLI** and recovery by two distinct test
-identities. Both decryptions use the same CLI implementation and OS, so
-they **do not prove independent implementation/cross-platform recovery**.
+interoperability across the official Go age and separate Rust rage CLI
+implementations** and recovery by two distinct test identities. This
+qualifies a *synthetic* cross-implementation round trip **on Linux only**;
+it does **not prove recovery across operating systems or hardware**.
 Do not call this an audited backup or a successful restoration of real care
 records, image encryption configuration, or encrypted media.
 

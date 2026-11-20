@@ -29,5 +29,20 @@ jobs:
           go install filippo.io/age/cmd/age@v1.3.2
           go install filippo.io/age/cmd/age-keygen@v1.3.2
           echo "$GOBIN" >> "$GITHUB_PATH"
-      - name: Require binary-safe two-recipient synthetic recovery
+      - name: Install checksum-verified Rust rage v0.12.1 (synthetic only)
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/sat-age-rage"
+          mkdir -p "$work"
+          archive="$work/rage-v0.12.1-x86_64-linux.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/str4d/rage/releases/download/v0.12.1/rage-v0.12.1-x86_64-linux.tar.gz" \
+            -o "$archive"
+          printf '%s  %s\n' \
+            'c5d7ab41fbf1213590e89721fd2b8eb122e84518c155ce35866f1c5759a3a29f' \
+            "$archive" | sha256sum --check --status
+          tar -xzf "$archive" -C "$work" rage/rage
+          chmod 700 "$work/rage/rage"
+          echo "$work/rage" >> "$GITHUB_PATH"
+      - name: Require binary-safe two-recipient cross-implementation recovery
         run: python scripts/verify_age_backup_synthetic.py
