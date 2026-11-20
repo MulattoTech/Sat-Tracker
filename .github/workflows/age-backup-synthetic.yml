@@ -4,6 +4,7 @@ on:
     paths:
       - ".github/workflows/age-backup-synthetic.yml"
       - "scripts/verify_age_backup_synthetic.py"
+      - "scripts/verify_age_cross_os_synthetic.py"
       - "docs/feedback-hotfix-age-format-review.md"
   workflow_dispatch:
 permissions:
@@ -46,7 +47,16 @@ jobs:
           echo "$work/rage" >> "$GITHUB_PATH"
       - name: Require binary-safe two-recipient cross-implementation recovery
         run: python scripts/verify_age_backup_synthetic.py
+      - name: Create one fabricated Linux ciphertext for Windows recovery
+        run: python scripts/verify_age_cross_os_synthetic.py generate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-age-linux-to-windows-${{ github.sha }}
+          path: ${{ runner.temp }}/sat-age-cross-os-synthetic/share/
+          retention-days: 1
+          if-no-files-found: error
   synthetic-age-windows:
+    needs: synthetic-age-recovery
     runs-on: windows-2022
     timeout-minutes: 20
     steps:
@@ -95,3 +105,9 @@ jobs:
           }
       - name: Require synthetic Windows Go/Rust recovery
         run: python scripts/verify_age_backup_synthetic.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: synthetic-age-linux-to-windows-${{ github.sha }}
+          path: ${{ runner.temp }}/sat-age-cross-os-synthetic/share
+      - name: Recover the exact Linux ciphertext on Windows with Go and Rust
+        run: python scripts/verify_age_cross_os_synthetic.py verify

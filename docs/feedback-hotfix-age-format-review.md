@@ -69,6 +69,19 @@ assets; no software is installed on the user's Windows host. The experiment:
    The test reports counts and booleans only—not private key material,
    public recipient values, plaintext, or full paths.
 
+An additional `verify_age_cross_os_synthetic.py` test requires Linux
+to generate **one uniquely identified synthetic age ciphertext** and
+three temporary fake identities. GitHub Actions transfers the ciphertext,
+fake identities, and a synthetic-only SHA-256 manifest to the Windows runner
+as a **one-day-retention test artifact**. These identities are explicitly
+fabricated and intentionally exposed to this controlled test; **never send
+a real recovery identity or household backup to a GitHub artifact**.
+Windows verifies the originating workflow run and the encrypted bytes'
+SHA-256, then uses both Go age and Rust rage with the two original
+Linux-generated fake identities to recover exactly the same tar bytes and
+validate both SQLite databases. This second test does not accept user paths,
+or run outside the named GitHub repository and CI environment.
+
 The workflow has no production domain access, no deployment credentials,
 no Docker volume mounts and no real backup inputs. Building the pinned CLI
 requires ordinary Go module downloads. It does not attempt to turn the
@@ -81,9 +94,12 @@ Passing synthetic age tests is promising evidence of **format
 interoperability across the official Go age and separate Rust rage CLI
 implementations** and recovery by two distinct test identities. This
 qualifies *synthetic* cross-implementation recovery on each GitHub CI OS
-when both jobs pass. Each runner creates its **own** fake archive and keys;
-this does **not** transfer the exact same encrypted artifact between Windows
-and Linux or prove a production recovery across distinct hardware.
+when both jobs pass. The added artifact handoff additionally tests the
+**same Linux-created ciphertext and disposable Linux identities** on a
+Windows runner, where both implementations must recover exact bytes
+and match the SHA-256 committed by the Linux job. That is a real
+cross-OS artifact transfer **of fabricated data only**, not evidence
+of independent owner-key custody, production backup, or real-data recovery.
 Do not call this an audited backup or a successful restoration of real care
 records, image encryption configuration, or encrypted media.
 
