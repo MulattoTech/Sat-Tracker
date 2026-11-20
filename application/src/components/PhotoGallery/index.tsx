@@ -366,6 +366,7 @@ export default function PhotoGallery({ babyId }: PhotoGalleryProps) {
           onToggleFavorite={handleToggleFavorite}
           onDelete={handleLightboxDelete}
           onDownload={handleLightboxDownload}
+          onPhotoUpdated={photo => setPhotos(current => current.map(value => value.id === photo.id ? photo : value))}
         />
       )}
 

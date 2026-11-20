@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
+import { assertPhotoTargetMove, detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
 import { ApiResponse, FeedLogCreate, FeedLogResponse } from '../types';
 import { FeedType } from '@prisma/client';
 import { withAuthContext, AuthResult } from '../utils/auth';
@@ -181,9 +183,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {}),
     };
 
-    const feedLog = await prisma.feedLog.update({
-      where: { id },
-      data,
+    const feedLog = await withPhotoIntegrity(prisma, familyId!, async tx => {
+      await assertPhotoTargetMove(tx, familyId!, { activityType: 'feed', activityId: id }, body.babyId);
+      return tx.feedLog.update({ where: { id }, data: data });
     });
 
     // Format dates as ISO strings for response
@@ -200,6 +202,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     return NextResponse.json<ApiResponse<FeedLogResponse>>(
       {
         success: false,
@@ -340,14 +343,16 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.feedLog.delete({
-      where: { id },
+    await withPhotoIntegrity(prisma, familyId!, async tx => {
+      await detachPhotoTargetForDeletion(tx, familyId!, { activityType: 'feed', activityId: id });
+      await tx.feedLog.delete({ where: { id } });
     });
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     if (error instanceof NurseryUndoError) return error.response();
     console.error('Error deleting feed log:', error);
     return NextResponse.json<ApiResponse<void>>(

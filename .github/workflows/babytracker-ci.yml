@@ -18,7 +18,8 @@ jobs:
     # Match the tested native/browser toolchain; ubuntu-latest can advance to an
     # OS release that the pinned Playwright browser does not support yet.
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # Add the separate four-minute photo stage; existing per-stage bounds stay fixed.
+    timeout-minutes: 24
     defaults:
       run:
         working-directory: application
@@ -142,5 +143,68 @@ jobs:
         with:
           name: diaper-rash-postgres-${{ github.sha }}
           path: application/test-results/diaper-rash-postgres-report.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  postgres-photo-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: application
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: sat_tracker_photo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sat_tracker_photo_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/sat_tracker_photo_test
+      LOG_DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/sat_tracker_photo_test
+      SAT_TRACKER_SYNTHETIC_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: application/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run prisma:generate && npm run prisma:generate:log
+      - name: Verify photo ownership and actual overlapping PostgreSQL writers
+        run: node --import tsx scripts/verify-photo-integrity-postgres.ts
+      - name: Require complete current-source photo provider evidence
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const r = JSON.parse(fs.readFileSync('test-results/photo-integrity-postgres-report.json', 'utf8'));
+          assert.equal(r.gitRevision, process.env.GITHUB_SHA);
+          assert.equal(r.syntheticOnly, true); assert.equal(r.provider, 'postgresql'); assert.equal(r.status, 'PASS');
+          assert.equal(r.checks.length, 15); assert.ok(r.checks.every(c => c.status === 'PASS'));
+          assert.equal(r.races.length, 9); assert.equal(new Set(r.races.map(c => c.scenario)).size, 9);
+          for (const race of r.races) {
+            assert.equal(race.provider, 'postgresql'); assert.equal(race.actualOverlap.waitEvent, 'Lock');
+            assert.equal(race.bothClientsCommittedAfterContention, true); assert.equal(race.familyScalarsPreserved, true);
+          }
+          assert.deepEqual(r.errors, []); assert.deepEqual(r.cleanup.errors, []);
+          assert.equal(r.cleanup.attempted, true); assert.equal(r.cleanup.ownedFixturesRemoved, true);
+          assert.equal(r.cleanup.ownedFilesRemoved, true); assert.equal(r.cleanup.clientsClosed, true);
+          JS
+      - name: Upload synthetic PostgreSQL photo evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: photo-integrity-postgres-${{ github.sha }}
+          path: application/test-results/photo-integrity-postgres-report.json
           if-no-files-found: warn
           retention-days: 7

@@ -9,6 +9,8 @@ import { PrismaClient } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { createPrismaAdapter } from '@/prisma/prisma-adapter';
 import { readNurseryUndo, nurseryUndoEndpoint, type NurseryUndo, type NurseryUndoKind } from '@/src/utils/nursery/undo';
+import { withPhotoIntegrity } from '@/app/api/utils/photo-integrity';
+import { attachPhotoToTarget } from '@/app/api/photos/photo-link-service';
 
 const state = vi.hoisted(() => ({ db: null as unknown as PrismaClient,
   gate: null as null | { model: string; enter: () => Promise<void> }, separateTransactions: false }));
@@ -124,6 +126,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   state.gate = null; state.separateTransactions = false; txNumber = 0;
   await db.$executeRawUnsafe('DROP TRIGGER IF EXISTS undo_fail_delete');
+  await db.photoLink.deleteMany(); await db.photo.deleteMany();
   await db.activeBreastFeed.deleteMany(); await db.feedLog.deleteMany(); await db.pumpLog.deleteMany();
   await db.diaperLog.deleteMany(); await db.foodLog.deleteMany(); await db.externalImportRecord.deleteMany();
   await db.baby.updateMany({ data: { deletedAt: null } });
@@ -143,6 +146,37 @@ describe('conditional Nursery Undo through real login/JWT and migrated SQLite', 
     expect(after.food.length).toBe(kind === 'food' ? 1 : 0); if (kind === 'food') expect(after.food[0].deletedAt).not.toBeNull();
     expect(await db.externalImportRecord.findMany()).toEqual(receipts);
     expect([404, 409]).toContain((await remove(undo)).status); // Missing is never a successful Undo receipt.
+  });
+
+  const attachLater = async (undo: NurseryUndo) => {
+    const photo = await db.photo.create({ data: { familyId, babyId, originalName: 'synthetic.png', storedName: randomUUID() + '.enc',
+      thumbStoredName: randomUUID() + '.enc', mimeType: 'image/png', fileSize: 1, thumbSize: 1, takenAt: new Date(at) } });
+    const activityType = undo.kind === 'diaper' ? 'diaper' : undo.kind === 'food' ? 'foodLog' : 'feed';
+    const activityId = undo.kind === 'pump' ? undo.feed!.id : undo.records.at(-1)!.id;
+    await withPhotoIntegrity(db, familyId, tx => attachPhotoToTarget(tx, familyId, { photoId: photo.id, activityType, activityId }));
+    return { photos: await db.photo.findMany(), links: await db.photoLink.findMany() };
+  };
+
+  it.each(kinds)('preserves the whole %s action after a later photo attachment without relying on scalar revisions', async kind => {
+    const { undo } = await create(kind), before = await snapshot();
+    const photoState = await attachLater(undo);
+    expect(await snapshot()).toEqual(before); // PhotoLink is separate from the care revision.
+    expect((await remove(undo)).status).toBe(409);
+    expect(await snapshot()).toEqual(before);
+    expect({ photos: await db.photo.findMany(), links: await db.photoLink.findMany() }).toEqual(photoState);
+  });
+
+  it.each(kinds)('rechecks %s attachments after the original Undo snapshot was read', async kind => {
+    const { undo } = await create(kind), before = await snapshot();
+    let release!: () => void, arrived!: () => void;
+    const reached = new Promise<void>(resolve => { arrived = resolve; }), blocked = new Promise<void>(resolve => { release = resolve; });
+    state.gate = { model: kind === 'bottle' || kind === 'breast' ? 'feedLog' : `${kind}Log`, enter: async () => { arrived(); await blocked; } };
+    const pending = remove(undo);
+    try {
+      await reached; const photoState = await attachLater(undo); release();
+      expect((await pending).status).toBe(409); expect(await snapshot()).toEqual(before);
+      expect({ photos: await db.photo.findMany(), links: await db.photoLink.findMany() }).toEqual(photoState);
+    } finally { release(); await pending; }
   });
 
   it.each(kinds)('preserves a peer correction to %s', async kind => {

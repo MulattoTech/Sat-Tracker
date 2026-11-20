@@ -26,7 +26,8 @@ import { handleExpirationError } from '@/src/lib/expiration-error-handler';
 import { useLocalization } from '@/src/context/localization';
 import { Settings } from 'lucide-react';
 import { PhotoAttachments } from '@/src/components/ui/photo-attachments';
-import { uploadPhotos, linkPhoto, unlinkPhoto, fetchPhotos, fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+import { uploadPhotos, linkPhoto, unlinkPhoto, fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+import { useActivityPhotoAttachments } from '@/src/hooks/useActivityPhotoAttachments';
 
 import './bath-form.css';
 
@@ -87,21 +88,14 @@ export default function BathForm({
   const [showBathTypeManager, setShowBathTypeManager] = useState(false);
   const [photosEnabled, setPhotosEnabled] = useState(false);
   const [pendingPhotoFiles, setPendingPhotoFiles] = useState<File[]>([]);
-  const [attachedPhotos, setAttachedPhotos] = useState<{ id: string; caption: string | null }[]>([]);
+  const { photos: attachedPhotos, setPhotos: setAttachedPhotos, reservedSlots: reservedPhotoSlots,
+    loading: attachmentsLoading, error: attachmentsError, reload: reloadAttachments } = useActivityPhotoAttachments({
+    activityType: 'bath', activityId: activity?.id, babyId, isOpen: isOpen, enabled: photosEnabled,
+  });
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
 
   useEffect(() => { fetchPhotosEnabled().then(setPhotosEnabled); }, []);
 
-  useEffect(() => {
-    if (!isOpen || !activity?.id || !photosEnabled) return;
-    fetchPhotos({ babyId })
-      .then((data) => setAttachedPhotos(
-        data.photos
-          .filter((p) => p.links.some((l) => l.activityType === 'bath' && l.activityId === activity.id))
-          .map((p) => ({ id: p.id, caption: p.caption }))
-      ))
-      .catch(() => {});
-  }, [isOpen, activity?.id, photosEnabled]);
 
   // Fetch custom bath types and hidden bath type settings when form opens
   useEffect(() => {
@@ -562,6 +556,8 @@ export default function BathForm({
               <div className="space-y-2">
                 <Label>{t('Photos')}</Label>
                 <PhotoAttachments
+                  reservedSlots={reservedPhotoSlots} loading={attachmentsLoading}
+                  loadError={attachmentsError} onRetry={reloadAttachments}
                   pendingFiles={pendingPhotoFiles}
                   onPendingFilesChange={setPendingPhotoFiles}
                   existingPhotos={attachedPhotos}

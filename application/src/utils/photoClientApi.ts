@@ -1,4 +1,4 @@
-import { PhotoListResponse, PhotoLogCreate, PhotoLogResponse, PhotoResponse, PhotoUploadResult } from '@/app/api/types';
+import { PhotoAttachmentListResponse, PhotoListResponse, PhotoLogCreate, PhotoLogResponse, PhotoResponse, PhotoUploadResult } from '@/app/api/types';
 import { photosZipFileName, uniqueFileNames } from '@/src/utils/photoUtils';
 import { normalizeImageFile } from '@/src/utils/normalizeImageFile';
 
@@ -44,6 +44,15 @@ export async function fetchPhotos(params?: { babyId?: string; trash?: boolean; c
   return jsonRequest<PhotoListResponse>(`/api/photos${query ? `?${query}` : ''}`);
 }
 
+export async function fetchPhoto(id: string): Promise<PhotoResponse> {
+  return jsonRequest<PhotoResponse>(`/api/photos/${encodeURIComponent(id)}`);
+}
+
+export async function fetchPhotoAttachments(activityType: string, activityId: string): Promise<PhotoAttachmentListResponse> {
+  const params = new URLSearchParams({ activityType, activityId });
+  return jsonRequest<PhotoAttachmentListResponse>(`/api/photos/attachments?${params}`);
+}
+
 export async function updatePhoto(id: string, body: { caption?: string | null; takenAt?: string; milestoneId?: string | null }): Promise<PhotoResponse> {
   return jsonRequest<PhotoResponse>(`/api/photos/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
@@ -72,6 +81,12 @@ export async function linkPhoto(photoId: string, activityType: string, activityI
 
 export async function unlinkPhoto(photoId: string, activityType: string, activityId: string): Promise<void> {
   const params = new URLSearchParams({ photoId, activityType, activityId });
+  await jsonRequest(`/api/photos/links?${params}`, { method: 'DELETE' });
+}
+
+/** An opaque owned-link handle permits explicit removal without revealing its target. */
+export async function unlinkUnavailablePhotoLink(photoId: string, linkId: string): Promise<void> {
+  const params = new URLSearchParams({ photoId, linkId });
   await jsonRequest(`/api/photos/links?${params}`, { method: 'DELETE' });
 }
 

@@ -15,11 +15,11 @@ export interface PhotoDetailProps {
 }
 ```
 
-The parent always already holds the loaded `PhotoResponse` (from a list
-fetch or a record's attachments), so `PhotoDetail` takes the photo object
-directly rather than an id + an internal fetch. This keeps it a pure
-presentational drawer with no data-fetching of its own beyond the image
-bytes.
+The parent supplies a sanitized `PhotoResponse` from a list, a target's
+attachments, or the direct single-photo lookup. Timeline thumbnail clicks use
+the latter, independent of gallery pagination. The drawer fetches image bytes
+and performs its explicit edit actions; unavailable-link removal refreshes the
+single-photo response after the write succeeds.
 
 ## Features
 
@@ -43,6 +43,11 @@ bytes.
   whenever `photo.id`, `photo.caption`, or `photo.isFavorite` change, so
   edits reflect immediately and external refetches (via `onChanged`)
   don't leave stale text/heart state behind.
+- `UnavailablePhotoLinks` offers explicit removal of individual owned opaque
+  link handles and a hidden milestone tag. No unavailable target identity is
+  displayed. Removal keeps the photo and care record; failure retains the
+  controls and a localized error. Opening or captioning a photo never repairs
+  historical links automatically.
 
 ## Type / Linked activity rows — design note
 
@@ -81,6 +86,7 @@ import PhotoDetail from '@/src/components/PhotoDetail';
 ## Files
 
 - `index.tsx` — component implementation
+- `UnavailablePhotoLinks.tsx` — explicit link/tag removal with retained failures
 - `photo-detail.types.ts` — `PhotoDetailProps`
 - `photo-detail.css` — `html.dark` overrides for row labels, hint text,
   image skeleton/background, favorite overlay, and the milestone chip

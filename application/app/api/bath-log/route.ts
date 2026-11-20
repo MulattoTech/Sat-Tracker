@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
+import { assertPhotoTargetMove, detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
 import { ApiResponse, BathLogCreate, BathLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
@@ -125,9 +127,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
         .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {})
     };
 
-    const bathLog = await prisma.bathLog.update({
-      where: { id, familyId: userFamilyId },
-      data,
+    const bathLog = await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await assertPhotoTargetMove(tx, userFamilyId, { activityType: 'bath', activityId: id }, body.babyId);
+      return tx.bathLog.update({ where: { id, familyId: userFamilyId }, data: data });
     });
 
     // Format dates as ISO strings for response
@@ -144,6 +146,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     if (error instanceof CareWriteError) return error.response();
     console.error('Error updating bath log:', error);
     return NextResponse.json<ApiResponse<BathLogResponse>>(
@@ -311,14 +314,16 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.bathLog.delete({
-      where: { id },
+    await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await detachPhotoTargetForDeletion(tx, userFamilyId, { activityType: 'bath', activityId: id });
+      await tx.bathLog.delete({ where: { id } });
     });
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     console.error('Error deleting bath log:', error);
     return NextResponse.json<ApiResponse<void>>(
       {

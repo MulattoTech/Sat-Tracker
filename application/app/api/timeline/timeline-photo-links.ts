@@ -1,4 +1,5 @@
 import { TimelinePhotoInfo } from '../types';
+import { photoTargetKey, type OwnedPhotoTarget } from '../photos/photo-ownership';
 
 export interface PhotoLinkTarget {
   activityType: string;
@@ -9,6 +10,21 @@ export interface PhotoLinkRow {
   activityType: string;
   activityId: string;
   photo: { id: string; caption: string | null };
+}
+
+export interface ScopedPhotoLinkRow extends PhotoLinkRow {
+  photo: PhotoLinkRow['photo'] & { familyId: string | null; babyId: string; deletedAt: Date | null };
+}
+
+/** A malformed stored edge never borrows its target's read authorization. */
+export function filterReadablePhotoLinks(
+  rows: ScopedPhotoLinkRow[], targets: Map<string, OwnedPhotoTarget>, familyId: string, babyId: string,
+): PhotoLinkRow[] {
+  return rows.filter(row => {
+    const target = targets.get(photoTargetKey(row));
+    return target?.familyId === familyId && target.babyId === babyId
+      && row.photo.familyId === familyId && row.photo.babyId === babyId && row.photo.deletedAt === null;
+  });
 }
 
 /**

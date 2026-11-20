@@ -6,6 +6,8 @@ import { useLocalization } from '@/src/context/localization';
 import { useAuthedImage, photoFileUrl } from '@/src/hooks/useAuthedImage';
 import { CameraCaptureModal, useTakePhoto } from '@/src/components/ui/camera-capture';
 import { MAX_PHOTOS_PER_ACTIVITY } from '@/src/utils/photoUtils';
+import { availablePhotoSlots } from '@/src/utils/photoAttachmentState';
+import { Button } from '@/src/components/ui/button';
 import { attachmentStyles } from './photo-attachments.styles';
 import { PhotoAttachmentsProps } from './photo-attachments.types';
 import './photo-attachments.css';
@@ -64,12 +66,17 @@ export function PhotoAttachments({
   onPhotoClick,
   maxPhotos = MAX_PHOTOS_PER_ACTIVITY,
   disabled = false,
+  reservedSlots = 0,
+  loading = false,
+  loadError = false,
+  onRetry,
 }: PhotoAttachmentsProps) {
   const { t } = useLocalization();
-  const total = existingPhotos.length + pendingFiles.length;
+  const blocked = disabled || loading || loadError;
+  const room = availablePhotoSlots(maxPhotos, existingPhotos.length, pendingFiles.length, reservedSlots);
 
   const addFiles = (files: File[]) => {
-    const room = maxPhotos - total;
+    if (blocked) return;
     onPendingFilesChange([...pendingFiles, ...files.slice(0, room)]);
   };
 
@@ -88,13 +95,13 @@ export function PhotoAttachments({
             key={photo.id}
             photoId={photo.id}
             onClick={onPhotoClick ? () => onPhotoClick(photo.id) : undefined}
-            onRemove={onRemoveExisting && !disabled ? () => onRemoveExisting(photo.id) : undefined}
+            onRemove={onRemoveExisting && !blocked ? () => onRemoveExisting(photo.id) : undefined}
           />
         ))}
         {pendingFiles.map((file, index) => (
-          <PendingThumb key={`${file.name}-${index}`} file={file} onRemove={!disabled ? () => onPendingFilesChange(pendingFiles.filter((_, i) => i !== index)) : undefined} />
+            <PendingThumb key={`${file.name}-${index}`} file={file} onRemove={!blocked ? () => onPendingFilesChange(pendingFiles.filter((_, i) => i !== index)) : undefined} />
         ))}
-        {total < maxPhotos && !disabled && (
+        {room > 0 && !blocked && (
           <>
             <button type="button" className={`${attachmentStyles.addTile()} photo-attachments-add`} onClick={camera.takePhoto} aria-label={t('Take Photo')}>
               <Camera className="h-5 w-5" />
@@ -107,6 +114,14 @@ export function PhotoAttachments({
           </>
         )}
       </div>
+      {loading && <p className={attachmentStyles.hint()} role="status">{t('Loading...')}</p>}
+      {loadError && <div className="space-y-2" role="alert">
+        <p className="text-sm text-red-500">{t('Failed to load photos')}</p>
+        {onRetry && <Button type="button" variant="outline" onClick={onRetry}>{t('Retry')}</Button>}
+      </div>}
+      {reservedSlots > 0 && <p className={`${attachmentStyles.hint()} photo-attachments-hint`} data-testid="photo-reserved-slots">
+        {t('Unavailable or trashed attachments reserve photo slots ({count}).').replace('{count}', String(reservedSlots))}
+      </p>}
       <p className={`${attachmentStyles.hint()} photo-attachments-hint`}>
         {t("Attach up to 4 photos — they'll show on the timeline and in the gallery.")}
       </p>

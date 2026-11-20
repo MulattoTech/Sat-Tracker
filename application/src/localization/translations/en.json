@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "One or more rash details exceed the character limit.",
   "Export PDF": "Export PDF",
   "Unable to export activities. Please try again.": "Unable to export activities. Please try again.",
-  "Preparing PDF...": "Preparing PDF..."
+  "Preparing PDF...": "Preparing PDF...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Unavailable or trashed attachments reserve photo slots ({count}).",
+  "Unavailable attachments": "Unavailable attachments",
+  "Removing an unavailable link keeps the photo and care record.": "Removing an unavailable link keeps the photo and care record.",
+  "Remove unavailable link": "Remove unavailable link",
+  "Remove unavailable milestone": "Remove unavailable milestone"
 }

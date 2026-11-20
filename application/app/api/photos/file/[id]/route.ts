@@ -24,8 +24,10 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo ID is required' }, { status: 400 });
     }
 
+    if (!authContext.familyId) return NextResponse.json({ success: false, error: 'Photo not found' }, { status: 404 });
+
     const photo = await prisma.photo.findFirst({
-      where: { id, familyId: authContext.familyId },
+      where: { id, familyId: authContext.familyId, baby: { familyId: authContext.familyId, deletedAt: null } },
     });
     if (!photo || (photo.deletedAt && !allowTrashed)) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo not found' }, { status: 404 });

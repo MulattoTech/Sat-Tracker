@@ -11,4 +11,8 @@ export interface PhotoAttachmentsProps {
   onPhotoClick?: (photoId: string) => void; // tap an existing thumb -> PhotoDetail
   maxPhotos?: number; // default MAX_PHOTOS_PER_ACTIVITY
   disabled?: boolean;
+  reservedSlots?: number; // hidden/trashed links still occupy capacity
+  loading?: boolean;
+  loadError?: boolean;
+  onRetry?: () => void;
 }

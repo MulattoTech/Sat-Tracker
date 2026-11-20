@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Unul sau mai multe detalii despre erupție depășesc limita de caractere.",
   "Export PDF": "Exportă PDF",
   "Unable to export activities. Please try again.": "Activitățile nu au putut fi exportate. Încercați din nou.",
-  "Preparing PDF...": "Se pregătește PDF-ul..."
+  "Preparing PDF...": "Se pregătește PDF-ul...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Atașamentele indisponibile sau din coșul de gunoi ocupă locuri pentru fotografii ({count}).",
+  "Unavailable attachments": "Atașamente indisponibile",
+  "Removing an unavailable link keeps the photo and care record.": "Eliminarea unei legături indisponibile păstrează fotografia și înregistrarea de îngrijire.",
+  "Remove unavailable link": "Elimină legătura indisponibilă",
+  "Remove unavailable milestone": "Elimină etapa de dezvoltare indisponibilă"
 }

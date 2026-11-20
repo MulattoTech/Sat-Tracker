@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Uno o más detalles del sarpullido superan el límite de caracteres.",
   "Export PDF": "Exportar PDF",
   "Unable to export activities. Please try again.": "No se pudieron exportar las actividades. Inténtalo de nuevo.",
-  "Preparing PDF...": "Preparando PDF..."
+  "Preparing PDF...": "Preparando PDF...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Los adjuntos no disponibles o en la papelera reservan espacios para fotos ({count}).",
+  "Unavailable attachments": "Archivos adjuntos no disponibles",
+  "Removing an unavailable link keeps the photo and care record.": "Al eliminar un enlace no disponible, se conservan la foto y el registro de cuidados.",
+  "Remove unavailable link": "Eliminar enlace no disponible",
+  "Remove unavailable milestone": "Eliminar hito no disponible"
 }

@@ -1,5 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { buildLinkTargets, groupPhotoLinks, photoLogHasLivePhotos, PhotoLinkRow } from '@/app/api/timeline/timeline-photo-links';
+import { buildLinkTargets, filterReadablePhotoLinks, groupPhotoLinks, photoLogHasLivePhotos, PhotoLinkRow, ScopedPhotoLinkRow } from '@/app/api/timeline/timeline-photo-links';
+
+describe('independent timeline photo ownership projection', () => {
+  const ref = { activityType: 'diaper', activityId: 'owned-event', familyId: 'family', babyId: 'child' };
+  const targets = new Map([['diaper:owned-event', ref]]);
+  const row = (photo: Partial<ScopedPhotoLinkRow['photo']> = {}): ScopedPhotoLinkRow => ({
+    activityType: ref.activityType, activityId: ref.activityId,
+    photo: { id: 'photo', caption: 'Synthetic observation', familyId: 'family', babyId: 'child', deletedAt: null, ...photo },
+  });
+  it('keeps a valid diaper attachment with unchanged presentation data', () => {
+    expect(groupPhotoLinks(filterReadablePhotoLinks([row()], targets, 'family', 'child')).get('diaper:owned-event'))
+      .toEqual([{ id: 'photo', caption: 'Synthetic observation' }]);
+  });
+  it.each([
+    { familyId: 'foreign' }, { familyId: null }, { babyId: 'sibling' }, { deletedAt: new Date('2026-11-20T00:00:00Z') },
+  ])('suppresses an unauthorized or unavailable photo: %j', photo => {
+    expect(filterReadablePhotoLinks([row(photo)], targets, 'family', 'child')).toEqual([]);
+  });
+  it('does not trust a missing, wrong-child, or wrong-family target', () => {
+    expect(filterReadablePhotoLinks([row()], new Map(), 'family', 'child')).toEqual([]);
+    expect(filterReadablePhotoLinks([row()], new Map([['diaper:owned-event', { ...ref, babyId: 'sibling' }]]), 'family', 'child')).toEqual([]);
+    expect(filterReadablePhotoLinks([row()], new Map([['diaper:owned-event', { ...ref, familyId: 'foreign' }]]), 'family', 'child')).toEqual([]);
+  });
+});
 
 describe('buildLinkTargets', () => {
   it('filters out types with empty id lists', () => {

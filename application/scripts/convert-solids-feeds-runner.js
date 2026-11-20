@@ -27,6 +27,7 @@ const {
   buildFoodLogData,
   placeFoodTile,
 } = require('./convert-solids-feeds-core');
+const { lockPhotoFamilyRow } = require('./photo-integrity-lock');
 
 /**
  * Place the 'food' activity tile next to 'feed' in every caretaker's saved
@@ -105,50 +106,67 @@ async function convertSolidsFeeds(prisma) {
   let converted = 0;
   let errors = 0;
 
-  // Per-family catalog cache: familyId ('' for null) -> (name key -> food id)
-  const catalogByFamily = new Map();
-
-  async function getCatalog(familyId) {
-    const cacheKey = familyId || '';
-    let catalog = catalogByFamily.get(cacheKey);
-    if (!catalog) {
-      const foods = await prisma.food.findMany({
-        where: { familyId: familyId || null, deletedAt: null },
-        select: { id: true, name: true },
-      });
-      catalog = new Map(foods.map((food) => [foodNameKey(food.name), food.id]));
-      catalogByFamily.set(cacheKey, catalog);
-    }
-    return catalog;
-  }
-
+  let concurrentlySkipped = 0;
   for (const feed of pending) {
     try {
-      const { name } = resolveCatalogFoodName(feed);
-      const catalog = await getCatalog(feed.familyId);
-      let foodId = catalog.get(foodNameKey(name));
-      if (!foodId) {
-        const food = await prisma.food.create({
-          data: { name, commonAllergen: false, familyId: feed.familyId || null },
+      const didConvert = await prisma.$transaction(async (tx) => {
+        // Share the first-write ordering used by live attachment/lifecycle APIs.
+        // Unscoped historical feeds cannot receive new authorized attachments;
+        // claim their exact row first and refuse any ambiguous retained links.
+        if (feed.familyId) {
+          if (await lockPhotoFamilyRow(tx, feed.familyId) !== 1) throw new Error('Source family is unavailable');
+        } else {
+          const claimed = await tx.feedLog.updateMany({ where: { ...feed }, data: { updatedAt: feed.updatedAt } });
+          if (claimed.count !== 1) throw new Error('Source feed changed before conversion');
+        }
+        const current = await tx.feedLog.findUnique({ where: { id: feed.id } });
+        if (!current) return false;
+        if (JSON.stringify(current) !== JSON.stringify(feed)) throw new Error('Source feed changed before conversion');
+        const alreadyConverted = await tx.foodLog.findFirst({
+          where: { feedLogId: feed.id, familyId: feed.familyId, babyId: feed.babyId }, select: { id: true },
         });
-        foodId = food.id;
-        catalog.set(foodNameKey(name), foodId);
-      }
+        if (alreadyConverted) return false;
 
-      await prisma.$transaction(async (tx) => {
-        const foodLog = await tx.foodLog.create({
-          data: { ...buildFoodLogData(feed), foodId },
-        });
-        // Re-link photos from the feed to the new food log
-        await tx.photoLink.updateMany({
+        const links = await tx.photoLink.findMany({
           where: { activityType: 'feed', activityId: feed.id },
-          data: { activityType: 'foodLog', activityId: foodLog.id },
+          include: { photo: { select: { id: true, familyId: true, babyId: true } } },
         });
-        // Hard-delete the source feed (matches /api/feed-log DELETE)
-        await tx.feedLog.delete({ where: { id: feed.id } });
-      });
+        if (links.length) {
+          const baby = feed.familyId && await tx.baby.findFirst({
+            where: { id: feed.babyId, familyId: feed.familyId }, select: { id: true },
+          });
+          if (!baby || links.some(link => !link.photo || link.photo.familyId !== feed.familyId || link.photo.babyId !== feed.babyId)) {
+            throw new Error('Source has an attachment that requires explicit review');
+          }
+          if (new Set(links.map(link => link.photoId)).size > 4) throw new Error('Source exceeds the retained attachment limit');
+        }
 
-      converted++;
+        // Catalog creation belongs to this transaction too: a failed transfer
+        // must not leave a new food or poison a cache with a rolled-back ID.
+        const { name } = resolveCatalogFoodName(feed);
+        const foods = await tx.food.findMany({
+          where: { familyId: feed.familyId || null, deletedAt: null }, select: { id: true, name: true },
+        });
+        let foodId = foods.find(food => foodNameKey(food.name) === foodNameKey(name))?.id;
+        if (!foodId) {
+          foodId = (await tx.food.create({ data: { name, commonAllergen: false, familyId: feed.familyId || null } })).id;
+        }
+        const foodLog = await tx.foodLog.create({ data: { ...buildFoodLogData(feed), foodId } });
+        if (links.length) {
+          const moved = await tx.photoLink.updateMany({
+            where: { id: { in: links.map(link => link.id) }, activityType: 'feed', activityId: feed.id },
+            data: { activityType: 'foodLog', activityId: foodLog.id },
+          });
+          if (moved.count !== links.length) throw new Error('Source attachments changed during conversion');
+        }
+        // A scalar-only writer that does not use the family lock still cannot
+        // have its newer care values silently removed by this conversion.
+        const removed = await tx.feedLog.deleteMany({ where: { ...feed } });
+        if (removed.count !== 1) throw new Error('Source feed changed during conversion');
+        return true;
+      }, { maxWait: 5_000, timeout: 15_000 });
+      if (didConvert) converted++;
+      else concurrentlySkipped++;
     } catch (error) {
       errors++;
       console.error(`Solids conversion: failed to convert feed ${feed.id}, skipping. ${error.message}`);
@@ -158,7 +176,7 @@ async function convertSolidsFeeds(prisma) {
   return {
     total: feeds.length,
     converted,
-    skipped: feeds.length - pending.length,
+    skipped: feeds.length - pending.length + concurrentlySkipped,
     errors,
     tileEntriesUpdated,
   };

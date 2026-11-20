@@ -8,11 +8,14 @@ import { useLocalization } from '@/src/context/localization';
 import { useTimezone } from '@/app/context/timezone';
 import { formatDateLong, formatTimeDisplay } from '@/src/utils/dateFormat';
 import { useAuthedImage, photoFileUrl } from '@/src/hooks/useAuthedImage';
+import UnavailablePhotoLinks from '@/src/components/PhotoDetail/UnavailablePhotoLinks';
 
 // Maps a PhotoLink's activityType to its localization key (mirrors PhotoDetail).
 const TYPE_LABEL_KEYS: Record<string, string> = {
   photo: 'Photo',
   feed: 'Feed',
+  diaper: 'Diaper',
+  foodLog: 'Food',
   milestone: 'Milestone',
   bath: 'Bath',
   play: 'Activity',
@@ -30,15 +33,16 @@ interface LightboxProps {
   onToggleFavorite: (id: string) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
   onDownload: (photo: PhotoResponse) => void | Promise<void>;
+  onPhotoUpdated?: (photo: PhotoResponse) => void;
 }
 
 /**
  * Full-screen photo viewer for the gallery. Replaces `PhotoDetail` for tile
  * clicks in the gallery: adds prev/next navigation across the currently
- * filtered photo list. All mutations (favorite/delete/download) are
- * delegated to the parent via props — this component only renders.
+ * filtered photo list. Favorite/delete/download use parent callbacks;
+ * explicit historical-link removal returns a refreshed photo to the parent.
  */
-export default function Lightbox({ photos, photoId, onClose, onNavigate, onToggleFavorite, onDelete, onDownload }: LightboxProps) {
+export default function Lightbox({ photos, photoId, onClose, onNavigate, onToggleFavorite, onDelete, onDownload, onPhotoUpdated }: LightboxProps) {
   const { t } = useLocalization();
   const { dateFormat, timeFormat } = useTimezone();
   const [busy, setBusy] = useState<'favorite' | 'download' | 'delete' | null>(null);
@@ -261,6 +265,7 @@ export default function Lightbox({ photos, photoId, onClose, onNavigate, onToggl
             </div>
           </div>
 
+          <div className="mt-4"><UnavailablePhotoLinks key={photo.id} photo={photo} onPhotoUpdated={onPhotoUpdated} /></div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" onClick={handleToggleFavorite} disabled={!!busy} aria-pressed={photo.isFavorite}>
               <Heart className="mr-2 h-4 w-4" fill={photo.isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />

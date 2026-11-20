@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
+import { assertPhotoTargetMove, detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
 import { ApiResponse, MeasurementCreate, MeasurementResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
@@ -119,9 +121,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       updateData.date = toUTC(body.date);
     }
 
-    const measurement = await prisma.measurement.update({
-      where: { id, familyId: userFamilyId },
-      data: updateData,
+    const measurement = await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await assertPhotoTargetMove(tx, userFamilyId, { activityType: 'measurement', activityId: id }, body.babyId);
+      return tx.measurement.update({ where: { id, familyId: userFamilyId }, data: updateData });
     });
 
     // Format dates as ISO strings for response
@@ -138,6 +140,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     if (error instanceof CareWriteError) return error.response();
     console.error('Error updating measurement:', error);
     return NextResponse.json<ApiResponse<MeasurementResponse>>(
@@ -309,14 +312,16 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.measurement.delete({
-      where: { id },
+    await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await detachPhotoTargetForDeletion(tx, userFamilyId, { activityType: 'measurement', activityId: id });
+      await tx.measurement.delete({ where: { id } });
     });
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     console.error('Error deleting measurement:', error);
     return NextResponse.json<ApiResponse<void>>(
       {

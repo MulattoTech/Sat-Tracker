@@ -21,7 +21,8 @@ import { useToast } from '@/src/components/ui/toast';
 import { handleExpirationError } from '@/src/lib/expiration-error-handler';
 import { newFeedSessionId } from '@/src/utils/feedSessionUtils';
 import { PhotoAttachments } from '@/src/components/ui/photo-attachments';
-import { uploadPhotos, linkPhoto, unlinkPhoto, fetchPhotos, fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+import { uploadPhotos, linkPhoto, unlinkPhoto, fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+import { useActivityPhotoAttachments } from '@/src/hooks/useActivityPhotoAttachments';
 import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
 import './feed-form.css';
 
@@ -121,21 +122,14 @@ export default function FeedForm({
 
   const [photosEnabled, setPhotosEnabled] = useState(false);
   const [pendingPhotoFiles, setPendingPhotoFiles] = useState<File[]>([]);
-  const [attachedPhotos, setAttachedPhotos] = useState<{ id: string; caption: string | null }[]>([]);
+  const { photos: attachedPhotos, setPhotos: setAttachedPhotos, reservedSlots: reservedPhotoSlots,
+    loading: attachmentsLoading, error: attachmentsError, reload: reloadAttachments } = useActivityPhotoAttachments({
+    activityType: 'feed', activityId: activity?.id, babyId, isOpen: isOpen, enabled: photosEnabled,
+  });
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
 
   useEffect(() => { fetchPhotosEnabled().then(setPhotosEnabled); }, []);
 
-  useEffect(() => {
-    if (!isOpen || !activity?.id || !photosEnabled) return;
-    fetchPhotos({ babyId })
-      .then((data) => setAttachedPhotos(
-        data.photos
-          .filter((p) => p.links.some((l) => l.activityType === 'feed' && l.activityId === activity.id))
-          .map((p) => ({ id: p.id, caption: p.caption }))
-      ))
-      .catch(() => {});
-  }, [isOpen, activity?.id, photosEnabled]);
 
   // Whether the current mode ends in a call to handleSubmit (vs. Start/End Feed's own API calls)
   const endsInSubmit = !(isFeeding && activeFeedData && !activity) &&
@@ -1559,6 +1553,8 @@ export default function FeedForm({
               <div>
                 <label className="form-label">{t('Photos')}</label>
                 <PhotoAttachments
+                  reservedSlots={reservedPhotoSlots} loading={attachmentsLoading}
+                  loadError={attachmentsError} onRetry={reloadAttachments}
                   pendingFiles={pendingPhotoFiles}
                   onPendingFilesChange={setPendingPhotoFiles}
                   existingPhotos={attachedPhotos}

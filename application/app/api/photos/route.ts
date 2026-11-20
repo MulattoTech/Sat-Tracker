@@ -7,10 +7,10 @@ import {
   photosDisabledResponse,
   getQuotaInfo,
   purgeExpiredPhotos,
-  toPhotoResponse,
   resolveFavoriteOwner,
   PHOTO_INCLUDE,
 } from './photo-service';
+import { toAuthorizedPhotoResponses } from './photo-read';
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 200;
@@ -31,10 +31,12 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     const cursor = searchParams.get('cursor');
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || `${DEFAULT_LIMIT}`, 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
 
+    if (!familyId) return NextResponse.json({ success: false, error: 'Photo not found' }, { status: 404 });
     await purgeExpiredPhotos(familyId!);
 
     const where = {
       familyId,
+      baby: { familyId, deletedAt: null },
       deletedAt: trash ? { not: null } : null,
       ...(babyId && { babyId }),
     };
@@ -56,13 +58,13 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     const page = hasMore ? photos.slice(0, limit) : photos;
 
     const response: PhotoListResponse = {
-      photos: page.map((photo) => toPhotoResponse(photo, owner)),
+      photos: await toAuthorizedPhotoResponses(prisma, familyId, page, owner),
       nextCursor: hasMore ? page[page.length - 1].id : null,
       trashCount,
       quota,
     };
 
-    return NextResponse.json<ApiResponse<PhotoListResponse>>({ success: true, data: response });
+    return NextResponse.json<ApiResponse<PhotoListResponse>>({ success: true, data: response }, { headers: { 'Cache-Control': 'private, no-store' } });
   } catch (error) {
     console.error('Error listing photos:', error);
     return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to load photos' }, { status: 500 });

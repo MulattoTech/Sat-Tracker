@@ -8,6 +8,8 @@ import { hookSuccess, hookError } from '../../../../response';
 import { BATH_TYPES, BOTTLE_TYPES, DIAPER_COLORS, DIAPER_CONDITIONS, FEED_SIDES, PUMP_ACTIONS, SLEEP_QUALITIES, normalizeEnumValue } from '../../../../field-values';
 import { prepareHookPumpFields, type PumpValidationContext } from '../../../../pump-validation';
 import { deletePumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '@/app/api/utils/pumpReconciliation';
+import { withPhotoIntegrity, PhotoIntegrityError } from '@/app/api/utils/photo-integrity';
+import { detachPhotoTargetForDeletion } from '@/app/api/utils/photo-target-mutations';
 import { DIAPER_RASH_FIELDS, hookDiaperRashDetails, readHookDiaperRash } from '../../../../diaper-rash';
 
 const VALID_TYPES = ['sleep', 'feed', 'diaper', 'note', 'pump', 'play', 'bath', 'measurement', 'medicine', 'supplement'] as const;
@@ -550,14 +552,25 @@ async function updateActivity(type: ActivityType, activityId: string, babyId: st
   }
 }
 
-async function deleteActivity(existing: FoundActivity): Promise<void> {
+async function deleteActivity(existing: FoundActivity, familyId: string): Promise<void> {
+  if (['feed', 'diaper', 'play', 'bath', 'measurement'].includes(existing.type)) {
+    await withPhotoIntegrity(prisma, familyId, async tx => {
+      const target = await detachPhotoTargetForDeletion(tx, familyId, {
+        activityType: existing.type, activityId: existing.id,
+      });
+      // A move that won the family lock must invalidate this child-specific URL.
+      if (target.babyId !== existing.babyId) throw new PhotoIntegrityError('Activity not found.', 404, 'ACTIVITY_NOT_FOUND');
+      switch (existing.type) {
+        case 'feed': await tx.feedLog.delete({ where: { id: existing.id } }); break;
+        case 'diaper': await tx.diaperLog.delete({ where: { id: existing.id } }); break;
+        case 'play': await tx.playLog.delete({ where: { id: existing.id } }); break;
+        case 'bath': await tx.bathLog.delete({ where: { id: existing.id } }); break;
+        case 'measurement': await tx.measurement.delete({ where: { id: existing.id } }); break;
+      }
+    });
+    return;
+  }
   switch (existing.type) {
-    case 'feed':
-      await prisma.feedLog.delete({ where: { id: existing.id } });
-      return;
-    case 'diaper':
-      await prisma.diaperLog.delete({ where: { id: existing.id } });
-      return;
     case 'sleep':
       await prisma.sleepLog.delete({ where: { id: existing.id } });
       return;
@@ -566,15 +579,6 @@ async function deleteActivity(existing: FoundActivity): Promise<void> {
       return;
     case 'pump':
       await deletePumpWithFeed(prisma, existing.pump!);
-      return;
-    case 'play':
-      await prisma.playLog.delete({ where: { id: existing.id } });
-      return;
-    case 'bath':
-      await prisma.bathLog.delete({ where: { id: existing.id } });
-      return;
-    case 'measurement':
-      await prisma.measurement.delete({ where: { id: existing.id } });
       return;
     case 'medicine':
     case 'supplement':
@@ -648,9 +652,10 @@ async function handleDelete(req: NextRequest, ctx: ApiKeyContext, routeContext?:
       return hookError('ACTIVITY_NOT_FOUND', 'Activity not found', 404, rl.headers);
     }
 
-    await deleteActivity(existing);
+    await deleteActivity(existing, ctx.familyId);
     return hookSuccess(summary(existing.type, existing.id, existing.babyId, 'deleted', existing.time), { familyId: ctx.familyId, babyId }, rl.headers);
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return hookError(error.code, error.message, error.status, rl.headers);
     if (error instanceof PumpReconciliationConflict) return hookError('PUMP_CONFLICT', error.message, 409, rl.headers);
     console.error('Error deleting activity via hooks API:', error);
     return hookError('INTERNAL_ERROR', 'Failed to delete activity', 500, rl.headers);

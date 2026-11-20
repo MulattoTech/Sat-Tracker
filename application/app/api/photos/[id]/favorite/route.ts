@@ -3,7 +3,8 @@ import prisma from '../../../db';
 import { ApiResponse } from '../../../types';
 import { withAuthContext, AuthResult } from '../../../utils/auth';
 import { checkWritePermission } from '../../../utils/writeProtection';
-import { isPhotosEnabled, photosDisabledResponse, resolveFavoriteOwner } from '../../photo-service';
+import { isPhotosEnabled, photosDisabledResponse, resolveFavoriteOwner, photoErrorResponse } from '../../photo-service';
+import { requirePhotoFamily, requirePhotoIdentifier } from '../../photo-ownership';
 
 /**
  * POST /api/photos/[id]/favorite — toggle for the current caregiver.
@@ -18,15 +19,15 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
 
   try {
     const pathParts = new URL(req.url).pathname.split('/');
-    const id = pathParts[pathParts.length - 2];
-    const { familyId } = authContext;
+    const id = requirePhotoIdentifier(pathParts[pathParts.length - 2], 'Photo ID');
+    const familyId = requirePhotoFamily(authContext.familyId);
 
     const ownerWhere = await resolveFavoriteOwner(authContext);
     if (!ownerWhere) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'No caregiver identity for favorites' }, { status: 400 });
     }
 
-    const photo = await prisma.photo.findFirst({ where: { id, familyId } });
+    const photo = await prisma.photo.findFirst({ where: { id, familyId, baby: { familyId, deletedAt: null } } });
     if (!photo) {
       return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo not found' }, { status: 404 });
     }
@@ -43,8 +44,7 @@ async function handlePost(req: NextRequest, authContext: AuthResult) {
     await prisma.photoFavorite.create({ data: { photoId: id, ...ownerWhere } });
     return NextResponse.json<ApiResponse<{ isFavorite: boolean }>>({ success: true, data: { isFavorite: true } });
   } catch (error) {
-    console.error('Error toggling favorite:', error);
-    return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to toggle favorite' }, { status: 500 });
+    return photoErrorResponse(error, 'Failed to toggle favorite');
   }
 }
 

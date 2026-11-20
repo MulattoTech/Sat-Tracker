@@ -4,6 +4,8 @@ import type { NurseryUndo } from '@/src/utils/nursery/undo';
 import { assertNurseryScope, assertUndoRow, NurseryUndoError } from './nursery-undo';
 import { careSnapshot } from './care-revision';
 import { deletePumpSnapshot, PumpReconciliationConflict } from './pumpReconciliation';
+import { withPhotoIntegrity, PhotoIntegrityError } from './photo-integrity';
+import { assertPhotoTargetUnlinked } from './photo-target-mutations';
 
 const serializable = { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 };
 function isContention(error: unknown): boolean {
@@ -14,6 +16,10 @@ function isContention(error: unknown): boolean {
     && ['SQLITE_BUSY', 'SQLITE_BUSY_SNAPSHOT', 'SQLITE_LOCKED'].includes(String(cause.originalCode));
 }
 export function nurseryMutationError(error: unknown): never {
+  if (error instanceof PhotoIntegrityError) {
+    if (error.code === 'PHOTO_LINK_BUSY') throw new NurseryUndoError('Another care change is being saved. Keep this Undo and retry or review the care log.', 409, 'NURSERY_UNDO_BUSY');
+    throw new NurseryUndoError('This entry has changed or has attached photos. Nothing was undone. Review the care log.');
+  }
   if (isContention(error)) throw new NurseryUndoError('Another care change is being saved. Keep this Undo and retry or review the care log.', 409, 'NURSERY_UNDO_BUSY');
   if (error instanceof PumpReconciliationConflict) throw new NurseryUndoError();
   throw error;
@@ -34,13 +40,12 @@ export async function undoNurseryRows(db: PrismaClient, auth: AuthResult, undo: 
   assertNurseryScope(auth, undo.babyId, undo.scope);
   try {
     const where = { id: undo.records[0].id, familyId: auth.familyId!, babyId: undo.babyId };
-    // Read the candidate in autocommit, then claim it as the transaction's first
-    // statement. This avoids SQLite's read-to-write lock upgrade. Every later
-    // child/group check is protected by that writer and rolls the claim back.
-    const transact = (claim: (tx: Prisma.TransactionClient) => Promise<void>) => db.$transaction(async tx => {
+    // The family writer is acquired before attachment checks and exact scalar
+    // claims. A later group/child conflict rolls the entire original action back.
+    const transact = (claim: (tx: Prisma.TransactionClient) => Promise<void>) => withPhotoIntegrity(db, auth.familyId!, async tx => {
       await claim(tx);
       await requireUndoBaby(tx, auth, undo);
-    }, serializable);
+    });
     if (undo.kind === 'pump') {
       const row = await db.pumpLog.findFirst({ where });
       if (!row) throw missing();
@@ -51,6 +56,7 @@ export async function undoNurseryRows(db: PrismaClient, auth: AuthResult, undo: 
       if (!row) throw missing();
       assertUndoRow(undo, row);
       await transact(async tx => {
+        await assertPhotoTargetUnlinked(tx, { activityType: 'diaper', activityId: row.id });
         if ((await tx.diaperLog.deleteMany({ where: careSnapshot('diaper', row) as Prisma.DiaperLogWhereInput })).count !== 1) throw new NurseryUndoError();
       });
     } else if (undo.kind === 'food') {
@@ -58,6 +64,7 @@ export async function undoNurseryRows(db: PrismaClient, auth: AuthResult, undo: 
       if (!row) throw missing();
       assertUndoRow(undo, row);
       await transact(async tx => {
+        await assertPhotoTargetUnlinked(tx, { activityType: 'foodLog', activityId: row.id });
         if ((await tx.foodLog.updateMany({ where: careSnapshot('food', row) as Prisma.FoodLogWhereInput,
           data: { deletedAt: new Date(), updatedAt: new Date(Math.max(Date.now(), row.updatedAt.getTime() + 1)) } })).count !== 1) throw new NurseryUndoError();
       });
@@ -79,6 +86,7 @@ export async function undoNurseryRows(db: PrismaClient, auth: AuthResult, undo: 
         || new Set(rows.map(row => row.side)).size !== rows.length)) throw new NurseryUndoError();
       await transact(async tx => {
         for (const [index, row] of rows.entries()) {
+          await assertPhotoTargetUnlinked(tx, { activityType: 'feed', activityId: row.id });
           if ((await tx.feedLog.deleteMany({ where: careSnapshot('feed', row) as Prisma.FeedLogWhereInput })).count !== 1) throw new NurseryUndoError();
           if (index === 0 && undo.kind === 'breast') {
             const remaining = await tx.feedLog.findMany({ where: sessionWhere });

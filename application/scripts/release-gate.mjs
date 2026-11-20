@@ -13,7 +13,9 @@ const runId = randomUUID();
 const servicePath = path.join(reportDir, 'acceptance-service-report.json');
 const browserPath = path.join(reportDir, 'ocr-browser-report.json');
 const rashPath = path.join(reportDir, 'diaper-rash-browser-report.json');
-for (const file of [servicePath, browserPath, rashPath]) fs.rmSync(file, { force: true });
+const photoPath = path.join(reportDir, 'photo-browser-report.json');
+const photoModulePath = path.join(reportDir, 'photo-integrity-browser-report.json');
+for (const file of [servicePath, browserPath, rashPath, photoPath, photoModulePath]) fs.rmSync(file, { force: true });
 let gitRevision = 'unknown';
 try { gitRevision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 10_000 }).trim(); } catch {}
 const report = {
@@ -27,10 +29,10 @@ const report = {
   },
 };
 
-function execute(label, args) {
+function execute(label, args, timeout = 600_000) {
   const result = spawnSync(process.execPath, args, {
     cwd: process.cwd(), env: { ...process.env, SAT_TRACKER_ACCEPTANCE_RUN_ID: runId },
-    stdio: 'pipe', encoding: 'utf8', timeout: 600_000, maxBuffer: 8 * 1024 * 1024,
+    stdio: 'pipe', encoding: 'utf8', timeout, maxBuffer: 8 * 1024 * 1024,
   });
   if (result.status !== 0 || result.error || result.signal) {
     fs.writeFileSync(path.join(reportDir, label + '.log'), (result.stdout || '') + (result.stderr || ''));
@@ -98,6 +100,36 @@ try {
     screenshots: browser.screenshots, completedAt: browser.completedAt });
 } catch (error) {
   report.stages.push({ id: 'browser-acceptance', status: 'FAIL' });
+  report.failures.push(error.message);
+}
+
+// Photo acceptance owns a separate bounded server/browser. Keep every existing
+// runtime check, flag and 600-second stage deadline above unchanged.
+try {
+  execute('acceptance-photo-browser', ['scripts/acceptance-photo-browser.mjs'], 240_000);
+  const photo = JSON.parse(fs.readFileSync(photoPath, 'utf8'));
+  const module = JSON.parse(fs.readFileSync(photoModulePath, 'utf8'));
+  assert.equal(photo.runId, runId, 'Photo browser evidence must belong to this invocation');
+  assert.equal(photo.gitRevision, gitRevision, 'Photo browser evidence must match the current source');
+  assert.equal(photo.syntheticOnly, true);
+  assert.equal(photo.status, 'PASS', 'Photo browser scenarios and owned cleanup must pass');
+  assert.equal(photo.photoIntegrityChecksPassed, true, 'The actual photo integrity UI/HTTP module must execute');
+  assert.equal(photo.checks.length, 12, 'All twelve photo scenarios must execute');
+  assert.equal(new Set(photo.checks).size, 12, 'Photo scenarios must be distinct');
+  assert.equal(module.runId, runId); assert.equal(module.syntheticOnly, true); assert.equal(module.status, 'PASS');
+  assert.deepEqual(module.checks, photo.checks, 'Photo aggregate and module must contain the same executed checks');
+  assert.deepEqual(photo.errors, []); assert.deepEqual(photo.cleanup?.errors, []);
+  assert.deepEqual(module.errors, []); assert.deepEqual(module.captureErrors, []); assert.deepEqual(module.cleanup?.errors, []);
+  assert.equal(module.cleanup?.contextClosed, true); assert.equal(module.cleanup?.fixtureFamiliesRemoved, true);
+  assert.equal(module.cleanup?.ownedFilesRemoved, true);
+  assert.equal(photo.cleanup?.server?.exited, true); assert.equal(photo.cleanup?.browser?.exited, true);
+  assert.equal(photo.cleanup?.databaseClosed, true); assert.equal(photo.cleanup?.scratchRemoved, true);
+  assert.equal(photo.cleanup?.ownedPhotoDirectoriesRemoved, true);
+  assert.ok(photo.screenshots.length > 0, 'Rendered photo evidence must be retained');
+  report.stages.push({ id: 'photo-browser-acceptance', status: 'PASS', checks: photo.checks,
+    screenshots: photo.screenshots, completedAt: photo.completedAt });
+} catch (error) {
+  report.stages.push({ id: 'photo-browser-acceptance', status: 'FAIL' });
   report.failures.push(error.message);
 }
 

@@ -29,7 +29,7 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { NoBabySelected } from '@/src/components/ui/no-baby-selected';
 import ActiveFeedBanner from '@/src/components/ActiveFeedBanner';
 import ActiveActivityBanner from '@/src/components/ActiveActivityBanner';
-import { fetchPhotosEnabled, fetchPhotos } from '@/src/utils/photoClientApi';
+import { fetchPhotosEnabled, fetchPhoto } from '@/src/utils/photoClientApi';
 import { formatLocalDateTimeInput } from '@/src/utils/dateTimeInput';
 
 function HomeContent(): React.ReactElement {
@@ -98,6 +98,11 @@ function HomeContent(): React.ReactElement {
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photosEnabled, setPhotosEnabled] = useState(false);
   const [detailPhoto, setDetailPhoto] = useState<PhotoResponse | null>(null);
+  const photoRequest = useRef(0);
+  useEffect(() => {
+    photoRequest.current += 1;
+    setDetailPhoto(null);
+  }, [selectedBaby?.id]);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [localTime, setLocalTime] = useState<string>('');
   const [sleepStartTime, setSleepStartTime] = useState<Record<string, Date>>({});
@@ -114,10 +119,10 @@ function HomeContent(): React.ReactElement {
   // Open the PhotoDetail drawer for a photo tapped inside the Photo Library tab
   const handleOpenPhoto = useCallback(async (photoId: string) => {
     if (!selectedBaby?.id) return;
+    const request = ++photoRequest.current;
     try {
-      const result = await fetchPhotos({ babyId: selectedBaby.id });
-      const photo = result.photos.find((p) => p.id === photoId);
-      if (photo) {
+      const photo = await fetchPhoto(photoId);
+      if (request === photoRequest.current && photo.babyId === selectedBaby.id) {
         setDetailPhoto(photo);
       }
     } catch (error) {
@@ -871,9 +876,9 @@ function HomeContent(): React.ReactElement {
 
       {/* Photo Detail */}
       <PhotoDetail
-        isOpen={!!detailPhoto}
-        onClose={() => setDetailPhoto(null)}
-        photo={detailPhoto}
+        isOpen={!!detailPhoto && detailPhoto.babyId === selectedBaby?.id}
+        onClose={() => { photoRequest.current += 1; setDetailPhoto(null); }}
+        photo={detailPhoto?.babyId === selectedBaby?.id ? detailPhoto : null}
         onChanged={() => {
           if (selectedBaby?.id) {
             triggerRefresh();

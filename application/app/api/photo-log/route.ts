@@ -1,188 +1,98 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
-import { ApiResponse, PhotoLogCreate, PhotoLogResponse } from '../types';
+import { ApiResponse, PhotoLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
-import { toUTC, formatForResponse } from '../utils/timezone';
+import { formatForResponse } from '../utils/timezone';
 import { checkWritePermission } from '../utils/writeProtection';
-import { isPhotosEnabled, photosDisabledResponse, toPhotoResponse, resolveFavoriteOwner, PHOTO_INCLUDE } from '../photos/photo-service';
-import { MAX_PHOTOS_PER_ACTIVITY } from '@/src/utils/photoUtils';
-
-/** Load the photos linked to a photo log, in link-creation order (stable). */
-async function getLinkedPhotos(photoLogId: string, authContext: AuthResult) {
-  const [links, owner] = await Promise.all([
-    prisma.photoLink.findMany({
-      where: { activityType: 'photo', activityId: photoLogId, photo: { deletedAt: null } },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      include: { photo: { include: PHOTO_INCLUDE } },
-    }),
-    resolveFavoriteOwner(authContext),
-  ]);
-  return links.map((link) => toPhotoResponse(link.photo, owner));
-}
+import { withPhotoIntegrity } from '../utils/photo-integrity';
+import { detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
+import { isPhotosEnabled, photosDisabledResponse, photoErrorResponse, requirePhotoTimestamp, resolveFavoriteOwner } from '../photos/photo-service';
+import { PhotoOwnershipError, requirePhotoFamily, requirePhotoBaby, requirePhotoIdentifier, requirePhotoWriteObject, requirePhotoTarget } from '../photos/photo-ownership';
+import { replaceVisiblePhotoLinks, validatePhotoIdList } from '../photos/photo-link-service';
+import { readPhotoAttachments } from '../photos/photo-read';
 
 async function toPhotoLogResponse(photoLog: { id: string; time: Date; babyId: string; caretakerId: string | null; familyId: string | null; createdAt: Date; updatedAt: Date; deletedAt: Date | null }, authContext: AuthResult): Promise<PhotoLogResponse> {
+  const familyId = requirePhotoFamily(authContext.familyId);
+  const owner = await resolveFavoriteOwner(authContext);
+  const attachments = await readPhotoAttachments(prisma, familyId, { activityType: 'photo', activityId: photoLog.id }, owner);
   return {
-    id: photoLog.id,
-    time: formatForResponse(photoLog.time) || '',
-    babyId: photoLog.babyId,
-    caretakerId: photoLog.caretakerId,
-    familyId: photoLog.familyId,
-    createdAt: formatForResponse(photoLog.createdAt) || '',
-    updatedAt: formatForResponse(photoLog.updatedAt) || '',
-    deletedAt: formatForResponse(photoLog.deletedAt),
-    photos: await getLinkedPhotos(photoLog.id, authContext),
+    id: photoLog.id, time: formatForResponse(photoLog.time) || '', babyId: photoLog.babyId,
+    caretakerId: photoLog.caretakerId, familyId: photoLog.familyId,
+    createdAt: formatForResponse(photoLog.createdAt) || '', updatedAt: formatForResponse(photoLog.updatedAt) || '',
+    deletedAt: formatForResponse(photoLog.deletedAt), photos: attachments.photos, retainedLinkCount: attachments.retainedLinkCount,
   };
-}
-
-/** Validate photo ids: must exist in this family and not be trashed. */
-async function validatePhotoIds(photoIds: string[], familyId: string): Promise<string | null> {
-  if (!Array.isArray(photoIds) || photoIds.length === 0) return 'At least one photo is required';
-  if (photoIds.length > MAX_PHOTOS_PER_ACTIVITY) return `A maximum of ${MAX_PHOTOS_PER_ACTIVITY} photos can be attached`;
-  if (new Set(photoIds).size !== photoIds.length) return 'Duplicate photos in request';
-  const count = await prisma.photo.count({ where: { id: { in: photoIds }, familyId, deletedAt: null } });
-  if (count !== photoIds.length) return 'One or more photos were not found';
-  return null;
 }
 
 async function handlePost(req: NextRequest, authContext: AuthResult) {
   if (!(await isPhotosEnabled())) return photosDisabledResponse();
   const writeCheck = checkWritePermission(authContext);
   if (!writeCheck.allowed) return writeCheck.response!;
-
   try {
-    const body: PhotoLogCreate = await req.json();
-    const { familyId, caretakerId } = authContext;
-
-    const baby = await prisma.baby.findFirst({ where: { id: body.babyId, familyId } });
-    if (!baby) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Baby not found in this family.' }, { status: 404 });
-    }
-
-    const photoError = await validatePhotoIds(body.photoIds, familyId!);
-    if (photoError) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: photoError }, { status: 400 });
-    }
-
-    const photoLog = await prisma.$transaction(async (tx) => {
-      const created = await tx.photoLog.create({
-        data: { babyId: body.babyId, time: toUTC(body.time), caretakerId, familyId },
-      });
-      await tx.photoLink.createMany({
-        data: body.photoIds.map((photoId) => ({ photoId, activityType: 'photo', activityId: created.id })),
-      });
+    const familyId = requirePhotoFamily(authContext.familyId);
+    const body = requirePhotoWriteObject(await req.json(), ['babyId', 'time', 'photoIds']);
+    const babyId = requirePhotoIdentifier(body.babyId, 'Baby ID');
+    const time = requirePhotoTimestamp(body.time, 'Time');
+    const photoIds = validatePhotoIdList(body.photoIds);
+    const photoLog = await withPhotoIntegrity(prisma, familyId, async tx => {
+      await requirePhotoBaby(tx, familyId, babyId);
+      const created = await tx.photoLog.create({ data: { babyId, time, caretakerId: authContext.caretakerId, familyId } });
+      await replaceVisiblePhotoLinks(tx, familyId, { activityType: 'photo', activityId: created.id }, photoIds);
       return created;
     });
-
-    return NextResponse.json<ApiResponse<PhotoLogResponse>>({
-      success: true,
-      data: await toPhotoLogResponse(photoLog, authContext),
-    });
-  } catch (error) {
-    console.error('Error creating photo log:', error);
-    return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to create photo log' }, { status: 500 });
-  }
+    return NextResponse.json<ApiResponse<PhotoLogResponse>>({ success: true, data: await toPhotoLogResponse(photoLog, authContext) });
+  } catch (error) { return photoErrorResponse(error, 'Failed to create photo log'); }
 }
 
 async function handleGet(req: NextRequest, authContext: AuthResult) {
   if (!(await isPhotosEnabled())) return photosDisabledResponse();
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    const { familyId } = authContext;
-
-    if (!id) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo log ID is required' }, { status: 400 });
-    }
+    const familyId = requirePhotoFamily(authContext.familyId);
+    const id = requirePhotoIdentifier(new URL(req.url).searchParams.get('id'), 'Photo log ID');
     const photoLog = await prisma.photoLog.findFirst({ where: { id, familyId, deletedAt: null } });
-    if (!photoLog) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo log not found' }, { status: 404 });
-    }
-    return NextResponse.json<ApiResponse<PhotoLogResponse>>({
-      success: true,
-      data: await toPhotoLogResponse(photoLog, authContext),
-    });
-  } catch (error) {
-    console.error('Error fetching photo log:', error);
-    return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to fetch photo log' }, { status: 500 });
-  }
+    if (!photoLog) throw new PhotoOwnershipError(404, 'Photo log not found.');
+    return NextResponse.json<ApiResponse<PhotoLogResponse>>({ success: true, data: await toPhotoLogResponse(photoLog, authContext) }, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) { return photoErrorResponse(error, 'Failed to fetch photo log'); }
 }
 
 async function handlePut(req: NextRequest, authContext: AuthResult) {
   if (!(await isPhotosEnabled())) return photosDisabledResponse();
   const writeCheck = checkWritePermission(authContext);
   if (!writeCheck.allowed) return writeCheck.response!;
-
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    const body: Partial<PhotoLogCreate> = await req.json();
-    const { familyId } = authContext;
-
-    if (!id) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo log ID is required' }, { status: 400 });
-    }
-    const existing = await prisma.photoLog.findFirst({ where: { id, familyId, deletedAt: null } });
-    if (!existing) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo log not found' }, { status: 404 });
-    }
-
-    if (body.photoIds) {
-      const photoError = await validatePhotoIds(body.photoIds, familyId!);
-      if (photoError) {
-        return NextResponse.json<ApiResponse<null>>({ success: false, error: photoError }, { status: 400 });
-      }
-    }
-
-    const photoLog = await prisma.$transaction(async (tx) => {
-      if (body.photoIds) {
-        // Replace the linked photo set
-        await tx.photoLink.deleteMany({ where: { activityType: 'photo', activityId: id } });
-        await tx.photoLink.createMany({
-          data: body.photoIds.map((photoId) => ({ photoId, activityType: 'photo', activityId: id })),
-        });
-      }
-
-      return tx.photoLog.update({
-        where: { id },
-        data: { ...(body.time && { time: toUTC(body.time) }) },
-      });
+    const familyId = requirePhotoFamily(authContext.familyId);
+    const id = requirePhotoIdentifier(new URL(req.url).searchParams.get('id'), 'Photo log ID');
+    const body = requirePhotoWriteObject(await req.json(), ['babyId', 'time', 'photoIds']);
+    const babyId = 'babyId' in body ? requirePhotoIdentifier(body.babyId, 'Baby ID') : undefined;
+    const time = 'time' in body ? requirePhotoTimestamp(body.time, 'Time') : undefined;
+    const photoIds = 'photoIds' in body ? validatePhotoIdList(body.photoIds, true) : undefined;
+    const photoLog = await withPhotoIntegrity(prisma, familyId, async tx => {
+      const target = await requirePhotoTarget(tx, familyId, { activityType: 'photo', activityId: id });
+      // Existing clients echo the child ID; a PhotoLog replacement is not a move.
+      if (babyId !== undefined && babyId !== target.babyId) throw new PhotoOwnershipError(400, 'The child for this photo log cannot be changed.');
+      if (photoIds !== undefined) await replaceVisiblePhotoLinks(tx, familyId, target, photoIds);
+      return time === undefined
+        ? tx.photoLog.findUniqueOrThrow({ where: { id } })
+        : tx.photoLog.update({ where: { id }, data: { time } });
     });
-
-    return NextResponse.json<ApiResponse<PhotoLogResponse>>({
-      success: true,
-      data: await toPhotoLogResponse(photoLog, authContext),
-    });
-  } catch (error) {
-    console.error('Error updating photo log:', error);
-    return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to update photo log' }, { status: 500 });
-  }
+    return NextResponse.json<ApiResponse<PhotoLogResponse>>({ success: true, data: await toPhotoLogResponse(photoLog, authContext) });
+  } catch (error) { return photoErrorResponse(error, 'Failed to update photo log'); }
 }
 
 async function handleDelete(req: NextRequest, authContext: AuthResult) {
   if (!(await isPhotosEnabled())) return photosDisabledResponse();
   const writeCheck = checkWritePermission(authContext);
   if (!writeCheck.allowed) return writeCheck.response!;
-
   try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo log ID is required' }, { status: 400 });
-    }
-    const existing = await prisma.photoLog.findFirst({ where: { id, familyId: authContext.familyId, deletedAt: null } });
-    if (!existing) {
-      return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Photo log not found' }, { status: 404 });
-    }
-
-    // Soft-delete the record; remove links. Photos stay in the library (spec section 3).
-    await prisma.photoLog.update({ where: { id }, data: { deletedAt: new Date() } });
-    await prisma.photoLink.deleteMany({ where: { activityType: 'photo', activityId: id } });
-
+    const familyId = requirePhotoFamily(authContext.familyId);
+    const id = requirePhotoIdentifier(new URL(req.url).searchParams.get('id'), 'Photo log ID');
+    await withPhotoIntegrity(prisma, familyId, async tx => {
+      const existing = await tx.photoLog.findFirst({ where: { id, familyId, deletedAt: null } });
+      if (!existing) throw new PhotoOwnershipError(404, 'Photo log not found.');
+      await detachPhotoTargetForDeletion(tx, familyId, { activityType: 'photo', activityId: id });
+      await tx.photoLog.update({ where: { id }, data: { deletedAt: new Date() } });
+    });
     return NextResponse.json<ApiResponse<null>>({ success: true });
-  } catch (error) {
-    console.error('Error deleting photo log:', error);
-    return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Failed to delete photo log' }, { status: 500 });
-  }
+  } catch (error) { return photoErrorResponse(error, 'Failed to delete photo log'); }
 }
 
 export const POST = withAuthContext(handlePost as any);

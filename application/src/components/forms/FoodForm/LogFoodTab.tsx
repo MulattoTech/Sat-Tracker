@@ -11,7 +11,8 @@ import { Label } from '@/src/components/ui/label';
 import { Checkbox } from '@/src/components/ui/checkbox';
 import { Switch } from '@/src/components/ui/switch';
 import { PhotoAttachments } from '@/src/components/ui/photo-attachments';
-import { uploadPhotos, linkPhoto, unlinkPhoto, fetchPhotos, fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+import { uploadPhotos, linkPhoto, unlinkPhoto, fetchPhotosEnabled } from '@/src/utils/photoClientApi';
+import { useActivityPhotoAttachments } from '@/src/hooks/useActivityPhotoAttachments';
 import { ChevronDown, Minus, Plus, TriangleAlert, X } from 'lucide-react';
 import { useUnit } from '@/src/hooks/useUnit';
 import { useTimezone } from '@/app/context/timezone';
@@ -90,7 +91,10 @@ const LogFoodTab: React.FC<LogFoodTabProps> = ({
 
   const [photosEnabled, setPhotosEnabled] = useState(false);
   const [pendingPhotoFiles, setPendingPhotoFiles] = useState<File[]>([]);
-  const [attachedPhotos, setAttachedPhotos] = useState<{ id: string; caption: string | null }[]>([]);
+  const { photos: attachedPhotos, setPhotos: setAttachedPhotos, reservedSlots: reservedPhotoSlots,
+    loading: attachmentsLoading, error: attachmentsError, reload: reloadAttachments } = useActivityPhotoAttachments({
+    activityType: 'foodLog', activityId: activity?.id, babyId, isOpen: true, enabled: photosEnabled,
+  });
   const [removedPhotoIds, setRemovedPhotoIds] = useState<string[]>([]);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -130,16 +134,6 @@ const LogFoodTab: React.FC<LogFoodTabProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!activity?.id || !photosEnabled) return;
-    fetchPhotos({ babyId })
-      .then((data) => setAttachedPhotos(
-        data.photos
-          .filter((p) => p.links.some((l) => l.activityType === 'foodLog' && l.activityId === activity.id))
-          .map((p) => ({ id: p.id, caption: p.caption }))
-      ))
-      .catch(() => {});
-  }, [activity?.id, photosEnabled, babyId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -887,6 +881,8 @@ const LogFoodTab: React.FC<LogFoodTabProps> = ({
           <div>
             <Label className="form-label">{t('Photos')}</Label>
             <PhotoAttachments
+              reservedSlots={reservedPhotoSlots} loading={attachmentsLoading}
+              loadError={attachmentsError} onRetry={reloadAttachments}
               pendingFiles={pendingPhotoFiles}
               onPendingFilesChange={setPendingPhotoFiles}
               existingPhotos={attachedPhotos}

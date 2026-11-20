@@ -3,7 +3,14 @@ import { NextRequest } from 'next/server';
 const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(),
 }));
-vi.mock('@/app/api/db', () => ({ default: { feedLog: { findUnique: mocks.findUnique, update: mocks.update }, baby: { findFirst: mocks.findFirst } } }));
+vi.mock('@/app/api/db', () => ({ default: {
+  feedLog: { findUnique: mocks.findUnique, update: mocks.update }, baby: { findFirst: mocks.findFirst },
+  // This unit suite checks editable-field filtering; real family locking and
+  // retained-photo moves are covered by photoTargetLifecycle.integration.
+  $transaction: (action: (tx: unknown) => Promise<unknown>) => action({
+    $executeRaw: async () => 1, feedLog: { findFirst: mocks.findUnique, update: mocks.update },
+  }),
+} }));
 vi.mock('@/app/api/utils/auth', () => ({ withAuthContext: (fn: (...args: any[]) => unknown) => (req: unknown) => fn(req, { authenticated: true, familyId: 'family-a', caretakerId: 'caregiver-a' }) }));
 vi.mock('@/app/api/utils/writeProtection', () => ({ checkWritePermission: () => ({ allowed: true }) }));
 vi.mock('@/src/lib/notifications/activityHook', () => ({ notifyActivityCreated: vi.fn(), resetTimerNotificationState: vi.fn() }));

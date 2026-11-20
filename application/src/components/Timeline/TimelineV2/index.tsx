@@ -23,7 +23,7 @@ import { getActivityEndpoint, getActivityTime } from '../utils';
 import { groupBreastFeedSessions } from '@/src/utils/feedSessionUtils';
 import { parseFeedTimerTypes, feedCountsForTimer, foodCountsForTimer } from '@/src/utils/feedTimerConfig';
 import { SleepLogResponse, FeedLogResponse, DiaperLogResponse, PumpLogResponse, BreastMilkAdjustmentResponse, PlayLogResponse, VaccineLogResponse, FoodLogResponse, PhotoResponse } from '@/app/api/types';
-import { fetchPhotos } from '@/src/utils/photoClientApi';
+import { fetchPhoto } from '@/src/utils/photoClientApi';
 import { useActivityCache } from './useActivityCache';
 import { cacheDefaultBottleUnit, readCachedDefaultBottleUnit } from '@/src/utils/defaultBottleUnit';
 
@@ -32,6 +32,11 @@ const TimelineV2 = ({ babyId, refreshTrigger, initialDate, feedTimerTypes, onLat
   const [defaultBottleUnit, setDefaultBottleUnit] = useState(() => readCachedDefaultBottleUnit());
   const [selectedActivity, setSelectedActivity] = useState<ActivityType | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
+  const photoRequest = useRef(0);
+  useEffect(() => {
+    photoRequest.current += 1;
+    setSelectedPhoto(null);
+  }, [babyId]);
   const [activeFilter, setActiveFilter] = useState<FilterType>(null);
   const [editModalType, setEditModalType] = useState<'sleep' | 'feed' | 'diaper' | 'medicine' | 'note' | 'bath' | 'pump' | 'breast-milk-adjustment' | 'milestone' | 'measurement' | 'play' | 'vaccine' | 'food' | 'photo' | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(() => initialDate ?? new Date());
@@ -493,10 +498,10 @@ const TimelineV2 = ({ babyId, refreshTrigger, initialDate, feedTimerTypes, onLat
   // Resolve a timeline thumbnail click to its full PhotoResponse for the detail drawer
   const handlePhotoClick = useCallback(async (photoId: string) => {
     if (!babyId) return;
+    const request = ++photoRequest.current;
     try {
-      const result = await fetchPhotos({ babyId, limit: 200 });
-      const photo = result.photos.find((p) => p.id === photoId);
-      if (photo) setSelectedPhoto(photo);
+      const photo = await fetchPhoto(photoId);
+      if (request === photoRequest.current && photo.babyId === babyId) setSelectedPhoto(photo);
     } catch (error) {
       console.error('Error fetching photo:', error);
     }
@@ -563,9 +568,9 @@ const TimelineV2 = ({ babyId, refreshTrigger, initialDate, feedTimerTypes, onLat
 
       {/* Photo Detail - opened from a timeline thumbnail click */}
       <PhotoDetail
-        isOpen={!!selectedPhoto}
-        onClose={() => setSelectedPhoto(null)}
-        photo={selectedPhoto}
+        isOpen={!!selectedPhoto && selectedPhoto.babyId === babyId}
+        onClose={() => { photoRequest.current += 1; setSelectedPhoto(null); }}
+        photo={selectedPhoto?.babyId === babyId ? selectedPhoto : null}
         onChanged={handleFormSuccess}
       />
 
