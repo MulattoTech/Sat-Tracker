@@ -203,9 +203,9 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
       }
     } finally { page.off('request', observe); }
   };
-  const screenshot = async (page, name) => {
+  const screenshot = async (page, name, fullPage = true) => {
     const file = path.join(reportDir, name);
-    await page.screenshot({ path: file, fullPage: true, timeout: 5000 });
+    await page.screenshot({ path: file, fullPage, timeout: 5000 });
     report.screenshots.push(file);
   };
   const assertInViewport = async (locator, label) => {
@@ -339,13 +339,13 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await fillGestation(editor, '34', '0');
     await screenshot(page, 'corrected-age-default.png');
     await responsiveEditor(page, editor, { width: 390, height: 844 }, '34', '0', 'default');
-    await screenshot(page, 'corrected-age-default-phone.png');
+    await screenshot(page, 'corrected-age-default-phone.png', false);
     await save(page, editor, 238);
     await assertAge(page, preterm, 90, 48);
     await settings.getByRole('button', { name: 'Close', exact: true }).last().click();
     await until(() => panelClosed(settings), 'settings closing');
     await responsiveHeader(page, preterm, 'default');
-    await screenshot(page, 'corrected-age-phone-header.png');
+    await screenshot(page, 'corrected-age-phone-header.png', false);
     report.checks.push('Default editor saves gestation at 390×844 with accessible labels, keyboard input and actions, no horizontal overflow, and an immediately refreshed visible child header without rewriting the exact birth instant');
     await page.setViewportSize({ width: 1440, height: 1000 });
     await selectBaby(page, term);
@@ -418,7 +418,7 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await fillGestation(panel, '33', '6');
     await screenshot(story.page, 'corrected-age-storybook.png');
     await responsiveEditor(story.page, panel, { width: 768, height: 1024 }, '33', '6', 'storybook');
-    await screenshot(story.page, 'corrected-age-storybook-tablet.png');
+    await screenshot(story.page, 'corrected-age-storybook-tablet.png', false);
     await save(story.page, panel, 237, 'storybook');
     // Radix hides the underlying header from accessibility while the account
     // drawer is open. Close that drawer before asserting the visible header.
@@ -426,7 +426,7 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await manager.waitFor({ state: 'hidden' });
     await assertAge(story.page, preterm, storyDays, storyDays - 43);
     await responsiveHeader(story.page, preterm, 'storybook');
-    await screenshot(story.page, 'corrected-age-tablet-header.png');
+    await screenshot(story.page, 'corrected-age-tablet-header.png', false);
     await story.page.setViewportSize({ width: 1440, height: 1000 });
     ({ manager, panel } = await openStory());
     await assertForm(panel, '33', '6');
