@@ -62,6 +62,7 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Verify exact checkout before image build
         shell: bash
