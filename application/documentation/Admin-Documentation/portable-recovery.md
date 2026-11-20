@@ -73,6 +73,12 @@ Select **Recover into this empty destination** only for an eligible complete arc
 
 Normal application pages and APIs remain unavailable throughout recovery and after success. A successful receipt has `activationRequired: true`. The original source key is saved only to private `recovery.env` in the recovery state directory, with owner-only file permissions. The normal `.env` is unchanged.
 
+### Restarting a completed recovery-only destination
+
+A new completed recovery carries a separate, key-bound integrity seal covering its receipt, all recovered table hashes, and every retained encrypted file path, length, and digest. On a recovery-only restart, the startup guard checks the bound private instance, exact schema, permission-restricted source key and receipt, authenticates all referenced media and encrypted scalar values, verifies the saved completeness seal, and checks for unexpected extra files. It then serves **only** the recovery page/status while leaving every normal application route disabled. The startup must not migrate, import, reseed, rewrite media, apply environment settings or activate the destination.
+
+An interrupted journal, changed metadata or ciphertext, missing/modified receipt or key, altered schema, changed token/destination identity, or unexpected file **blocks startup without repair**. Older successful receipts lacking this new seal are *not* retroactively trusted: retain their database, media and private state and obtain independent operator review. An earlier source image that failed to restart after recovery cannot be made safe by deleting evidence or forcing a fresh migration.
+
 Activation is a separate operator decision: review the successful receipt, source revision, intended database/media volumes and exact key configuration before any normal application startup. This procedure does not activate a deployment, change a production container, rotate keys or merge historical data.
 
 ## Failure and interruption behavior

@@ -15,6 +15,7 @@ import {
   assertEmptyMediaRoot, readRecoveryInstance, recoveryStateFiles, stageRecoveryPublication,
 } from './storage';
 import { RecoveryError, type InspectionSummary, type RecoveryReceipt } from './types';
+import { recoveryIntegrityTag } from './integrity-seal';
 
 const transactionOptions = { isolationLevel: 'Serializable' as const, maxWait: 5_000, timeout: 120_000 };
 export const archiveDigest = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
@@ -105,8 +106,9 @@ export interface PortableRestoreOptions {
 export async function recoverPortableArchive(options: PortableRestoreOptions): Promise<RecoveryReceipt> {
   const { client, config, registry, exactSourceKey } = options;
   let prepared: ReturnType<typeof preparePortableRecovery>;
+  const mediaSnapshotAt = options.now ?? new Date();
   try {
-    prepared = preparePortableRecovery(options.bytes, exactSourceKey, registry, options.now);
+    prepared = preparePortableRecovery(options.bytes, exactSourceKey, registry, mediaSnapshotAt);
     if (!/^[a-f\d]{64}$/.test(options.expectedArchiveSha256) || options.expectedArchiveSha256 !== prepared.summary.archiveSha256) {
       throw new RecoveryError('ARCHIVE_CHANGED', 'Inspect this exact archive before recovering it.', 409);
     }
@@ -130,8 +132,10 @@ export async function recoverPortableArchive(options: PortableRestoreOptions): P
       ...prepared.summary, status: 'RECOVERED', destinationProvider: config.provider,
       completedAt: new Date().toISOString(), tablesRestored: imported.tablesImported,
       recordsRestored: imported.recordsImported, filesRestored: prepared.archive.mediaToRestore.length,
-      verified: true, activationRequired: true,
+      verified: true, activationRequired: true, mediaSnapshotAt: mediaSnapshotAt.toISOString(),
     };
+    receipt.integrityTag = recoveryIntegrityTag(receipt, prepared.validated.tableHashes,
+      prepared.archive.mediaToRestore, exactSourceKey);
     await publication.finish(receipt);
     return receipt;
   } catch (error) {

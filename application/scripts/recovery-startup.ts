@@ -3,49 +3,76 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { recoveryConfiguration } from '../src/lib/portable-recovery/configuration';
 import { loadPortableSchema } from '../src/lib/portable-recovery/schema';
-import { assertNativeEmptyDestination } from '../src/lib/portable-recovery/startup-guard';
-import { assertDirectoryChain, initializeRecoveryInstance, recoveryStateFiles } from '../src/lib/portable-recovery/storage';
+import { assertNativeEmptyDestination, assertNativeRestoredDestination } from '../src/lib/portable-recovery/startup-guard';
+import { assertDirectoryChain, initializeRecoveryInstance, readRecoveryInstance, recoveryStateFiles } from '../src/lib/portable-recovery/storage';
+import { verifyCompletedRecovery } from '../src/lib/portable-recovery/completed-resume';
 import { RecoveryError } from '../src/lib/portable-recovery/types';
 
-/** This entry point runs before normal startup reads an env file, seeds, migrates or schedules jobs. */
+/** Recovery starts before env defaults, seeding, normal migrations or scheduled jobs. */
 async function main(): Promise<void> {
   const config = recoveryConfiguration(), registry = await loadPortableSchema();
-  const schemaState = await assertNativeEmptyDestination(config, registry);
-  await initializeRecoveryInstance(config);
-  if ((await recoveryStateFiles(config)).length) throw new RecoveryError('RECOVERY_ALREADY_STARTED', 'Recovery state already exists. Review it before restarting or activating this destination.', 409);
-  const startupLock = path.join(config.stateDir, 'startup.lock');
-  await fs.mkdir(startupLock, { mode: 0o700 });
+  const marker = path.join(config.stateDir, 'instance.json');
+  const hasMarker = await fs.lstat(marker).then(() => true, error => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  });
+  let completed = false;
+  if (hasMarker) {
+    await readRecoveryInstance(config);
+    const state = (await recoveryStateFiles(config)).sort();
+    if (state.length) {
+      if (state.length !== 2 || state[0] !== 'receipt.json' || state[1] !== 'recovery.env') {
+        throw new RecoveryError('RECOVERY_ALREADY_STARTED', 'Recovery state requires operator review before restarting.', 409);
+      }
+      await assertNativeRestoredDestination(config, registry);
+      completed = true;
+    }
+  }
 
-  // These explicit values also prevent dotenv/Next from restoring normal persisted settings.
+  const schemaState = completed ? null : await assertNativeEmptyDestination(config, registry);
+  if (!completed) {
+    await initializeRecoveryInstance(config);
+    if ((await recoveryStateFiles(config)).length) {
+      throw new RecoveryError('RECOVERY_ALREADY_STARTED', 'Recovery state requires operator review before restarting.', 409);
+    }
+    await fs.mkdir(path.join(config.stateDir, 'startup.lock'), { mode: 0o700 });
+  }
+
   const env: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: config.databaseUrl, DATABASE_PROVIDER: config.provider,
     LOG_DATABASE_URL: config.databaseUrl, ENC_HASH: '', JWT_SECRET: '', ENABLE_LOG: 'false', ENABLE_NOTIFICATIONS: 'false',
     BABYTRACKER_OCR_FILES_DIR: path.join(config.filesRoot, 'ocr') };
   const run = (args: string[]) => new Promise<void>((resolve, reject) => {
-    // CLI output may contain a connection URL. Emit only the bounded stage name below.
     const child = spawn(process.execPath, args, { cwd: process.cwd(), env, stdio: 'ignore' });
-    child.once('error', () => reject(new RecoveryError('RECOVERY_SCHEMA_SETUP_FAILED', 'Recovery schema preparation could not start.', 503)));
-    child.once('exit', code => code === 0 ? resolve() : reject(new RecoveryError('RECOVERY_SCHEMA_SETUP_FAILED', 'Recovery schema preparation failed. Its startup lock is retained for operator review.', 503)));
+    child.once('error', () => reject(new RecoveryError('RECOVERY_SCHEMA_SETUP_FAILED', 'Recovery client preparation could not start.', 503)));
+    child.once('exit', code => code === 0 ? resolve() : reject(new RecoveryError('RECOVERY_SCHEMA_SETUP_FAILED', 'Recovery client preparation failed; destination remains sealed.', 503)));
   });
-  if (config.databasePath) {
+  if (config.databasePath && !completed) {
     await assertDirectoryChain(path.dirname(config.databasePath), true);
     await fs.mkdir(path.dirname(config.databasePath), { recursive: true, mode: 0o700 });
     await assertDirectoryChain(path.dirname(config.databasePath));
   }
-  console.info('Preparing the isolated recovery schema. No seed data will be created.');
+  console.info(completed ? 'Verifying previously recovered destination without data changes.' : 'Preparing the isolated recovery schema. No seed data will be created.');
   await run(['scripts/prisma-provider.js']);
   await run(['node_modules/prisma/build/index.js', 'generate']);
-  // Only generate the log client; never connect or push a diagnostic-log database.
   await run(['node_modules/prisma/build/index.js', 'generate', '--config', 'prisma/log.config.ts']);
-  // Recheck immediately before DDL. A changed or populated target is never synchronized.
-  if (await assertNativeEmptyDestination(config, registry) !== schemaState) throw new RecoveryError('DESTINATION_CHANGED', 'The recovery schema changed during startup.', 409);
-  if (schemaState === 'fresh') {
-    await run(config.provider === 'sqlite'
-      ? ['node_modules/prisma/build/index.js', 'migrate', 'deploy']
-      : ['node_modules/prisma/build/index.js', 'db', 'push']);
+  if (completed) {
+    // Reject incomplete/unsealed legacy receipts instead of guessing or repairing.
+    await verifyCompletedRecovery(config, registry);
+  } else {
+    if (await assertNativeEmptyDestination(config, registry) !== schemaState) {
+      throw new RecoveryError('DESTINATION_CHANGED', 'The recovery schema changed during startup.', 409);
+    }
+    if (schemaState === 'fresh') {
+      await run(config.provider === 'sqlite'
+        ? ['node_modules/prisma/build/index.js', 'migrate', 'deploy']
+        : ['node_modules/prisma/build/index.js', 'db', 'push']);
+    }
+    if (await assertNativeEmptyDestination(config, registry) !== 'current-empty') {
+      throw new RecoveryError('INCOMPLETE_RECOVERY_SCHEMA', 'The recovery schema is incomplete.', 409);
+    }
+    if (config.databasePath && process.platform !== 'win32') await fs.chmod(config.databasePath, 0o600);
+    await fs.rmdir(path.join(config.stateDir, 'startup.lock'));
   }
-  if (await assertNativeEmptyDestination(config, registry) !== 'current-empty') throw new RecoveryError('INCOMPLETE_RECOVERY_SCHEMA', 'The recovery schema is incomplete.', 409);
-  if (config.databasePath && process.platform !== 'win32') await fs.chmod(config.databasePath, 0o600);
-  await fs.rmdir(startupLock);
 
   const command = process.argv.slice(2);
   if (!command.length) command.push('npm', 'start');
@@ -55,7 +82,6 @@ async function main(): Promise<void> {
   server.once('error', () => { console.error('Recovery server could not start.'); process.exitCode = 1; });
   server.once('exit', (code, signal) => { process.exitCode = signal ? 1 : code ?? 1; });
 }
-
 main().catch(error => {
   console.error(error instanceof RecoveryError ? `${error.code}: ${error.message}` : 'RECOVERY_STARTUP_FAILED: Recovery startup was blocked before normal application initialization.');
   process.exitCode = 1;

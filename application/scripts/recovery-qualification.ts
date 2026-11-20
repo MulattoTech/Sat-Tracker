@@ -16,6 +16,7 @@ import { parsePortableSchema } from '../src/lib/portable-recovery/schema';
 import { exportMetadata, importMetadata, validatePortableMetadata, type PortableMetadataV1, type PortableProvider } from '../src/lib/portable-recovery/metadata';
 import { archiveDigest, createPortableBackup, preparePortableRecovery, recoverPortableArchive } from '../src/lib/portable-recovery/engine';
 import { recoveryConfiguration } from '../src/lib/portable-recovery/configuration';
+import { verifyCompletedRecovery } from '../src/lib/portable-recovery/completed-resume';
 import { assertNativeEmptyDestination } from '../src/lib/portable-recovery/startup-guard';
 import { initializeRecoveryInstance, readRecoveryReceipt } from '../src/lib/portable-recovery/storage';
 import { readBoundedZip } from '../src/lib/portable-recovery/archive';
@@ -28,7 +29,7 @@ const runId = randomUUID().replaceAll('-', '');
 const registry = parsePortableSchema(readFileSync(path.join(appRoot, 'prisma/schema.prisma'), 'utf8'));
 const directionChecks = ['archive_preflight', 'bad_key_no_writes', 'wrong_case_no_writes', 'tamper_no_writes', 'changed_digest_no_writes',
   'occupied_database_no_changes', 'occupied_media_no_changes', 'late_failure_rollback', 'strict_restore', 'exact_metadata',
-  'retention_and_ciphertext', 'production_readers', 'replay_refused'] as const;
+  'retention_and_ciphertext', 'completed_recovery_integrity', 'production_readers', 'replay_refused'] as const;
 const readerChecks = ['production_auth', 'photo_full_owner', 'photo_thumbnail_owner', 'photo_foreign_denied', 'photo_trash_restricted',
   'vaccine_owner', 'vaccine_foreign_denied', 'feedback_owner', 'feedback_foreign_admin_denied', 'ocr_source_owner', 'ocr_preview_owner',
   'ocr_foreign_denied', 'ocr_expired_unavailable', 'anonymous_denied', 'read_side_effects_bounded'];
@@ -286,6 +287,13 @@ async function main() {
       const unchangedSource = await exportMetadata(source.client, { provider: sourceProvider, registry, exportedAt });
       assert.deepEqual(validatePortableMetadata(unchangedSource, registry).tableHashes, prepared.validated.tableHashes, 'Recovery must never alter source metadata');
       direction.ocrOmissions = prepared.archive.omissions.length;
+    });
+    await check('completed_recovery_integrity', async () => {
+      const verified = await verifyCompletedRecovery(config, registry, destination.client);
+      assert.equal(verified.verified, true);
+      assert.equal(verified.filesRestored, 8);
+      assert.equal(verified.recordsRestored, 77);
+      assert.match(verified.integrityTag!, /^[a-f0-9]{64}$/);
     });
     await check('production_readers', async () => {
       const inputPath = path.join(destination.directory, 'reader-input.json');

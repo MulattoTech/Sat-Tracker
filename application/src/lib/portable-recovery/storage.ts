@@ -109,6 +109,28 @@ export async function readRecoveryReceipt(config: RecoveryConfiguration): Promis
   finally { await handle.close(); }
 }
 
+/** Never source the saved recovery environment through a shell. Read and validate one private key line. */
+export async function readRecoveredSourceKey(config: RecoveryConfiguration): Promise<string> {
+  await readRecoveryInstance(config);
+  const filename = path.join(config.stateDir, 'recovery.env');
+  let handle;
+  try {
+    handle = await fs.open(filename, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size > 128 || (process.platform !== 'win32' && (stat.mode & 0o077) !== 0)) {
+      throw new Error('Unsafe key file');
+    }
+    const contents = await handle.readFile('utf8');
+    const match = /^ENC_HASH="([a-fA-F0-9]{64})"\n$/.exec(contents);
+    if (!match) throw new Error('Invalid key file');
+    return match[1];
+  } catch {
+    throw new RecoveryError('RECOVERY_KEY_UNTRUSTED', 'The private recovered key must be reviewed before restart.', 409);
+  } finally {
+    await handle?.close();
+  }
+}
+
 interface OwnedFile { path: string; sha256: string; dev: number; ino: number }
 async function flushFile(filename: string): Promise<void> {
   const handle = await fs.open(filename, constants.O_RDONLY | constants.O_NOFOLLOW);

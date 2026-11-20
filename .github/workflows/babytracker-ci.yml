@@ -277,9 +277,10 @@ jobs:
             'sqlite->sqlite', 'sqlite->postgresql', 'postgresql->sqlite', 'postgresql->postgresql',
           ]);
           for (const direction of r.directions) {
-            assert.equal(direction.status, 'PASS'); assert.equal(direction.checks.length, 13);
+            assert.equal(direction.status, 'PASS'); assert.equal(direction.checks.length, 14);
             assert.ok(direction.checks.every(check => check.status === 'PASS'));
-            assert.equal(new Set(direction.checks.map(check => check.id)).size, 13);
+            assert.equal(new Set(direction.checks.map(check => check.id)).size, 14);
+            assert.ok(direction.checks.some(check => check.id === 'completed_recovery_integrity' && check.status === 'PASS'));
             assert.equal(direction.tableCount, 66); assert.equal(direction.recordCount, 77);
             assert.equal(direction.filesRestored, 8); assert.equal(direction.ocrOmissions, 3);
             assert.equal(direction.authenticatedMetadataValues, 17);
@@ -318,6 +319,7 @@ jobs:
             'mobile_keyboard_and_destination_status', 'invalid_key_retains_selected_archive_and_draft',
             'complete_inspection_and_changed_input_invalidates_review', 'rejected_commit_preserves_review_and_draft',
             'real_ui_commit_exact_metadata_and_media', 'complete_destination_is_sealed_and_not_activated',
+            'completed_recovery_survives_verified_restart', 'tampered_completed_media_blocks_restart',
           ]);
           assert.ok(r.checks.every(check => check.status === 'PASS'));
           assert.deepEqual(r.errors, []); assert.deepEqual(r.cleanup.errors, []);
