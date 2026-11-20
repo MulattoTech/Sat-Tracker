@@ -48,8 +48,8 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
   const prefix = `corrected-age-${runId}`;
   const fixedNow = new Date(); // Keep actual-issued JWTs valid; freeze only the browser Date clock.
   const birth = days => new Date(Date.UTC(fixedNow.getUTCFullYear(), fixedNow.getUTCMonth(), fixedNow.getUTCDate() - days, 12, 34, 56, 789));
-  const family = { id: `${prefix}-family`, slug: `synthetic-${prefix}`, name: 'Synthetic corrected age family', setupStage: 3 };
-  const caregiver = { id: `${prefix}-caregiver`, loginId: '64', securityPin: '5826', name: 'Synthetic Age Reviewer', role: 'ADMIN', type: 'Parent' };
+  const family = { id: `${prefix}-family`, slug: `age-${runId}`, name: 'Synthetic corrected age family', setupStage: 3 };
+  const caregiver = { id: `${prefix}-caregiver`, loginId: '64', securityPin: '582649', name: 'Synthetic Age Reviewer', role: 'ADMIN', type: 'Parent' };
   const babies = [
     { id: `${prefix}-preterm`, firstName: 'AgePreterm', lastName: 'Fixture', birthDate: birth(90), gestationalAgeDays: 224 },
     { id: `${prefix}-term`, firstName: 'AgeTerm', lastName: 'Fixture', birthDate: birth(42), gestationalAgeDays: 259 },
@@ -113,6 +113,8 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     assert.equal(new URL(page.url()).searchParams.get('babyId'), baby.id);
   };
   const loginPin = async page => {
+    assert.match(caregiver.loginId, /^\d{2}$/, 'Synthetic caregiver requires a two-digit Login ID');
+    assert.match(caregiver.securityPin, /^\d{6,10}$/, 'Synthetic caregiver PIN must satisfy the real login form length');
     await page.goto(`${base}/${family.slug}`, { waitUntil: 'networkidle' });
     const panel = page.locator('.login-container');
     await panel.getByRole('heading', { name: 'Login ID & Security PIN', exact: true }).waitFor();
@@ -274,6 +276,9 @@ export async function verifyCorrectedAge({ base, db, browser, reportDir }) {
     await db.caretaker.create({ data: { ...caregiver, familyId: family.id, lastSeenVersion: '1.6.7' } });
     await db.baby.createMany({ data: babies.map(baby => ({ ...baby, familyId: family.id, gender: 'FEMALE', dailyIntakeTargetMl: 615.5 })) });
     await db.account.create({ data: { ...account, password: passwordHash, verified: true, familyId: family.id, caretakerId: caregiver.id, planType: 'full', lastSeenVersion: '1.6.7' } });
+    const resolved = await fetch(`${base}/api/family/by-slug/${family.slug}`, { signal: AbortSignal.timeout(5000) });
+    assert.equal(resolved.status, 200);
+    assert.equal((await resolved.json()).data?.id, family.id, 'Synthetic fixture slug must resolve through the ordinary public API');
     const termSnapshot = await readBaby(term.id), dueSnapshot = await readBaby(beforeDue.id);
     const { context, page } = await newContext('UTC');
     const legacy = { ...await readBaby(preterm.id), birthDate: preterm.birthDate.toISOString() };
