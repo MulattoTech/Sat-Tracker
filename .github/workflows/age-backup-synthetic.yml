@@ -1,0 +1,113 @@
+name: Qualify synthetic age backup recovery
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/age-backup-synthetic.yml"
+      - "scripts/verify_age_backup_synthetic.py"
+      - "scripts/verify_age_cross_os_synthetic.py"
+      - "docs/feedback-hotfix-age-format-review.md"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-age-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+      - name: Build pinned age CLI in ephemeral runner (synthetic only)
+        env:
+          GOBIN: ${{ runner.temp }}/sat-age-bin
+        run: |
+          set -euo pipefail
+          mkdir -p "$GOBIN"
+          go install filippo.io/age/cmd/age@v1.3.2
+          go install filippo.io/age/cmd/age-keygen@v1.3.2
+          echo "$GOBIN" >> "$GITHUB_PATH"
+      - name: Install checksum-verified Rust rage v0.12.1 (synthetic only)
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/sat-age-rage"
+          mkdir -p "$work"
+          archive="$work/rage-v0.12.1-x86_64-linux.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/str4d/rage/releases/download/v0.12.1/rage-v0.12.1-x86_64-linux.tar.gz" \
+            -o "$archive"
+          printf '%s  %s\n' \
+            'c5d7ab41fbf1213590e89721fd2b8eb122e84518c155ce35866f1c5759a3a29f' \
+            "$archive" | sha256sum --check --status
+          tar -xzf "$archive" -C "$work" rage/rage
+          chmod 700 "$work/rage/rage"
+          echo "$work/rage" >> "$GITHUB_PATH"
+      - name: Require binary-safe two-recipient cross-implementation recovery
+        run: python scripts/verify_age_backup_synthetic.py
+      - name: Create one fabricated Linux ciphertext for Windows recovery
+        run: python scripts/verify_age_cross_os_synthetic.py generate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-age-linux-to-windows-${{ github.sha }}
+          path: ${{ runner.temp }}/sat-age-cross-os-synthetic/share/
+          retention-days: 1
+          if-no-files-found: error
+  synthetic-age-windows:
+    needs: synthetic-age-recovery
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download checksum-pinned official Windows binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'sat-age-windows-synthetic'
+          [void](New-Item -ItemType Directory -Path $root -Force)
+          $archives = @(
+            @{
+              Url = 'https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-windows-amd64.zip'
+              Name = 'age-v1.3.2-windows-amd64.zip'
+              SHA256 = 'f48d8f8f9ebe903ab5027ed067652f2cc1db94bc206976430133b905dcd8e8c7'
+              Folder = 'age'
+            },
+            @{
+              Url = 'https://github.com/str4d/rage/releases/download/v0.12.1/rage-v0.12.1-x86_64-windows.zip'
+              Name = 'rage-v0.12.1-x86_64-windows.zip'
+              SHA256 = 'da5b8111c8f097c7822df505ad504696e4891ff8adec06a39171f8d717590b2c'
+              Folder = 'rage'
+            }
+          )
+          foreach ($item in $archives) {
+            $archive = Join-Path $root $item.Name
+            Invoke-WebRequest -Uri $item.Url -OutFile $archive
+            $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -cne $item.SHA256) { throw 'Official binary archive checksum rejected' }
+            $folder = Join-Path $root $item.Folder
+            Expand-Archive -LiteralPath $archive -DestinationPath $folder
+          }
+          $exeNames = @(
+            @{ Folder = 'age'; Name = 'age.exe' },
+            @{ Folder = 'age'; Name = 'age-keygen.exe' },
+            @{ Folder = 'rage'; Name = 'rage.exe' }
+          )
+          foreach ($item in $exeNames) {
+            $folder = Join-Path $root $item.Folder
+            $exe = @(Get-ChildItem -LiteralPath $folder -Filter $item.Name -File -Recurse)
+            if ($exe.Count -ne 1) { throw 'Official binary archive has an unexpected executable layout' }
+            Add-Content -LiteralPath $env:GITHUB_PATH -Value $exe[0].DirectoryName
+          }
+      - name: Require synthetic Windows Go/Rust recovery
+        run: python scripts/verify_age_backup_synthetic.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: synthetic-age-linux-to-windows-${{ github.sha }}
+          path: ${{ runner.temp }}/sat-age-cross-os-synthetic/share
+      - name: Recover the exact Linux ciphertext on Windows with Go and Rust
+        run: python scripts/verify_age_cross_os_synthetic.py verify
