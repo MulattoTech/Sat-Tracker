@@ -151,8 +151,16 @@ async function run() {
   const stopRecoveryServer = async () => {
     const previous = server;
     if (!previous?.pid) throw new Error('Owned recovery process has no process identity');
-    if (serverGroupAlive(previous.pid)) process.kill(-previous.pid, 'SIGTERM');
-    await until(() => !serverGroupAlive(previous.pid), 'previous recovery process-group exit', 8000);
+    if (serverGroupAlive(previous.pid)) {
+      process.kill(-previous.pid, 'SIGTERM');
+      try { await until(() => !serverGroupAlive(previous.pid), 'previous recovery graceful process-group exit', 5000); }
+      catch {
+        // Match the existing bounded end-of-test cleanup: a stranded owned child
+        // must be terminated and reaped before restarting on the same port.
+        if (serverGroupAlive(previous.pid)) process.kill(-previous.pid, 'SIGKILL');
+        await until(() => !serverGroupAlive(previous.pid), 'previous recovery forced process-group exit', 5000);
+      }
+    }
     await until(() => previous.exitCode !== null || previous.signalCode !== null, 'previous recovery parent exit', 5000);
     for (const stream of previous.stdio || []) stream?.destroy?.();
   };
