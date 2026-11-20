@@ -15,6 +15,7 @@ import { useLocalization } from '@/src/context/localization';
 import { PhotoAttachments } from '@/src/components/ui/photo-attachments';
 import { uploadPhotos, createPhotoLog, fetchPhotoLog, updatePhotoLog, updatePhoto, deletePhotoLog } from '@/src/utils/photoClientApi';
 import { filterTaggableMilestones } from '@/src/utils/photoUtils';
+import { photoLogEditPayload, photoMetadataEditPayload, reservedPhotoSlots } from '@/src/utils/photoAttachmentState';
 import { MilestoneResponse, PhotoResponse } from '@/app/api/types';
 import { PhotoAddActions } from './photo-form.types';
 
@@ -48,6 +49,11 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
   // after a partial upload failure updates the same log instead of
   // creating a duplicate. Reset whenever the drawer opens/resets.
   const [savedLogId, setSavedLogId] = useState<string | null>(null);
+  const [photosTouched, setPhotosTouched] = useState(false);
+  const [reservedSlots, setReservedSlots] = useState(0);
+  const [loadingEntry, setLoadingEntry] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadRevision, setLoadRevision] = useState(0);
   const takenAtDate = useMemo(() => new Date(takenAt), [takenAt]);
 
   // Reset/load state whenever the drawer opens, for both new and edit mode.
@@ -55,10 +61,24 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
   // state (pending files, caption, etc.) would leak into the next open.
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
+    setPendingFiles([]);
+    setExistingPhotos([]);
+    setPhotosTouched(false);
+    setReservedSlots(0);
+    setFileErrors([]);
+    setError(null);
+    setLoadError(false);
+    setLoadingEntry(!!activity);
+    setSaving(false);
+    setSavedLogId(null);
     if (activity) {
       fetchPhotoLog(activity.photoLogId)
         .then((log) => {
+          if (cancelled) return;
+          if (log.babyId !== babyId) throw new Error('Photo entry does not match this child');
           setExistingPhotos(log.photos);
+          setReservedSlots(reservedPhotoSlots(log.retainedLinkCount, log.photos.length));
           setTakenAt(log.time);
           setUserTouchedTime(false);
           const loadedCaption = (log.photos[0]?.caption || '').trim();
@@ -73,7 +93,10 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
           setSaving(false);
           setSavedLogId(null);
         })
-        .catch(() => setError(t('Failed to load photo entry')));
+        .catch(() => {
+          if (!cancelled) { setLoadError(true); setError(t('Failed to load photo entry')); }
+        })
+        .finally(() => { if (!cancelled) setLoadingEntry(false); });
     } else {
       setPendingFiles([]);
       setExistingPhotos([]);
@@ -87,7 +110,8 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
       setError(null);
       setSavedLogId(null);
     }
-  }, [isOpen, activity?.photoLogId]);
+    return () => { cancelled = true; };
+  }, [isOpen, activity?.photoLogId, babyId, loadRevision]);
 
   // Milestone options for this baby (match the endpoint MilestoneForm uses)
   useEffect(() => {
@@ -107,12 +131,13 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
   );
 
   const handleSave = async () => {
-    if (!babyId) return;
+    if (!babyId || saving || loadingEntry || loadError) return;
     setSaving(true);
     setError(null);
     setFileErrors([]);
     try {
       let photoIds = existingPhotos.map((p) => p.id);
+      let changedPhotos = photosTouched;
       let uploadErrors: { fileName: string; error: string; index: number }[] = [];
       if (pendingFiles.length > 0) {
         const result = await uploadPhotos(pendingFiles, {
@@ -130,6 +155,8 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
         // and only the failed files remain pending.
         if (result.photos.length > 0) {
           setExistingPhotos((prev) => [...prev, ...result.photos]);
+          changedPhotos = true;
+          setPhotosTouched(true);
         }
         if (result.errors.length > 0) {
           const failedIndices = new Set(result.errors.map((e) => e.index));
@@ -142,7 +169,7 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
           return;
         }
       }
-      if (photoIds.length === 0) {
+      if (photoIds.length === 0 && !activity && !savedLogId) {
         setError(t('Add at least one photo'));
         return;
       }
@@ -152,19 +179,27 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
       // save attempt so we update it instead of creating a duplicate.
       const logId = activity?.photoLogId ?? savedLogId;
       if (logId) {
-        await updatePhotoLog(logId, { time: takenAt, photoIds });
+        const patch = photoLogEditPayload(takenAt, userTouchedTime, photoIds, changedPhotos);
+        if (Object.keys(patch).length) {
+          const updated = await updatePhotoLog(logId, patch);
+          setReservedSlots(reservedPhotoSlots(updated.retainedLinkCount, updated.photos.length));
+          setPhotosTouched(false);
+          setUserTouchedTime(false);
+        }
         // updatePhotoLog only carries time/photoIds, so caption/milestone
         // edits on pre-existing photos must be patched separately. Newly
         // uploaded photos already got the caption/milestone at upload time.
         if (activity) {
-          const trimmedCaption = caption.trim();
-          if (trimmedCaption !== initialCaption || milestoneId !== initialMilestoneId) {
+          const metadataPatch = photoMetadataEditPayload(caption, initialCaption, milestoneId, initialMilestoneId);
+          if (Object.keys(metadataPatch).length) {
             try {
               await Promise.all(
                 existingPhotos.map((p) =>
-                  updatePhoto(p.id, { caption: trimmedCaption || null, milestoneId: milestoneId || null })
+                  updatePhoto(p.id, metadataPatch)
                 )
               );
+              setInitialCaption(caption.trim());
+              setInitialMilestoneId(milestoneId);
             } catch (err) {
               patchError = err instanceof Error ? err.message : t('Failed to update photo details');
             }
@@ -174,7 +209,6 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
         const created = await createPhotoLog({ babyId, time: userTouchedTime ? takenAt : initialTime, photoIds });
         setSavedLogId(created.id);
       }
-      onSuccess?.();
       if (uploadErrors.length > 0 || patchError) {
         setError(
           [
@@ -186,6 +220,10 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
         );
         return;
       }
+      // A parent may close/unmount this editor on success. Keep the current
+      // draft and any already-saved upload/log identities until all work is
+      // confirmed, so a failed patch or partial upload can be retried in place.
+      onSuccess?.();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('Failed to save photo entry'));
@@ -226,10 +264,10 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
           }
         : undefined,
       onCancel: onClose,
-      canSave: pendingFiles.length > 0 || existingPhotos.length > 0,
+      canSave: !loadingEntry && !loadError && (!!activity || !!savedLogId || pendingFiles.length > 0 || existingPhotos.length > 0),
       saving,
     });
-  }, [onActionsChange, activity, pendingFiles.length, existingPhotos.length, saving, onClose]);
+  }, [onActionsChange, activity, savedLogId, pendingFiles.length, existingPhotos.length, saving, loadingEntry, loadError, onClose]);
 
   useEffect(() => () => onActionsChange?.(null), [onActionsChange]);
 
@@ -238,10 +276,15 @@ export default function AddPhotoTab({ isOpen, babyId, initialTime, activity, onC
       <div>
         <label className="form-label">{t('Photo')}</label>
         <PhotoAttachments
+          reservedSlots={reservedSlots} loading={loadingEntry} loadError={loadError}
+          onRetry={() => setLoadRevision(value => value + 1)} disabled={saving}
           pendingFiles={pendingFiles}
           onPendingFilesChange={setPendingFiles}
           existingPhotos={existingPhotos.map((p) => ({ id: p.id, caption: p.caption }))}
-          onRemoveExisting={(photoId) => setExistingPhotos(existingPhotos.filter((p) => p.id !== photoId))}
+          onRemoveExisting={(photoId) => {
+            setPhotosTouched(true);
+            setExistingPhotos(existingPhotos.filter((p) => p.id !== photoId));
+          }}
         />
         {fileErrors.map((fe) => (
           <p key={`${fe.fileName}-${fe.index}`} className="mt-1 text-xs text-red-500">

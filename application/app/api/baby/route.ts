@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
 import { ApiResponse, BabyCreate, BabyUpdate, BabyResponse } from '../types';
 import { Gender } from '@prisma/client';
 import { toUTC, formatForResponse } from '../utils/timezone';
@@ -201,16 +202,19 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    // Soft delete by setting deletedAt
-    await prisma.baby.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    // Serialize child liveness with attachment validation. Historical rows stay intact.
+    await withPhotoIntegrity(prisma, targetFamilyId, async tx => {
+      const removed = await tx.baby.updateMany({
+        where: { id, familyId: targetFamilyId }, data: { deletedAt: new Date() },
+      });
+      if (removed.count !== 1) throw new PhotoIntegrityError('Baby not found or access denied.', 404);
     });
 
     return NextResponse.json<ApiResponse>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     console.error('Error deleting baby:', error);
     return NextResponse.json<ApiResponse>(
       {

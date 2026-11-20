@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
+import { assertPhotoTargetMove, detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
 import { ApiResponse, MilestoneCreate, MilestoneResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
@@ -120,9 +122,9 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       ? { ...body, date: toUTC(body.date) }
       : body;
 
-    const milestone = await prisma.milestone.update({
-      where: { id, familyId: userFamilyId },
-      data,
+    const milestone = await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await assertPhotoTargetMove(tx, userFamilyId, { activityType: 'milestone', activityId: id }, body.babyId);
+      return tx.milestone.update({ where: { id, familyId: userFamilyId }, data: data });
     });
 
     // Format dates as ISO strings for response
@@ -139,6 +141,7 @@ async function handlePut(req: NextRequest, authContext: AuthResult) {
       data: response,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     if (error instanceof CareWriteError) return error.response();
     console.error('Error updating milestone:', error);
     return NextResponse.json<ApiResponse<MilestoneResponse>>(
@@ -308,14 +311,16 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.milestone.delete({
-      where: { id },
+    await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await detachPhotoTargetForDeletion(tx, userFamilyId, { activityType: 'milestone', activityId: id });
+      await tx.milestone.delete({ where: { id } });
     });
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     console.error('Error deleting milestone:', error);
     return NextResponse.json<ApiResponse<void>>(
       {

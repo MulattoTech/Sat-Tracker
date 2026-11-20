@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Um ou mais detalhes da erupção cutânea excedem o limite de caracteres.",
   "Export PDF": "Exportar PDF",
   "Unable to export activities. Please try again.": "Não foi possível exportar as atividades. Tente novamente.",
-  "Preparing PDF...": "Preparando PDF..."
+  "Preparing PDF...": "Preparando PDF...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Anexos indisponíveis ou na lixeira ocupam espaços para fotos ({count}).",
+  "Unavailable attachments": "Anexos indisponíveis",
+  "Removing an unavailable link keeps the photo and care record.": "Remover um vínculo indisponível preserva a foto e o registro de cuidados.",
+  "Remove unavailable link": "Remover vínculo indisponível",
+  "Remove unavailable milestone": "Remover marco indisponível"
 }

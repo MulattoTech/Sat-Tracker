@@ -70,6 +70,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   state.gate = null;
+  await actual.photoLink.deleteMany(); await actual.photo.deleteMany();
   await actual.feedLog.deleteMany();
   await actual.pumpLog.deleteMany();
   await actual.breastMilkAdjustment.deleteMany();
@@ -187,6 +188,33 @@ describe('canonical pump feed ownership with real JWT auth and migrated SQLite',
     expect(await actual.pumpLog.findUniqueOrThrow({ where: { id: pump.id } })).toMatchObject({ babyId: 'pump-owner-sibling' });
     expect(await actual.feedLog.findUniqueOrThrow({ where: { id: feed.id } })).toMatchObject({ sourcePumpId: pump.id, babyId: 'pump-owner-sibling', caretakerId });
     expect(await actual.feedLog.findUniqueOrThrow({ where: { id: unrelated.id } })).toEqual(unrelated);
+  });
+
+  it.each([
+    { operation: 'child correction', patch: { babyId: 'pump-owner-sibling' } },
+    { operation: 'disposition correction', patch: { pumpAction: 'STORED' } },
+  ])('rejects an indirect $operation that would move or remove an attached feed', async ({ patch }) => {
+    const pump = await seedPump(), feed = await seedFeed(pump);
+    const photo = await actual.photo.create({ data: { familyId, babyId, originalName: 'synthetic.png', storedName: 'synthetic.enc',
+      thumbStoredName: 'synthetic-thumb.enc', mimeType: 'image/png', fileSize: 1, thumbSize: 1, takenAt: startTime } });
+    const link = await actual.photoLink.create({ data: { photoId: photo.id, activityType: 'feed', activityId: feed.id } });
+    const before = await careRows();
+    expect((await update(pump.id, patch)).status).toBe(409); expect(await careRows()).toEqual(before);
+    expect(await actual.photoLink.findMany()).toEqual([link]); expect(await actual.photo.findMany()).toEqual([photo]);
+  });
+
+  it('explicit pump deletion detaches valid feed photos but rolls back malformed associations', async () => {
+    const pump = await seedPump(), feed = await seedFeed(pump);
+    const photo = await actual.photo.create({ data: { familyId, babyId: 'pump-owner-sibling', originalName: 'synthetic.png', storedName: 'synthetic.enc',
+      thumbStoredName: 'synthetic-thumb.enc', mimeType: 'image/png', fileSize: 1, thumbSize: 1, takenAt: startTime } });
+    const link = await actual.photoLink.create({ data: { photoId: photo.id, activityType: 'feed', activityId: feed.id } });
+    const before = await careRows();
+    expect((await remove(pump.id)).status).toBe(409); expect(await careRows()).toEqual(before);
+    expect(await actual.photoLink.findMany()).toEqual([link]);
+    const valid = await actual.photo.update({ where: { id: photo.id }, data: { babyId } });
+    expect((await remove(pump.id)).status).toBe(200);
+    expect(await actual.photo.findMany()).toEqual([valid]); expect(await actual.photoLink.count()).toBe(0);
+    expect(await actual.feedLog.count()).toBe(0); expect(await actual.pumpLog.count()).toBe(0);
   });
 
   it('removes only the original owned feed when correcting both child and disposition', async () => {

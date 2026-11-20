@@ -1,6 +1,12 @@
 # Photo Attachments Component
 
-A reusable photo attachment strip component that manages locally-pending files and displays existing photos. Used across activity forms (Feeding, Diaper, Sleep, Mood, Activity) and the dedicated PhotoForm.
+A controlled photo attachment strip that displays locally pending files and existing photos. The active consumers are FeedForm, MilestoneForm, ActivityForm, BathForm, MeasurementForm, FoodForm and PhotoForm. Diaper capture remains a separate package.
+
+The component does not fetch the gallery. Existing activity editors use
+`useActivityPhotoAttachments` and the direct target lookup, so an older
+attachment is not lost when it falls outside the first gallery page. Cancelled
+requests cannot populate another opened target. Read errors leave photo
+changes disabled and expose a retry action.
 
 ## Features
 
@@ -25,6 +31,10 @@ A reusable photo attachment strip component that manages locally-pending files a
 | `onPhotoClick` | `(photoId: string) => void` | `undefined` | Optional callback when tapping existing photo (e.g., navigate to PhotoDetail) |
 | `maxPhotos` | `number` | `MAX_PHOTOS_PER_ACTIVITY` (4) | Maximum number of photos allowed |
 | `disabled` | `boolean` | `false` | When true, prevents adding new photos and disables remove on existing |
+| `reservedSlots` | `number` | `0` | Slots retained by hidden or trashed references; never rendered as photo thumbnails |
+| `loading` | `boolean` | `false` | Disable attachment changes while the target lookup is loading |
+| `loadError` | `boolean` | `false` | Show a localized error and disable attachment changes |
+| `onRetry` | `() => void` | `undefined` | Retry a failed attachment read |
 
 ## Types
 
@@ -42,6 +52,10 @@ export interface PhotoAttachmentsProps {
   onPhotoClick?: (photoId: string) => void;
   maxPhotos?: number;
   disabled?: boolean;
+  reservedSlots?: number;
+  loading?: boolean;
+  loadError?: boolean;
+  onRetry?: () => void;
 }
 ```
 

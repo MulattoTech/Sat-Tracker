@@ -11,12 +11,15 @@ import { formatDateLong, formatTimeDisplay } from '@/src/utils/dateFormat';
 import { useAuthedImage, photoFileUrl } from '@/src/hooks/useAuthedImage';
 import { updatePhoto, trashPhoto, togglePhotoFavorite, downloadPhoto } from '@/src/utils/photoClientApi';
 import { PhotoDetailProps } from './photo-detail.types';
+import UnavailablePhotoLinks from './UnavailablePhotoLinks';
 import './photo-detail.css';
 
 // Maps a PhotoLink's activityType to its localization key.
 const TYPE_LABEL_KEYS: Record<string, string> = {
   photo: 'Photo',
   feed: 'Feed',
+  diaper: 'Diaper',
+  foodLog: 'Food',
   milestone: 'Milestone',
   bath: 'Bath',
   play: 'Activity',
@@ -229,6 +232,8 @@ export default function PhotoDetail({ isOpen, onClose, photo, onChanged }: Photo
             )}
             <Row label={t('Linked activity:')} value={linkedActivityLabel} />
           </div>
+
+          <UnavailablePhotoLinks key={photo.id} photo={photo} onChanged={onChanged} />
 
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" onClick={handleToggleFavorite} disabled={togglingFavorite} aria-pressed={isFavorite}>

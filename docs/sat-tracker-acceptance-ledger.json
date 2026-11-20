@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "asOfRelease": "sat-tracker-2026-11-02",
-  "asOfSourceRevision": "cb22a07055b2f512165dabab7dd663c3e2c57940",
+  "asOfSourceRevision": "c1a1b669f9c44492e4ff51888e9d52b2c1012012",
   "observedAtUTC": "2026-11-20",
   "scopeVersion": "2026-11-19-v3",
   "scopeComplete": false,
@@ -732,6 +732,11 @@
             "reference": "https://github.com/MulattoTech/Sat-Tracker/commit/8f4f72cf16e8a16a63153b8d7ea917e7ccb4bc4f",
             "revision": "8f4f72cf16e8a16a63153b8d7ea917e7ccb4bc4f",
             "scope": "Bounded scalar rash foundation: 565 focused tests across 12 files, nonincremental TypeScript, and production build passed locally. Real canonical and API-key routes cover true/false/null, limits, omission/clearing and scope rejection; SQLite migration and JSON/legacy/current SQLite restore preserve exact history. Frozen pre-upgrade Nursery request/receipt/Undo fixtures recover without duplicates and reject later or concurrent rash edits. Selected CSV/XLSX/PDF-source rows preserve text and range/family filters; formula-like CSV cells are literal. All 12 locales and UI payload/time semantics are tested. Independent source review found no blocking issues. Hosted 12-scenario browser/PDF rendering and eight-check PostgreSQL runtime evidence remain pending at this checkpoint."
+          },
+          {
+            "reference": "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44705541329",
+            "revision": "c1a1b669f9c44492e4ff51888e9d52b2c1012012",
+            "scope": "Final-main source qualification for merged PR102: 2,990 application tests, 186 runtime checks/19 flags, 12 rendered rash scenarios and 8 isolated PostgreSQL rash checks. See final-main checkpoint for image and companion gates. No deployment, private-photo capture or complete report acceptance follows."
           }
         ],
         "preview": [],
@@ -739,7 +744,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "The approved one-tap scalar observation package is implemented in candidate 8f4f72c with scoped local verification. Complete exact-source hosted browser/PDF and PostgreSQL gates and merge qualified changes. Private same-child diaper photos and retained upload/link recovery, portable media backup, timestamped follow-up history, trends, complete handoff and pediatrician-report qualification remain under issues #5/#16/#19/#22. Obtain separate preview/production and required physical-device evidence; PAR-018 remains IN PROGRESS.",
+      "remainingWork": "Scalar rash observations are qualified in merged PR102/main c1a1b669. Shared same-child attachment ownership, concurrent capacity and target-lifecycle protection are the owner-approved #16 package in progress. Portable media recovery, diaper capture with retained uploads/lost-response reconciliation, timestamped follow-ups, trends, complete handoff and pediatrician-report qualification remain under #5/#16/#19/#22. Obtain separate preview/production and required physical-device evidence; PAR-018 remains IN PROGRESS.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -1767,7 +1772,14 @@
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
         "application/app/api/photos/",
-        "application/src/components/ui/photo-attachments/"
+        "application/src/components/ui/photo-attachments/",
+        "application/app/api/photos/photo-ownership.ts",
+        "application/app/api/photos/photo-link-service.ts",
+        "application/app/api/photos/photo-read.ts",
+        "application/app/api/utils/photo-integrity.ts",
+        "application/app/api/utils/photo-target-mutations.ts",
+        "application/documentation/Architecture-Documentation/PhotoLinkIntegrity.md",
+        "application/documentation/Architecture-Documentation/PhotoAttachmentReads.md"
       ],
       "evidence": {
         "tests": [],
@@ -1776,7 +1788,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "The approved #16 foundation implements shared family/child/live-target ownership across eight attachment targets, retained capacity, safe read projection, direct lookup, explicit malformed-link detach and coordinated care lifecycle. Finish exact-source hosted browser/PostgreSQL qualification and independent review before integration. Portable complete metadata/encrypted-file recovery, diaper capture/lost-response reconciliation, concurrent quota/orphan recovery, session-cache/offline/device and report evidence remain separate; no whole-contract PASS or deployment is inferred.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -4470,6 +4482,28 @@
       ],
       "evidenceScope": "Owner-approved issue #5 source package adds nullable observational status and bounded caregiver details; canonical/hook APIs; active form, history/search and 12 locales; literal selected CSV/XLSX and new visual selected-range PDF; scalar backup compatibility; and preserved pre-upgrade Nursery identity/replay/Undo. Integrated local verification at 8f4f72c passed 565 focused tests, nonincremental TypeScript and production build. Independent backend/UI/compatibility/export/harness reviews found no blocking source findings. Local Chromium cannot create required sockets (EPERM), so real browser/PDF and PostgreSQL results must come from the mandatory hosted jobs before merge. Existing gate scenarios and deadlines are retained; the rash module adds 12 scenarios for 186 runtime checks and 19 flags. No production change or whole-contract PASS follows.",
       "remainingWork": "Inspect hosted results, repair actual failures, independently review any fixes and merge only qualified exact source. Preserve deployed b24ccc9 containers and all three production volumes until separately approved exact-image release checks. Prepare the prerequisite private diaper-media package under #5/#16 without implementing it before next approval."
+    },
+    {
+      "id": "2026-11-20-rash-final-main-qualified",
+      "revision": "c1a1b669f9c44492e4ff51888e9d52b2c1012012",
+      "status": "FINAL_MAIN_QUALIFIED",
+      "scope": [
+        "PAR-016",
+        "PAR-018",
+        "PAR-055",
+        "PAR-058",
+        "SYNC-001",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/pull/102",
+      "verificationReferences": [
+        "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44705541329",
+        "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44705541285",
+        "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44705541287",
+        "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44707214008"
+      ],
+      "evidenceScope": "Final main c1a1b669 and tree e53c6abe9e6597a2031fe5eae8c41290557c9405 passed application, PostgreSQL, operations and deployment-configuration gates. The application suite passed 2,990 tests in 179 files, 34 service checks and 186 runtime checks (179 browser and 7 HTTP), with all 19 required flags; rash12, corrected-age10, logout5 and dose15 checks passed. PostgreSQL rash8 and age6 checks passed. Accepted image run44707214008 published immutable sha256:ccbf92d3a6a72dd6495102c2cd3949e63f74dacb9ca8eb4673780a5d1552780f. This qualifies source and image publication only.",
+      "remainingWork": "The owner approved shared photo ownership/link integrity under #16. Keep PAR-018/PAR-044 and broad issues open. Portable media recovery, diaper capture/retry UI, complete reporting and device evidence follow separately. Runtime remains separately observed b24ccc9; no source checkpoint authorizes deployment."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."

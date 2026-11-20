@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Én eller flere opplysninger om utslettet overskrider tegngrensen.",
   "Export PDF": "Eksporter PDF",
   "Unable to export activities. Please try again.": "Kunne ikke eksportere aktiviteter. Prøv igjen.",
-  "Preparing PDF...": "Klargjør PDF..."
+  "Preparing PDF...": "Klargjør PDF...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Vedlegg som er utilgjengelige eller ligger i papirkurven, opptar bildeplasser ({count}).",
+  "Unavailable attachments": "Utilgjengelige vedlegg",
+  "Removing an unavailable link keeps the photo and care record.": "Når en utilgjengelig kobling fjernes, beholdes bildet og omsorgsregistreringen.",
+  "Remove unavailable link": "Fjern utilgjengelig kobling",
+  "Remove unavailable milestone": "Fjern utilgjengelig milepæl"
 }

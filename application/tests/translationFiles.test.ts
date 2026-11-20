@@ -67,4 +67,14 @@ describe('translation files', () => {
     expect(keys.filter(key => !translations[key]?.trim())).toEqual([]);
     expect(new Set(['Rash observed', 'No rash observed', 'Not recorded'].map(key => translations[key])).size).toBe(3);
   });
+
+  it.each(translationFiles)('%s translates explicit unavailable-photo repair and reserved slots', file => {
+    const translations = read(file);
+    const keys = [
+      'Unavailable or trashed attachments reserve photo slots ({count}).', 'Unavailable attachments',
+      'Removing an unavailable link keeps the photo and care record.',
+      'Remove unavailable link', 'Remove unavailable milestone',
+    ];
+    expect(keys.filter(key => !translations[key]?.trim())).toEqual([]);
+  });
 });

@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Mindestens eine Angabe zum Ausschlag überschreitet die Zeichenbegrenzung.",
   "Export PDF": "PDF exportieren",
   "Unable to export activities. Please try again.": "Aktivitäten konnten nicht exportiert werden. Bitte versuchen Sie es erneut.",
-  "Preparing PDF...": "PDF wird vorbereitet..."
+  "Preparing PDF...": "PDF wird vorbereitet...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Nicht verfügbare Anhänge oder Anhänge im Papierkorb belegen Fotoplätze ({count}).",
+  "Unavailable attachments": "Nicht verfügbare Anhänge",
+  "Removing an unavailable link keeps the photo and care record.": "Beim Entfernen einer nicht verfügbaren Verknüpfung bleiben das Foto und der Pflegeeintrag erhalten.",
+  "Remove unavailable link": "Nicht verfügbare Verknüpfung entfernen",
+  "Remove unavailable milestone": "Nicht verfügbaren Meilenstein entfernen"
 }

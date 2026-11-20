@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => {
 
   return {
     prisma: {
+      $transaction: vi.fn(),
+      $executeRaw: vi.fn(),
+      photoLink: { findMany: vi.fn() },
       apiKey: {
         findUnique: vi.fn(),
         update: vi.fn(),
@@ -92,6 +95,11 @@ function resetDelegates() {
 beforeEach(() => {
   vi.clearAllMocks();
   resetDelegates();
+  // Transaction behavior is covered against real providers; these mocks retain
+  // this suite's route-validation and delegation focus with no attachments.
+  mocks.prisma.$transaction.mockImplementation(action => action(mocks.prisma));
+  mocks.prisma.$executeRaw.mockResolvedValue(1);
+  mocks.prisma.photoLink.findMany.mockResolvedValue([]);
   mocks.prisma.apiKey.findUnique.mockResolvedValue({
     id: `key-${crypto.randomUUID()}`,
     familyId: 'family-1',

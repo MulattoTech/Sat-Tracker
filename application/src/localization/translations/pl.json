@@ -3321,5 +3321,10 @@
   "One or more rash details exceed the character limit.": "Co najmniej jeden opis dotyczący wysypki przekracza limit znaków.",
   "Export PDF": "Eksportuj PDF",
   "Unable to export activities. Please try again.": "Nie udało się wyeksportować aktywności. Spróbuj ponownie.",
-  "Preparing PDF...": "Przygotowywanie PDF..."
+  "Preparing PDF...": "Przygotowywanie PDF...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Niedostępne załączniki i załączniki w koszu zajmują miejsca na zdjęcia ({count}).",
+  "Unavailable attachments": "Niedostępne załączniki",
+  "Removing an unavailable link keeps the photo and care record.": "Usunięcie niedostępnego powiązania zachowuje zdjęcie i wpis opieki.",
+  "Remove unavailable link": "Usuń niedostępne powiązanie",
+  "Remove unavailable milestone": "Usuń niedostępny kamień milowy"
 }

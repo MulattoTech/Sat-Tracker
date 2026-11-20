@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
+import { detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
 import { ApiResponse, PlayLogCreate, PlayLogResponse } from '../types';
 import { PlayType } from '@prisma/client';
 import { withAuthContext, AuthResult } from '../utils/auth';
@@ -307,14 +309,16 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.playLog.delete({
-      where: { id },
+    await withPhotoIntegrity(prisma, familyId, async tx => {
+      await detachPhotoTargetForDeletion(tx, familyId, { activityType: 'play', activityId: id });
+      await tx.playLog.delete({ where: { id } });
     });
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     console.error('Error deleting play log:', error);
     return NextResponse.json<ApiResponse<void>>(
       { success: false, error: 'Failed to delete play log' },

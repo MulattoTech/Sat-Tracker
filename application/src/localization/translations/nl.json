@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Een of meer details over de huiduitslag overschrijden de tekenlimiet.",
   "Export PDF": "PDF exporteren",
   "Unable to export activities. Please try again.": "De activiteiten konden niet worden geëxporteerd. Probeer het opnieuw.",
-  "Preparing PDF...": "PDF voorbereiden..."
+  "Preparing PDF...": "PDF voorbereiden...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Niet-beschikbare bijlagen of bijlagen in de prullenbak bezetten fotoplaatsen ({count}).",
+  "Unavailable attachments": "Niet-beschikbare bijlagen",
+  "Removing an unavailable link keeps the photo and care record.": "Als je een niet-beschikbare koppeling verwijdert, blijven de foto en de zorgregistratie behouden.",
+  "Remove unavailable link": "Niet-beschikbare koppeling verwijderen",
+  "Remove unavailable milestone": "Niet-beschikbare mijlpaal verwijderen"
 }

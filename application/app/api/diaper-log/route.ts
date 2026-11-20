@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '../db';
+import { withPhotoIntegrity, PhotoIntegrityError } from '../utils/photo-integrity';
+import { detachPhotoTargetForDeletion } from '../utils/photo-target-mutations';
 import { ApiResponse, DiaperLogCreate, DiaperLogResponse } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
@@ -293,14 +295,16 @@ async function handleDelete(req: NextRequest, authContext: AuthResult) {
       );
     }
 
-    await prisma.diaperLog.delete({
-      where: { id },
+    await withPhotoIntegrity(prisma, userFamilyId, async tx => {
+      await detachPhotoTargetForDeletion(tx, userFamilyId, { activityType: 'diaper', activityId: id });
+      await tx.diaperLog.delete({ where: { id } });
     });
 
     return NextResponse.json<ApiResponse<void>>({
       success: true,
     });
   } catch (error) {
+    if (error instanceof PhotoIntegrityError) return error.response();
     if (error instanceof NurseryUndoError) return error.response();
     console.error('Error deleting diaper log:', error);
     return NextResponse.json<ApiResponse<void>>(

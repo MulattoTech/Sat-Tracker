@@ -3,8 +3,11 @@ import prisma from '../db';
 import { ApiResponse, PhotoResponse } from '../types';
 import { deleteEncryptedFile } from '@/src/lib/file-encryption';
 import { getEffectiveQuotaMb, mbToBytes, isPurgeEligible, TRASH_RETENTION_DAYS } from '@/src/utils/photoUtils';
-import { formatForResponse } from '../utils/timezone';
+import { formatForResponse, toUTC } from '../utils/timezone';
 import { AuthResult } from '../utils/auth';
+import type { Prisma } from '@prisma/client';
+import { PhotoIntegrityError, withPhotoIntegrity } from '../utils/photo-integrity';
+import { PhotoOwnershipError, requirePhotoFamily } from './photo-ownership';
 
 export function photoSubdir(familyId: string): string {
   return `photos/${familyId}`;
@@ -22,11 +25,29 @@ export function photosDisabledResponse(): NextResponse {
   );
 }
 
+export function photoErrorResponse(error: unknown, fallback: string): NextResponse {
+  if (error instanceof PhotoIntegrityError) return error.response();
+  if (error instanceof PhotoOwnershipError) return NextResponse.json<ApiResponse<null>>({ success: false, error: error.message }, { status: error.status });
+  if (error instanceof SyntaxError) return NextResponse.json<ApiResponse<null>>({ success: false, error: 'Invalid JSON request.' }, { status: 400 });
+  console.error(fallback, error);
+  return NextResponse.json<ApiResponse<null>>({ success: false, error: fallback }, { status: 500 });
+}
+
+export function requirePhotoTimestamp(value: unknown, label: string): Date {
+  if (typeof value !== 'string' || !value.trim() || !Number.isFinite(Date.parse(value))) {
+    throw new PhotoOwnershipError(400, `${label} must be a valid timestamp.`);
+  }
+  const date = toUTC(value);
+  if (!Number.isFinite(date.getTime())) throw new PhotoOwnershipError(400, `${label} must be a valid timestamp.`);
+  return date;
+}
+
 /**
  * Family quota usage. Trashed photos still occupy disk, so they count
  * toward usage until purged (spec section 4).
  */
 export async function getQuotaInfo(familyId: string): Promise<{ usedBytes: number; totalBytes: number }> {
+  requirePhotoFamily(familyId);
   const [aggregate, settings, appConfig] = await Promise.all([
     prisma.photo.aggregate({
       where: { familyId },
@@ -41,25 +62,29 @@ export async function getQuotaInfo(familyId: string): Promise<{ usedBytes: numbe
 }
 
 /**
- * Hard-delete photos: encrypted files first (tolerant of missing files),
- * then rows. Links and favorites cascade via the schema.
+ * Commit eligible trashed rows first, then delete only their files outside the
+ * retried transaction. A concurrent restore cannot revive a row whose files
+ * were already removed. Failed file cleanup leaves an orphan, never a live row
+ * without bytes; existing cleanup logging is retained.
  */
-export async function purgePhotosPermanently(photoIds: string[], familyId: string): Promise<number> {
+export async function purgePhotosPermanently(photoIds: string[], familyId: string, deletedBefore?: Date): Promise<number> {
+  requirePhotoFamily(familyId);
   if (photoIds.length === 0) return 0;
-  const photos = await prisma.photo.findMany({
-    where: { id: { in: photoIds }, familyId },
-    select: { id: true, storedName: true, thumbStoredName: true },
+  const photos = await withPhotoIntegrity(prisma, familyId, async tx => {
+    const eligible = await tx.photo.findMany({
+      where: { id: { in: photoIds }, familyId, deletedAt: { not: null, ...(deletedBefore ? { lt: deletedBefore } : {}) } },
+      select: { id: true, storedName: true, thumbStoredName: true },
+    });
+    await tx.photo.deleteMany({ where: { id: { in: eligible.map(photo => photo.id) }, familyId } });
+    return eligible;
   });
   for (const photo of photos) {
-    try {
-      deleteEncryptedFile(photo.storedName, photoSubdir(familyId));
-      deleteEncryptedFile(photo.thumbStoredName, photoSubdir(familyId));
-    } catch (error) {
-      console.error(`Failed to delete photo files for ${photo.id}:`, error);
+    for (const name of [photo.storedName, photo.thumbStoredName]) {
+      try { deleteEncryptedFile(name, photoSubdir(familyId)); }
+      catch (error) { console.error(`Failed to delete orphaned photo file for ${photo.id}:`, error); }
     }
   }
-  const result = await prisma.photo.deleteMany({ where: { id: { in: photos.map((p) => p.id) } } });
-  return result.count;
+  return photos.length;
 }
 
 /**
@@ -67,27 +92,28 @@ export async function purgePhotosPermanently(photoIds: string[], familyId: strin
  * whose deletedAt is older than TRASH_RETENTION_DAYS.
  */
 export async function purgeExpiredPhotos(familyId: string): Promise<number> {
+  requirePhotoFamily(familyId);
   const cutoff = new Date(Date.now() - TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000);
   const expired = await prisma.photo.findMany({
     where: { familyId, deletedAt: { not: null, lt: cutoff } },
     select: { id: true, deletedAt: true },
   });
   const eligibleIds = expired.filter((p) => isPurgeEligible(p.deletedAt, new Date())).map((p) => p.id);
-  return purgePhotosPermanently(eligibleIds, familyId);
+  return purgePhotosPermanently(eligibleIds, familyId, cutoff);
 }
 
 /** Standard Prisma include for building a PhotoResponse. */
 export const PHOTO_INCLUDE = {
-  links: { select: { activityType: true, activityId: true } },
+  links: { select: { id: true, activityType: true, activityId: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
   favorites: true,
   milestone: { select: { title: true } },
-} as const;
+} satisfies Prisma.PhotoInclude;
 
-type PhotoWithRelations = {
+export type PhotoWithRelations = {
   id: string; originalName: string; mimeType: string; fileSize: number; thumbSize: number;
   takenAt: Date; caption: string | null; babyId: string; caretakerId: string | null;
-  milestoneId: string | null; createdAt: Date; updatedAt: Date; deletedAt: Date | null;
-  links: { activityType: string; activityId: string }[];
+  familyId: string | null; milestoneId: string | null; createdAt: Date; updatedAt: Date; deletedAt: Date | null;
+  links: { id: string; activityType: string; activityId: string }[];
   favorites: { caretakerId: string | null; accountId: string | null }[];
   milestone: { title: string } | null;
 };
@@ -153,7 +179,7 @@ export function toPhotoResponse(photo: PhotoWithRelations, owner: FavoriteOwner 
     milestoneId: photo.milestoneId,
     milestoneTitle: photo.milestone?.title ?? null,
     isFavorite,
-    links: photo.links,
+    links: photo.links.map(({ activityType, activityId }) => ({ activityType, activityId })),
     createdAt: formatForResponse(photo.createdAt) || '',
     updatedAt: formatForResponse(photo.updatedAt) || '',
     deletedAt: formatForResponse(photo.deletedAt),

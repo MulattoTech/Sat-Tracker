@@ -563,7 +563,7 @@ export type BabyAllergenUpdate = Partial<Omit<BabyAllergenCreate, 'babyId'>>;
 
 // Photo types
 export interface PhotoLinkInfo {
-  activityType: string; // 'photo' | 'feed' | 'milestone' | 'bath' | 'play' | 'measurement' | 'foodLog'
+  activityType: string; // 'photo' | 'feed' | 'diaper' | 'milestone' | 'bath' | 'play' | 'measurement' | 'foodLog'
   activityId: string;
 }
 
@@ -581,6 +581,10 @@ export interface PhotoResponse {
   milestoneTitle: string | null;
   isFavorite: boolean;
   links: PhotoLinkInfo[];
+  /** Owned link handles only; unavailable target metadata is never exposed. */
+  unavailableLinkIds?: string[];
+  /** A hidden legacy milestone tag can be removed explicitly without revealing it. */
+  unavailableMilestone?: boolean;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -591,6 +595,13 @@ export interface PhotoListResponse {
   nextCursor: string | null;
   trashCount: number;
   quota: { usedBytes: number; totalBytes: number };
+}
+
+export interface PhotoAttachmentListResponse {
+  photos: PhotoResponse[];
+  /** Includes unavailable and trashed links that continue to reserve slots. */
+  retainedLinkCount: number;
+  maxPhotos: number;
 }
 
 export interface PhotoUploadResult {
@@ -615,6 +626,8 @@ export interface PhotoLogResponse {
   updatedAt: string;
   deletedAt: string | null;
   photos: PhotoResponse[];
+  /** Includes hidden historical links; omission is supported for older clients. */
+  retainedLinkCount?: number;
 }
 
 export interface TimelinePhotoInfo {

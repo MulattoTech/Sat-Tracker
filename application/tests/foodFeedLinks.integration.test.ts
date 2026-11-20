@@ -309,6 +309,40 @@ describe('actual startup and restore conversion consumer', () => {
     expect(await db.feedLog.count()).toBe(1); // The unrelated bottle remains.
   });
 
+  it.each(['sibling', 'foreign', 'null-family', 'over-cap'] as const)('keeps %s photo associations and source intact for explicit review during conversion', async mismatch => {
+    const source = await db.feedLog.update({ where: { id: 'food-link-own-solids' }, data: { food: 'Must not create this catalog food' } });
+    const photos = [];
+    for (let i = 0; i < (mismatch === 'over-cap' ? 5 : 1); i++) {
+      photos.push(await db.photo.create({ data: {
+        familyId: mismatch === 'foreign' ? foreignFamilyId : mismatch === 'null-family' ? null : familyId,
+        babyId: mismatch === 'foreign' ? foreignBabyId : mismatch === 'sibling' ? siblingId : babyId,
+        originalName: 'synthetic.png', storedName: `review-${i}.enc`, thumbStoredName: `review-${i}-thumb.enc`,
+        mimeType: 'image/png', fileSize: 1, thumbSize: 1, takenAt: at,
+      } }));
+    }
+    await db.photoLink.createMany({ data: photos.map(photo => ({ photoId: photo.id, activityType: 'feed', activityId: source.id })) });
+    const links = await db.photoLink.findMany();
+    expect(await convertSolidsFeeds(db)).toMatchObject({ total: 4, converted: 3, skipped: 0, errors: 1 });
+    expect(await db.feedLog.findUniqueOrThrow({ where: { id: source.id } })).toEqual(source);
+    expect(await db.photo.findMany()).toEqual(photos); expect(await db.photoLink.findMany()).toEqual(links);
+    expect(await db.foodLog.count({ where: { feedLogId: source.id } })).toBe(0);
+    expect(await db.food.count({ where: { name: source.food! } })).toBe(0);
+  });
+
+  it('supports unscoped historical conversion only when no ambiguous photo links would transfer', async () => {
+    const source = await db.feedLog.update({ where: { id: 'food-link-own-solids' }, data: { familyId: null } });
+    const photo = await db.photo.create({ data: { familyId, babyId, originalName: 'synthetic.png', storedName: 'legacy.enc',
+      thumbStoredName: 'legacy-thumb.enc', mimeType: 'image/png', fileSize: 1, thumbSize: 1, takenAt: at } });
+    const link = await db.photoLink.create({ data: { photoId: photo.id, activityType: 'feed', activityId: source.id } });
+    expect(await convertSolidsFeeds(db)).toMatchObject({ converted: 3, errors: 1 });
+    expect(await db.feedLog.findUniqueOrThrow({ where: { id: source.id } })).toEqual(source);
+    expect(await db.photoLink.findMany()).toEqual([link]);
+    await db.photoLink.delete({ where: { id: link.id } });
+    expect(await convertSolidsFeeds(db)).toMatchObject({ total: 1, converted: 1, errors: 0 });
+    expect(await db.foodLog.findFirst({ where: { feedLogId: source.id } })).toMatchObject({ familyId: null, babyId });
+    expect(await db.photo.findMany()).toEqual([photo]);
+  });
+
   it('rolls back the converted copy and photo movement if deleting the source fails, then retries once', async () => {
     const source = await db.feedLog.findUniqueOrThrow({ where: { id: 'food-link-own-solids' } });
     const photo = await db.photo.create({ data: {

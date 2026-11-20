@@ -43,7 +43,9 @@ describe('startup unit seed preservation', () => {
       // updates even if a database/clock happens to reuse a timestamp value.
       await db.$executeRawUnsafe('CREATE TABLE "SeedUnitUpdateAudit" ("unitAbbr" TEXT NOT NULL)');
       await db.$executeRawUnsafe('CREATE TRIGGER "SeedUnitUpdateObserved" AFTER UPDATE ON "Unit" BEGIN INSERT INTO "SeedUnitUpdateAudit" ("unitAbbr") VALUES (NEW."unitAbbr"); END');
-      const runSeed = () => execFileSync(process.execPath, ['node_modules/tsx/dist/cli.mjs', 'prisma/seed.ts'], {
+      // Load the same seed entry directly; the tsx CLI's unrelated IPC listener
+      // is unavailable in restricted runners and is not part of seed behavior.
+      const runSeed = () => execFileSync(process.execPath, ['--import', 'tsx', 'prisma/seed.ts'], {
         cwd: process.cwd(), env, stdio: 'pipe', timeout: 60_000, maxBuffer: 1024 * 1024,
       });
 

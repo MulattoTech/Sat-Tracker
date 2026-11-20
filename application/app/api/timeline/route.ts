@@ -4,8 +4,9 @@ import { foodDisplayRelation } from '../utils/careReadScope';
 import { ApiResponse, SleepLogResponse, FeedLogResponse, DiaperLogResponse, NoteResponse, BathLogResponse, PumpLogResponse, PlayLogResponse, MilestoneResponse, MeasurementResponse, MedicineLogResponse, MedicineResponse, BreastMilkAdjustmentResponse, VaccineLogResponse, FoodLogResponse, PhotoLogResponse, TimelinePhotoInfo } from '../types';
 import { withAuthContext, AuthResult } from '../utils/auth';
 import { toUTC, formatForResponse } from '../utils/timezone';
-import { buildLinkTargets, groupPhotoLinks, photoLogHasLivePhotos } from './timeline-photo-links';
+import { buildLinkTargets, filterReadablePhotoLinks, groupPhotoLinks, photoLogHasLivePhotos } from './timeline-photo-links';
 import { isPhotosEnabled } from '../photos/photo-service';
+import { livePhotoWhere, resolveReadablePhotoTargets } from '../photos/photo-ownership';
 import { resolveCaretakerBadge } from '@/src/constants/caretakerBadge';
 import {
   computeFoodProgress,
@@ -492,6 +493,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     // Batch-load photo attachments for every activity on this page (no N+1)
     const linkTargets = buildLinkTargets({
       feed: feedLogs.map((l: any) => l.id),
+      diaper: diaperLogs.map((l: any) => l.id),
       bath: bathLogs.map((l: any) => l.id),
       play: playLogs.map((l: any) => l.id),
       milestone: milestoneLogs.map((l: any) => l.id),
@@ -504,14 +506,15 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
       ? await prisma.photoLink.findMany({
           where: {
             OR: linkTargets.map((t) => ({ activityType: t.activityType, activityId: { in: t.ids } })),
-            photo: { deletedAt: null },
+            photo: livePhotoWhere(caretakerFamilyId, babyId),
           },
-          orderBy: { createdAt: 'asc' },
-          include: { photo: { select: { id: true, caption: true } } },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          include: { photo: { select: { id: true, caption: true, familyId: true, babyId: true, deletedAt: true } } },
         })
       : [];
 
-    const photosByActivity = groupPhotoLinks(photoLinks);
+    const readablePhotoTargets = await resolveReadablePhotoTargets(prisma, caretakerFamilyId, photoLinks);
+    const photosByActivity = groupPhotoLinks(filterReadablePhotoLinks(photoLinks, readablePhotoTargets, caretakerFamilyId, babyId));
     const photosFor = (activityType: string, activityId: string) => photosByActivity.get(`${activityType}:${activityId}`);
 
     // Format the responses with caretaker information
@@ -565,6 +568,7 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
           deletedAt: formatForResponse(log.deletedAt),
           caretakerId: log.caretakerId,
           ...caretakerBadgeFields(caretaker),
+          photos: photosFor('diaper', log.id),
         };
       });
 

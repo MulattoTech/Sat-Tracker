@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "चकत्ते के एक या अधिक विवरण अक्षर सीमा से अधिक हैं।",
   "Export PDF": "PDF निर्यात करें",
   "Unable to export activities. Please try again.": "गतिविधियाँ निर्यात नहीं हो सकीं। कृपया फिर से प्रयास करें।",
-  "Preparing PDF...": "PDF तैयार हो रहा है..."
+  "Preparing PDF...": "PDF तैयार हो रहा है...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "अनुपलब्ध या ट्रैश में मौजूद अटैचमेंट फ़ोटो की जगह घेरते हैं ({count})।",
+  "Unavailable attachments": "अनुपलब्ध अटैचमेंट",
+  "Removing an unavailable link keeps the photo and care record.": "अनुपलब्ध लिंक हटाने पर फ़ोटो और देखभाल का रिकॉर्ड सुरक्षित रहते हैं।",
+  "Remove unavailable link": "अनुपलब्ध लिंक हटाएँ",
+  "Remove unavailable milestone": "अनुपलब्ध विकास पड़ाव हटाएँ"
 }

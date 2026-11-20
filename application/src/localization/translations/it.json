@@ -3317,5 +3317,10 @@
   "One or more rash details exceed the character limit.": "Uno o più dettagli dell’eruzione superano il limite di caratteri.",
   "Export PDF": "Esporta PDF",
   "Unable to export activities. Please try again.": "Impossibile esportare le attività. Riprova.",
-  "Preparing PDF...": "Preparazione del PDF..."
+  "Preparing PDF...": "Preparazione del PDF...",
+  "Unavailable or trashed attachments reserve photo slots ({count}).": "Gli allegati non disponibili o nel cestino occupano posti per le foto ({count}).",
+  "Unavailable attachments": "Allegati non disponibili",
+  "Removing an unavailable link keeps the photo and care record.": "La rimozione di un collegamento non disponibile conserva la foto e la registrazione delle cure.",
+  "Remove unavailable link": "Rimuovi collegamento non disponibile",
+  "Remove unavailable milestone": "Rimuovi traguardo non disponibile"
 }
