@@ -1,76 +1,135 @@
-name: Build accepted BabyTracker image
+name: Publish pinned feedback-attachment security hotfix
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: [BabyTracker acceptance]
-    branches: [main]
-    types: [completed]
+
 permissions:
   contents: read
   actions: read
   packages: write
+
 concurrency:
-  group: accepted-image-${{ github.event.workflow_run.head_sha || github.sha }}
+  group: sat-feedback-security-hotfix-f3ea00e6161f887d
   cancel-in-progress: false
+
 jobs:
   image:
-    if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/automation/publish-feedback-security-f3ea00e'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SOURCE_SHA: f3ea00e6161f887d4802f2a41238eb6a36d8103c
+      BASE_SHA: b24ccc9cd70076cb1d8e0fed477e14d0cf533444
+      RELEASE_BRANCH: release/feedback-security-b24ccc9
+      ACCEPTANCE_RUN: '44807921548'
+      OPERATIONS_RUN: '44807926231'
+      EXPECTED_FILE_A: application/app/api/feedback/file/[id]/route.ts
+      EXPECTED_FILE_B: application/tests/feedbackFileIsolationBackport.test.ts
+      TAG: ghcr.io/mulattotech/babytracker-master:security-b24ccc9-f3ea00e6161f887d
     steps:
-      - name: Verify exact-commit acceptance before publishing
+      - name: Verify exact qualified source, release branch and two-file diff before registry write
         env:
           GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
+        shell: bash
         run: |
           set -euo pipefail
-          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          gh api "repos/$REPO/actions/workflows/babytracker-ci.yml/runs?head_sha=$SOURCE_SHA&branch=main&per_page=20" > /tmp/acceptance.json
+          test "$GITHUB_REPOSITORY" = "MulattoTech/Sat-Tracker"
+          test "$GITHUB_REF" = "refs/heads/automation/publish-feedback-security-f3ea00e"
+          branch_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$RELEASE_BRANCH" --jq '.object.sha')"
+          test "$branch_sha" = "$SOURCE_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ACCEPTANCE_RUN" > /tmp/security-acceptance.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$OPERATIONS_RUN" > /tmp/security-operations.json
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$SOURCE_SHA" > /tmp/security-compare.json
           python3 - <<'PY'
           import json, os
-          runs=json.load(open('/tmp/acceptance.json'))['workflow_runs']
-          runs=[r for r in runs if r['head_sha']==os.environ['SOURCE_SHA'] and r['head_branch']=='main']
-          latest=max(runs,key=lambda r:r['created_at'])
-          assert latest['status']=='completed' and latest['conclusion']=='success', 'Exact SHA acceptance is not passing'
+          expected_sha = os.environ['SOURCE_SHA']
+          expected_branch = os.environ['RELEASE_BRANCH']
+          for name in ['acceptance', 'operations']:
+              run = json.load(open('/tmp/security-' + name + '.json'))
+              assert run['head_sha'] == expected_sha, name + ' tested wrong commit'
+              assert run['head_branch'] == expected_branch, name + ' tested wrong branch'
+              assert run['status'] == 'completed' and run['conclusion'] == 'success', name + ' is not green'
+              assert run['event'] == 'workflow_dispatch', name + ' was not exact release dispatch'
+          compared = json.load(open('/tmp/security-compare.json'))
+          assert compared['base_commit']['sha'] == os.environ['BASE_SHA'], 'Historical source mismatch'
+          assert compared['status'] == 'ahead', 'Maintenance release not ahead of baseline'
+          files = sorted(f['filename'] for f in compared['files'])
+          allowed = sorted([os.environ['EXPECTED_FILE_A'], os.environ['EXPECTED_FILE_B']])
+          assert files == allowed, 'Diff contains non-security files: ' + ', '.join(files)
+          print('PINNED_QUALIFIED_TWO_FILE_RELEASE=PASS')
           PY
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Verify exact checkout before image build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git diff --name-only "$BASE_SHA" "$SOURCE_SHA" | wc -l)" -eq 2
+          test -f "$EXPECTED_FILE_A"
+          test -f "$EXPECTED_FILE_B"
+          echo "FROZEN_SOURCE_CHECKOUT=PASS"
+
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: docker/build-push-action@v6
         id: build
         with:
           context: ./application
-          build-args: |
-            SAT_TRACKER_SOURCE_REVISION=${{ env.SOURCE_SHA }}
           push: true
-          tags: ghcr.io/mulattotech/babytracker-master:sha-${{ env.SOURCE_SHA }}
+          tags: ghcr.io/mulattotech/babytracker-master:security-b24ccc9-f3ea00e6161f887d
           labels: |
             org.opencontainers.image.source=https://github.com/MulattoTech/BabyTracker-Master
-            org.opencontainers.image.revision=${{ env.SOURCE_SHA }}
-      - name: Emit immutable candidate manifest
+            org.opencontainers.image.source.canonical=https://github.com/MulattoTech/Sat-Tracker
+            org.opencontainers.image.revision=f3ea00e6161f887d4802f2a41238eb6a36d8103c
+            io.mtech.hotfix.base-revision=b24ccc9cd70076cb1d8e0fed477e14d0cf533444
+            io.mtech.hotfix.scope=feedback-attachment-family-admin-boundary
+            io.mtech.hotfix.issue=https://github.com/MulattoTech/Sat-Tracker/issues/25
+
+      - name: Record immutable digest; no deployment action
         env:
           IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
         run: |
+          set -euo pipefail
           python3 - <<'PY'
-          import json, os
-          value={'schemaVersion':1,'repository':os.environ['GITHUB_REPOSITORY'],'revision':os.environ['SOURCE_SHA'],
-                 'image':'ghcr.io/mulattotech/babytracker-master@'+os.environ['IMAGE_DIGEST'],
-                 'productionAutomaticallyChanged':False,'promotionCommand':'pwsh -File scripts/promote-release.ps1 -Image <pinned-image> -Apply -VerifyDataPreservation'}
-          open('release-candidate.json','w').write(json.dumps(value,indent=2)+'\n')
+          import json, os, re
+          sha = os.environ['SOURCE_SHA']
+          digest = os.environ['IMAGE_DIGEST']
+          assert re.fullmatch(r'sha256:[a-f0-9]{64}', digest)
+          result = {
+              'schemaVersion': 1,
+              'kind': 'sat-tracker.feedback-attachment-maintenance-image',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'revision': sha,
+              'productionBaselineRevision': os.environ['BASE_SHA'],
+              'releaseBranch': os.environ['RELEASE_BRANCH'],
+              'scope': 'feedback-attachment-family-admin-boundary',
+              'changedSourceFiles': 2,
+              'image': 'ghcr.io/mulattotech/babytracker-master@' + digest,
+              'tag': os.environ['TAG'],
+              'acceptanceRunId': int(os.environ['ACCEPTANCE_RUN']),
+              'operationsRunId': int(os.environ['OPERATIONS_RUN']),
+              'productionAutomaticallyChanged': False,
+              'existingPreviewAutomaticallyChanged': False,
+          }
+          with open('security-hotfix-candidate.json', 'w', encoding='utf-8') as output:
+              json.dump(result, output, indent=2)
+              output.write('\n')
+          print('IMMUTABLE_HOTFIX_MANIFEST_VERIFIED=PASS')
           PY
+
       - uses: actions/upload-artifact@v4
         with:
-          name: release-candidate-${{ env.SOURCE_SHA }}
-          path: release-candidate.json
+          name: security-hotfix-f3ea00e6161f887d
+          path: security-hotfix-candidate.json
+          if-no-files-found: error
           retention-days: 30
