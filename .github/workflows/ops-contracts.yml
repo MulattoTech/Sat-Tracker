@@ -20,6 +20,9 @@ jobs:
           node-version: '24'
       - name: Verify typed row preservation with synthetic SQLite
         run: node scripts/verify-live-preservation.test.cjs
+      - name: Verify fail-closed feedback hotfix release preflight with synthetic fixtures
+        shell: pwsh
+        run: pwsh -NoProfile -NonInteractive -File scripts/feedback-hotfix-release-preflight.test.ps1
       - run: python -m unittest discover -s tests/ops -v
       - run: python scripts/modules.py list
       - name: Parse PowerShell operations scripts without executing them
