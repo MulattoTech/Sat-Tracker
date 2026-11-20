@@ -301,5 +301,6 @@
   "Feeding duration (minutes)": "Feeding duration (minutes)",
   "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.": "Feeding duration is unclear; enter an explicit elapsed duration or leave it unrecorded.",
   "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.": "Feeding duration must be a whole number of seconds between 1 and 86400, or left blank.",
-  "Feeding duration exceeds two hours; compare it with the source before approving.": "Feeding duration exceeds two hours; compare it with the source before approving."
+  "Feeding duration exceeds two hours; compare it with the source before approving.": "Feeding duration exceeds two hours; compare it with the source before approving.",
+  "Sleep periods awaiting valid times": "Sleep periods awaiting valid times"
 }

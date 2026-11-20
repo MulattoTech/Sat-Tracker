@@ -3289,5 +3289,6 @@
   "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Uitloggen kon niet worden bevestigd. Probeer opnieuw of ga terug naar inloggen nadat het verzoek is gestopt.",
   "Retry sign-out": "Uitloggen opnieuw proberen",
   "Return to sign-in": "Terug naar inloggen",
-  "The sign-in page did not open. Try again.": "De inlogpagina is niet geopend. Probeer opnieuw."
+  "The sign-in page did not open. Try again.": "De inlogpagina is niet geopend. Probeer opnieuw.",
+  "Sleep periods awaiting valid times": "Slaapperioden die wachten op geldige tijden"
 }

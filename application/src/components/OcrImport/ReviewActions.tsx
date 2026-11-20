@@ -19,7 +19,7 @@ export default function ReviewActions({ controller: state }: { controller: OcrIm
     <p className="ocr-hint">{t('This document is locked after import. Its source and review history remain available under the retention policy.')}</p>
   </section>;
 
-  const totals = calculateReviewTotals(state.rows);
+  const totals = calculateReviewTotals(state.rows, state.timeZone, state.utcOffsets);
   const selected = state.rows.filter(row => row.approved && !row.rejected);
   const selectedIds = new Set(selected.map(row => row.id));
   const validTimezone = isValidTimezone(state.timeZone);
@@ -59,6 +59,7 @@ export default function ReviewActions({ controller: state }: { controller: OcrIm
           <span className="ocr-metric-label">{t('Sleep duration')}</span>
           <strong>{Math.floor(totals.sleep.totalMinutes / 60)}h {totals.sleep.totalMinutes % 60}m</strong>
           <span className="ocr-hint">{totals.sleep.approvedCount} {t('sleep periods')} ({totals.sleep.napCount} {t('nap')}, {totals.sleep.nightSleepCount} {t('night sleep')})</span>
+          {totals.sleep.unresolvedCount > 0 && <span className="ocr-error">{t('Sleep periods awaiting valid times')}: {totals.sleep.unresolvedCount}</span>}
         </div>
         <div className="ocr-totals-metric">
           <span className="ocr-metric-label">{t('Review breakdown')}</span>

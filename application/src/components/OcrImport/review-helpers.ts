@@ -115,12 +115,15 @@ export interface ReviewTotals {
     totalCount: number;
     approvedCount: number;
     totalMinutes: number;
+    unresolvedCount: number;
     napCount: number;
     nightSleepCount: number;
   };
 }
 
-export function calculateReviewTotals(rows: OcrCandidate[]): ReviewTotals {
+export function calculateReviewTotals(
+  rows: OcrCandidate[], timeZone: string, utcOffsets: NonNullable<OcrReviewRequest['utcOffsets']> = {},
+): ReviewTotals {
   const totals: ReviewTotals = {
     totalRows: rows.length,
     approvedCount: 0,
@@ -128,7 +131,7 @@ export function calculateReviewTotals(rows: OcrCandidate[]): ReviewTotals {
     excludedCount: 0,
     feeds: { totalCount: 0, approvedCount: 0, totalMl: 0, totalOz: 0, breastCount: 0, bottleCount: 0 },
     diapers: { totalCount: 0, approvedCount: 0, wet: 0, dirty: 0, both: 0, dry: 0 },
-    sleep: { totalCount: 0, approvedCount: 0, totalMinutes: 0, napCount: 0, nightSleepCount: 0 },
+    sleep: { totalCount: 0, approvedCount: 0, totalMinutes: 0, unresolvedCount: 0, napCount: 0, nightSleepCount: 0 },
   };
 
   for (const row of rows) {
@@ -142,7 +145,7 @@ export function calculateReviewTotals(rows: OcrCandidate[]): ReviewTotals {
 
     if (row.eventType === 'feed') {
       totals.feeds.totalCount++;
-      if (row.approved) {
+      if (row.approved && !row.rejected) {
         totals.feeds.approvedCount++;
         if (row.feedType === 'BREAST') totals.feeds.breastCount++;
         if (row.feedType === 'BOTTLE') totals.feeds.bottleCount++;
@@ -153,7 +156,7 @@ export function calculateReviewTotals(rows: OcrCandidate[]): ReviewTotals {
       }
     } else if (row.eventType === 'diaper') {
       totals.diapers.totalCount++;
-      if (row.approved) {
+      if (row.approved && !row.rejected) {
         totals.diapers.approvedCount++;
         if (row.diaperType === 'WET') totals.diapers.wet++;
         else if (row.diaperType === 'DIRTY') totals.diapers.dirty++;
@@ -162,16 +165,21 @@ export function calculateReviewTotals(rows: OcrCandidate[]): ReviewTotals {
       }
     } else if (row.eventType === 'sleep') {
       totals.sleep.totalCount++;
-      if (row.approved) {
+      if (row.approved && !row.rejected) {
         totals.sleep.approvedCount++;
         if (row.sleepType === 'NAP') totals.sleep.napCount++;
         else if (row.sleepType === 'NIGHT_SLEEP') totals.sleep.nightSleepCount++;
-        if (row.localDate && row.localTime && row.endLocalDate && row.endLocalTime) {
-          const startMs = Date.parse(`${row.localDate}T${row.localTime}:00Z`);
-          const endMs = Date.parse(`${row.endLocalDate}T${row.endLocalTime}:00Z`);
-          if (endMs > startMs) {
-            totals.sleep.totalMinutes += Math.round((endMs - startMs) / 60000);
-          }
+        // Use the same zone and explicit repeated-clock choices as canonical import.
+        // Missing, nonexistent or unresolved times cannot contribute a guessed duration.
+        const offsets = utcOffsets[row.id];
+        const start = resolveOcrLocalDateTime(row.localDate || '', row.localTime || '', timeZone,
+          { utcOffsetMinutes: offsets?.start });
+        const end = resolveOcrLocalDateTime(row.endLocalDate || '', row.endLocalTime || '', timeZone,
+          { utcOffsetMinutes: offsets?.end });
+        if (start.utc && end.utc && end.utc > start.utc) {
+          totals.sleep.totalMinutes += Math.round((Date.parse(end.utc) - Date.parse(start.utc)) / 60000);
+        } else {
+          totals.sleep.unresolvedCount++;
         }
       }
     }

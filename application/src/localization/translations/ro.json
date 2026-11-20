@@ -3289,5 +3289,6 @@
   "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Deconectarea nu a putut fi confirmată. Încercați din nou sau reveniți la autentificare după oprirea cererii.",
   "Retry sign-out": "Reîncercați deconectarea",
   "Return to sign-in": "Reveniți la autentificare",
-  "The sign-in page did not open. Try again.": "Pagina de autentificare nu s-a deschis. Încercați din nou."
+  "The sign-in page did not open. Try again.": "Pagina de autentificare nu s-a deschis. Încercați din nou.",
+  "Sleep periods awaiting valid times": "Perioade de somn în așteptarea unor ore valide"
 }
