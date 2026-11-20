@@ -120,18 +120,43 @@ async function run() {
     DATABASE_URL: databaseUrl, DATABASE_PROVIDER: 'sqlite', LOG_DATABASE_URL: databaseUrl, ENC_HASH: '', JWT_SECRET: '',
     ENABLE_LOG: 'false', ENABLE_NOTIFICATIONS: 'false', NEXT_TELEMETRY_DISABLED: '1', DEPLOYMENT_MODE: 'selfhosted',
     BABYTRACKER_OCR_FILES_DIR: path.join(stage, 'Files/ocr') };
-  server = spawn(process.execPath, ['--import', 'tsx', 'scripts/recovery-startup.ts', process.execPath,
-    path.join(stage, 'node_modules/next/dist/bin/next'), 'start', '-H', '127.0.0.1', '-p', String(port)], {
-    cwd: stage, env, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32',
-  });
-  server.stdout.on('data', chunk => { serverOutput = (serverOutput + chunk).slice(-16000); });
-  server.stderr.on('data', chunk => { serverOutput = (serverOutput + chunk).slice(-16000); });
-  let spawnError; server.once('error', error => { spawnError = error; });
-  await until(async () => {
-    if (spawnError || server.exitCode !== null || server.signalCode !== null) throw new Error('The isolated recovery server exited before readiness');
-    try { const response = await http(base + '/recovery', { signal: AbortSignal.timeout(1000) }); await response.body?.cancel(); return response.status === 200; }
-    catch { return false; }
-  }, 'actual recovery startup and page', 60000);
+  const serverGroupAlive = pid => {
+    if (!pid) return false;
+    try { process.kill(-pid, 0); return true; }
+    catch (error) { if (error.code === 'ESRCH') return false; throw error; }
+  };
+  const startRecoveryServer = async (expectFailure = false) => {
+    server = spawn(process.execPath, ['--import', 'tsx', 'scripts/recovery-startup.ts', process.execPath,
+      path.join(stage, 'node_modules/next/dist/bin/next'), 'start', '-H', '127.0.0.1', '-p', String(port)], {
+      cwd: stage, env, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32',
+    });
+    server.stdout.on('data', chunk => { serverOutput = (serverOutput + chunk).slice(-16000); });
+    server.stderr.on('data', chunk => { serverOutput = (serverOutput + chunk).slice(-16000); });
+    let spawnError; server.once('error', error => { spawnError = error; });
+    if (expectFailure) {
+      await until(async () => {
+        if (spawnError) throw spawnError;
+        return server.exitCode !== null || server.signalCode !== null;
+      }, 'rejected recovery startup exit', 20000);
+      assert.equal(server.exitCode, 1, 'Tampered completed recovery must fail closed');
+      assert.equal(serverGroupAlive(server.pid), false, 'Failed startup must not leave an API server');
+      return;
+    }
+    await until(async () => {
+      if (spawnError || server.exitCode !== null || server.signalCode !== null) throw new Error('The isolated recovery server exited before readiness');
+      try { const response = await http(base + '/recovery', { signal: AbortSignal.timeout(1000) }); await response.body?.cancel(); return response.status === 200; }
+      catch { return false; }
+    }, 'actual recovery startup and page', 60000);
+  };
+  const stopRecoveryServer = async () => {
+    const previous = server;
+    if (!previous?.pid) throw new Error('Owned recovery process has no process identity');
+    if (serverGroupAlive(previous.pid)) process.kill(-previous.pid, 'SIGTERM');
+    await until(() => !serverGroupAlive(previous.pid), 'previous recovery process-group exit', 8000);
+    await until(() => previous.exitCode !== null || previous.signalCode !== null, 'previous recovery parent exit', 5000);
+    for (const stream of previous.stdio || []) stream?.destroy?.();
+  };
+  await startRecoveryServer();
   cancellation.signal.throwIfAborted();
   db = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url: databaseUrl }), log: [] });
   const headers = { 'X-Sat-Recovery-Token': fixture.operatorToken };
@@ -291,7 +316,37 @@ async function run() {
     assert.deepEqual(validatePortableMetadata(after, fixture.registry).tableHashes, fixture.tableHashes);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   });
-  assert.equal(report.checks.length, 8); assert.ok(report.checks.every(check => check.status === 'PASS'));
+  await check('completed_recovery_survives_verified_restart', async () => {
+    await db.$disconnect(); db = null;
+    await stopRecoveryServer();
+    await startRecoveryServer();
+    const response = await http(base + '/api/recovery/status', { headers });
+    assert.equal(response.status, 200);
+    const resumed = (await response.json()).data;
+    assert.equal(resumed.state, 'complete'); assert.equal(resumed.ready, false);
+    assert.equal(resumed.receipt.integrityTag, report.receipt.integrityTag);
+    assert.equal(resumed.receipt.recordsRestored, 77); assert.equal(resumed.receipt.filesRestored, 8);
+    assert.equal(resumed.receipt.activationRequired, true);
+    const replay = await http(base + '/api/recovery/commit', { method: 'POST', headers, body: 'malformed replay' });
+    assert.equal(replay.status, 409);
+    assert.equal((await replay.json()).code, 'RECOVERY_DESTINATION_BLOCKED');
+    const normal = await http(base + '/api/auth');
+    assert.equal(normal.status, 503); await normal.body?.cancel();
+  });
+  await check('tampered_completed_media_blocks_restart', async () => {
+    await stopRecoveryServer();
+    const receiptPath = path.join(scratch, 'private-state/receipt.json');
+    const originalReceipt = readFileSync(receiptPath);
+    const media = fixture.prepared.mediaToRestore[0];
+    const filename = path.join(stage, 'Files', ...media.storagePath.split('/'));
+    const originalBytes = readFileSync(filename), modifiedBytes = Buffer.from(originalBytes);
+    modifiedBytes[modifiedBytes.length - 1] ^= 1;
+    writeFileSync(filename, modifiedBytes);
+    await startRecoveryServer(true);
+    assert.deepEqual(readFileSync(filename), modifiedBytes, 'A rejected restart must never repair ciphertext');
+    assert.deepEqual(readFileSync(receiptPath), originalReceipt, 'A rejected restart must preserve its receipt');
+  });
+  assert.equal(report.checks.length, 10); assert.ok(report.checks.every(check => check.status === 'PASS'));
 }
 
 try {
@@ -352,7 +407,7 @@ try {
     for (const [file, before] of original) assert.equal(existsSync(path.join(appRoot, file)) ? digest(readFileSync(path.join(appRoot, file))) : null, before, 'Canonical generated client/schema changed');
     cleanup.canonicalClientUnchanged = true;
   } catch (error) { cleanup.errors.push(error.message); }
-  report.status = report.checks.length === 8 && report.checks.every(check => check.status === 'PASS') && !report.errors.length &&
+  report.status = report.checks.length === 10 && report.checks.every(check => check.status === 'PASS') && !report.errors.length &&
     !cleanup.errors.length && cleanup.browserClosed && cleanup.serverExited && cleanup.databaseClosed && cleanup.ownedFilesRemoved && cleanup.canonicalClientUnchanged ? 'PASS' : 'FAIL';
   report.completedAt = new Date().toISOString();
   // Startup logs are synthetic but still redact both capabilities before preserving a failure.

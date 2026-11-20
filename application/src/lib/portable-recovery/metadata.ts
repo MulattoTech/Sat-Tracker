@@ -146,6 +146,17 @@ export async function exportMetadataFromTransaction(tx: MetadataTransaction, opt
     await readRows(tx, options.registry));
 }
 
+/** Read-only snapshot for verifying an already sealed recovery; no synthetic zero-row UPDATE. */
+export async function exportMetadataReadOnly(client: PrismaClient, options: MetadataExportOptions): Promise<PortableMetadataV1> {
+  return client.$transaction(async tx => {
+    transactionOnly(tx);
+    await assertTransactionMetadataSchema(tx, options);
+    transactionProviders.set(tx, options.provider);
+    sourceLocks.set(tx, options.registry.fingerprint);
+    return exportMetadataFromTransaction(tx, options);
+  }, { isolationLevel: 'Serializable', maxWait: 120_000, timeout: 120_000 });
+}
+
 /** Metadata-only convenience wrapper. Archive orchestration uses the transaction helpers to include files. */
 export async function exportMetadata(client: PrismaClient, options: MetadataExportOptions): Promise<PortableMetadataV1> {
   return client.$transaction(async tx => {

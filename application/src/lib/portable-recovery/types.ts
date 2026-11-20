@@ -25,6 +25,9 @@ export interface RecoveryReceipt extends InspectionSummary {
   filesRestored: number;
   verified: true;
   activationRequired: true;
+  /** Created only for recoveries sealed by the restart-verification protocol. */
+  mediaSnapshotAt?: string;
+  integrityTag?: string;
 }
 
 export interface RecoveryStatus {
