@@ -21,7 +21,8 @@ production promotion mechanism, maintenance approval, backup tool or rollback sc
 ## Running the inspection
 
 From a clean checkout where PowerShell 7, GitHub CLI, and Docker buildx are available
-and authenticated for **read-only** metadata access:
+and authenticated for **read-only** metadata access. The exact immutable hotfix
+image must **already be cached locally**; the preflight refuses to pull it:
 
 ```powershell
 pwsh -NoProfile -NonInteractive -File scripts/feedback-hotfix-release-preflight.ps1
@@ -35,9 +36,15 @@ A failure throws `PREFLIGHT_BLOCKED` and must not be bypassed by changing expect
 values or executing an older release script.
 
 The script uses only `gh api`, `gh run list`, `gh run view`,
-`docker buildx imagetools inspect`, and `docker inspect` for actual host inspection.
-The Docker lookups are restricted to container identity, state and mount metadata:
-application environment-variable values, encryption keys, database rows and file
+`docker buildx imagetools inspect`, `docker inspect`, and `docker image inspect`
+for actual host inspection. The container lookups read only identity, state and
+mount metadata. Image inspection reads only the local immutable image ID, OCI
+labels and repo digests; it verifies exact release revision, original baseline,
+canonical source, historical publishing source, fix scope and GHCR binding.
+The historical `org.opencontainers.image.source` label is explicitly pinned to
+`MulattoTech/BabyTracker-Master`, while the separate canonical label must equal
+`MulattoTech/Sat-Tracker`; this does not authorize arbitrary legacy provenance.
+Application environment-variable values, encryption keys, database rows and file
 contents are not fetched. No images are pulled and no containers are started.
 
 ## Synthetic validation
@@ -48,8 +55,10 @@ pwsh -NoProfile -NonInteractive -File scripts/feedback-hotfix-release-preflight.
 
 The tests use temporary fabricated JSON snapshots, including negative scenarios for
 unexpected commits, changed source files, CI failures, altered image digest, missing
-architecture, broken production/preview volume isolation, unhealthy/stopped/paused
-containers, changed startup identities, and unsupported `-Apply` usage.
+architecture, mismatched/missing local image identity, wrong revision or baseline
+labels, unrelated scope/repository labels, incorrect local repo digest, broken
+production/preview volume isolation, unhealthy/stopped/paused containers, changed
+startup identities, and unsupported `-Apply` usage.
 
 The standalone inspector also accepts `-Synthetic -FixturePath <path>` solely to
 exercise its validation logic. It reports **`SYNTHETIC_ONLY_PASS`**, never live
