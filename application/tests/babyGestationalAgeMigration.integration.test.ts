@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { constants, copyFileSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
@@ -18,6 +18,8 @@ const childIds = ['synthetic-gestation-known', 'synthetic-gestation-unknown', 's
 const birthDate = '2026-01-01T06:07:08.123Z';
 const careTime = '2026-01-02T09:10:11.456Z';
 let directory: string;
+let legacyTemplate: string;
+let restoreTemplate: string;
 const clients: PrismaClient[] = [];
 
 /** Apply the actual migration history, not a simplified copy of the Baby table. */
@@ -32,7 +34,9 @@ function migratedFile(name: string, legacy = false) {
 }
 
 function legacyFixture(name: string) {
-  const result = migratedFile(name, true);
+  const filename = path.join(directory, name + '.db');
+  copyFileSync(legacyTemplate, filename, constants.COPYFILE_EXCL);
+  const result = { filename, db: new Database(filename) };
   result.db.prepare('INSERT INTO "Family" (id, slug, name, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)')
     .run(familyId, familyId, 'Synthetic gestation family', birthDate, birthDate);
   const insertBaby = result.db.prepare('INSERT INTO "Baby" (id, firstName, lastName, birthDate, createdAt, updatedAt, familyId) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -70,17 +74,34 @@ async function upgradedFixture(name: string) {
 }
 
 function emptyRestoreTarget(name: string) {
-  const { filename, db: raw } = migratedFile(name);
-  // Only this newly created synthetic destination is emptied. Migration-seeded
-  // lookup rows must also be absent so the actual importer can restore them.
-  raw.pragma('foreign_keys = OFF');
-  const tables = raw.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[];
-  for (const { name: table } of tables) raw.exec(`DELETE FROM "${table.replaceAll('"', '""')}"`);
-  raw.close();
+  const filename = path.join(directory, name + '.db');
+  copyFileSync(restoreTemplate, filename, constants.COPYFILE_EXCL);
+  const raw = new Database(filename);
+  try {
+    for (const table of ['Family', 'Baby', 'Note']) {
+      expect(raw.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get()).toEqual({ count: 0 });
+    }
+  } finally { raw.close(); }
   return client(filename);
 }
 
-beforeAll(() => { directory = mkdtempSync(path.join(tmpdir(), 'sat-gestation-migration-')); });
+beforeAll(() => {
+  directory = mkdtempSync(path.join(tmpdir(), 'sat-gestation-migration-'));
+  // Build both real histories once. Each test gets a distinct closed-file copy,
+  // so repeated schema setup cannot consume its unchanged 5-second test budget.
+  const legacy = migratedFile('legacy-template', true);
+  legacyTemplate = legacy.filename;
+  legacy.db.close();
+  const current = migratedFile('restore-template');
+  restoreTemplate = current.filename;
+  try {
+    // Only this new synthetic destination template is emptied. Lookup rows
+    // seeded by migrations must also be absent for the real restore utilities.
+    current.db.pragma('foreign_keys = OFF');
+    const tables = current.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[];
+    for (const { name } of tables) current.db.exec(`DELETE FROM "${name.replaceAll('"', '""')}"`);
+  } finally { current.db.close(); }
+}, 60_000);
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -94,6 +115,7 @@ afterAll(async () => {
 describe('nullable gestational age migration and actual backup utilities', () => {
   it('adds unknown gestation without rewriting existing baby, family, or care rows', () => {
     const { db } = legacyFixture('upgrade');
+    const { db: independent } = legacyFixture('independent-upgrade');
     try {
       const babies = db.prepare('SELECT * FROM "Baby" ORDER BY id').all();
       const families = db.prepare('SELECT * FROM "Family" ORDER BY id').all();
@@ -105,7 +127,9 @@ describe('nullable gestational age migration and actual backup utilities', () =>
       expect(db.prepare('SELECT * FROM "Note" ORDER BY id').all()).toEqual(notes);
       expect(db.prepare('PRAGMA table_info("Baby")').all()).toContainEqual(expect.objectContaining({ name: 'gestationalAgeDays', type: 'INTEGER', notnull: 0, dflt_value: null }));
       expect(db.pragma('foreign_key_check')).toEqual([]);
-    } finally { db.close(); }
+      expect(independent.prepare('PRAGMA table_info("Baby")').all()).not.toContainEqual(expect.objectContaining({ name: 'gestationalAgeDays' }));
+      expect(independent.prepare('SELECT * FROM "Baby" ORDER BY id').all()).toEqual(babies);
+    } finally { db.close(); independent.close(); }
   });
 
   it('exports and restores known, null, and legacy-omitted gestation through serialized JSON', async () => {
