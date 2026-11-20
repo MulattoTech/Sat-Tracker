@@ -737,6 +737,11 @@
             "reference": "https://github.com/MulattoTech/Sat-Tracker/actions/runs/44705541329",
             "revision": "c1a1b669f9c44492e4ff51888e9d52b2c1012012",
             "scope": "Final-main source qualification for merged PR102: 2,990 application tests, 186 runtime checks/19 flags, 12 rendered rash scenarios and 8 isolated PostgreSQL rash checks. See final-main checkpoint for image and companion gates. No deployment, private-photo capture or complete report acceptance follows."
+          },
+          {
+            "reference": "https://github.com/MulattoTech/Sat-Tracker/commit/106bfbf54aa7ed108c465a45d2e2a417b85e6840",
+            "revision": "106bfbf54aa7ed108c465a45d2e2a417b85e6840",
+            "scope": "Owner-approved #16 source package enforces family/child/live-target ownership across all eight photo target types and every writer, retained four-photo capacity, safe metadata projection/direct lookup, explicit historical detach and coordinated care deletion/move/Undo. Full local verification passed 3,115 tests in 185 files, nonincremental TypeScript and production build. Nine separate-process SQLite cases observed actual contention and subsequent commits from both clients; four retry-policy tests reject ambiguous replay. Independent backend/read/lifecycle/QA reviews resolved a rejected-caption editor-close defect and found no remaining blocker. Twelve separately bounded browser scenarios and fifteen PostgreSQL checks including nine observed lock races are mandatory hosted gates; local Chromium socket creation is blocked with EPERM and supplies no browser PASS. No deployment or whole-contract acceptance follows."
           }
         ],
         "preview": [],
@@ -1782,7 +1787,13 @@
         "application/documentation/Architecture-Documentation/PhotoAttachmentReads.md"
       ],
       "evidence": {
-        "tests": [],
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/Sat-Tracker/commit/106bfbf54aa7ed108c465a45d2e2a417b85e6840",
+            "revision": "106bfbf54aa7ed108c465a45d2e2a417b85e6840",
+            "scope": "Owner-approved #16 source package enforces family/child/live-target ownership across all eight photo target types and every writer, retained four-photo capacity, safe metadata projection/direct lookup, explicit historical detach and coordinated care deletion/move/Undo. Full local verification passed 3,115 tests in 185 files, nonincremental TypeScript and production build. Nine separate-process SQLite cases observed actual contention and subsequent commits from both clients; four retry-policy tests reject ambiguous replay. Independent backend/read/lifecycle/QA reviews resolved a rejected-caption editor-close defect and found no remaining blocker. Twelve separately bounded browser scenarios and fifteen PostgreSQL checks including nine observed lock races are mandatory hosted gates; local Chromium socket creation is blocked with EPERM and supplies no browser PASS. No deployment or whole-contract acceptance follows."
+          }
+        ],
         "preview": [],
         "production": [],
         "device": []
@@ -4504,6 +4515,32 @@
       ],
       "evidenceScope": "Final main c1a1b669 and tree e53c6abe9e6597a2031fe5eae8c41290557c9405 passed application, PostgreSQL, operations and deployment-configuration gates. The application suite passed 2,990 tests in 179 files, 34 service checks and 186 runtime checks (179 browser and 7 HTTP), with all 19 required flags; rash12, corrected-age10, logout5 and dose15 checks passed. PostgreSQL rash8 and age6 checks passed. Accepted image run44707214008 published immutable sha256:ccbf92d3a6a72dd6495102c2cd3949e63f74dacb9ca8eb4673780a5d1552780f. This qualifies source and image publication only.",
       "remainingWork": "The owner approved shared photo ownership/link integrity under #16. Keep PAR-018/PAR-044 and broad issues open. Portable media recovery, diaper capture/retry UI, complete reporting and device evidence follow separately. Runtime remains separately observed b24ccc9; no source checkpoint authorizes deployment."
+    },
+    {
+      "id": "2026-11-20-photo-link-integrity-foundation",
+      "revision": "106bfbf54aa7ed108c465a45d2e2a417b85e6840",
+      "status": "IMPLEMENTATION_AND_LOCAL_VERIFICATION",
+      "scope": [
+        "PAR-018",
+        "PAR-044",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/issues/16",
+      "implementationReferences": [
+        "application/app/api/photos/photo-ownership.ts",
+        "application/app/api/photos/photo-link-service.ts",
+        "application/app/api/photos/photo-read.ts",
+        "application/app/api/utils/photo-integrity.ts",
+        "application/app/api/utils/photo-target-mutations.ts",
+        "application/scripts/convert-solids-feeds-runner.js",
+        "application/scripts/photo-integrity-concurrency.ts",
+        "application/scripts/verify-photo-integrity-postgres.ts",
+        "application/scripts/acceptance-photo-browser.mjs",
+        "application/scripts/photo-integrity-browser.mjs",
+        "application/documentation/Architecture-Documentation/PhotoLinkIntegrity.md"
+      ],
+      "evidenceScope": "Owner-approved #16 source package enforces family/child/live-target ownership across all eight photo target types and every writer, retained four-photo capacity, safe metadata projection/direct lookup, explicit historical detach and coordinated care deletion/move/Undo. Full local verification passed 3,115 tests in 185 files, nonincremental TypeScript and production build. Nine separate-process SQLite cases observed actual contention and subsequent commits from both clients; four retry-policy tests reject ambiguous replay. Independent backend/read/lifecycle/QA reviews resolved a rejected-caption editor-close defect and found no remaining blocker. Twelve separately bounded browser scenarios and fifteen PostgreSQL checks including nine observed lock races are mandatory hosted gates; local Chromium socket creation is blocked with EPERM and supplies no browser PASS. No deployment or whole-contract acceptance follows.",
+      "remainingWork": "Inspect exact-source hosted application/browser/PostgreSQL/operations/configuration results; resolve actual failures and independently review fixes before merge. Preserve production and preview b24ccc9 and existing volumes. Next bounded package is complete versioned metadata/encrypted-media recovery with explicit restore authority and isolated destination verification; diaper capture/retry, quota/orphan, session/offline/device and reporting acceptance remain separate."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."
