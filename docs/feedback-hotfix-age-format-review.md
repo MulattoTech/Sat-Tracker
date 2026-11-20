@@ -42,12 +42,16 @@ It will fail closed if the official `age` and `age-keygen` executables
 are unavailable or report an unexpected version.
 
 The [dedicated CI workflow](../.github/workflows/age-backup-synthetic.yml)
-builds the official Go `filippo.io/age` CLI at the **fixed v1.3.2
-release**, then downloads the separate Rust `rage` **v0.12.1** Linux binary
-from its official tagged GitHub release and checks the pinned SHA-256
-`c5d7ab41fbf1213590e89721fd2b8eb122e84518c155ce35866f1c5759a3a29f`
-before executing it. This adds a second implementation without installing
-software on the Windows host. The experiment:
+qualifies the fake-data recipe on **two disposable GitHub runner operating
+systems**. Linux builds official Go `filippo.io/age` **v1.3.2** and downloads
+Rust `rage` **v0.12.1**, verifying official release SHA-256
+`c5d7ab41fbf1213590e89721fd2b8eb122e84518c155ce35866f1c5759a3a29f`.
+The separate Windows runner downloads the official age and rage Windows
+archives and verifies SHA-256 digests
+`f48d8f8f9ebe903ab5027ed067652f2cc1db94bc206976430133b905dcd8e8c7`
+and `da5b8111c8f097c7822df505ad504696e4891ff8adec06a39171f8d717590b2c`
+respectively. These are pinned to the respective official GitHub release
+assets; no software is installed on the user's Windows host. The experiment:
 
 1. Creates two artificial SQLite databases, fake configuration names and
    artificial media, packed into `db/`, `env/`, and `files/` members.
@@ -76,8 +80,10 @@ writes plaintext) into a live acquisition pipeline.
 Passing synthetic age tests is promising evidence of **format
 interoperability across the official Go age and separate Rust rage CLI
 implementations** and recovery by two distinct test identities. This
-qualifies a *synthetic* cross-implementation round trip **on Linux only**;
-it does **not prove recovery across operating systems or hardware**.
+qualifies *synthetic* cross-implementation recovery on each GitHub CI OS
+when both jobs pass. Each runner creates its **own** fake archive and keys;
+this does **not** transfer the exact same encrypted artifact between Windows
+and Linux or prove a production recovery across distinct hardware.
 Do not call this an audited backup or a successful restoration of real care
 records, image encryption configuration, or encrypted media.
 
