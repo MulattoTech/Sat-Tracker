@@ -17,6 +17,9 @@ $contract = [ordered]@{
     priorImage = 'sha256:1b4f57866debda9557d3ef073be61332f4440702daa5e8786245b198ea821756'
     candidate = 'ghcr.io/mulattotech/babytracker-master@sha256:7521979f4e9af6b5c9ee6cbfa1ec1ec8adb812b5ee2ce915e22168343c2f4cad'
     publisherRun = 44810452281
+    canonicalSource = 'https://github.com/MulattoTech/Sat-Tracker'
+    historicalSource = 'https://github.com/MulattoTech/BabyTracker-Master'
+    hotfixScope = 'feedback-attachment-family-admin-boundary'
     productionStart = '2026-11-19T22:56:10.569818426Z'
     previewStart = '2026-11-19T22:56:10.575791966Z'
 }
@@ -52,6 +55,19 @@ function Get-ContainerSnapshot([string]$container) {
         health = $tokens[4]; startedAt = $tokens[5]; mounts = $mounts
     }
 }
+function Get-LocalCandidateIdentity {
+    # Local OCI metadata only: never inspect or print image environment variables.
+    # If the already-published image is absent locally, block rather than pulling it.
+    $image = $contract.candidate
+    $id = Invoke-ReadOnly 'docker' @('image', 'inspect', '--format', '{{.Id}}', $image)
+    $labelsText = Invoke-ReadOnly 'docker' @('image', 'inspect', '--format', '{{json .Config.Labels}}', $image)
+    $digestsText = Invoke-ReadOnly 'docker' @('image', 'inspect', '--format', '{{json .RepoDigests}}', $image)
+    return [pscustomobject]@{
+        imageId = $id
+        labels = ($labelsText | ConvertFrom-Json -Depth 10)
+        repoDigests = @($digestsText | ConvertFrom-Json -Depth 10)
+    }
+}
 function Get-LiveSnapshot {
     $repo = $contract.repository
     $ref = $contract.releaseBranch
@@ -80,6 +96,7 @@ function Get-LiveSnapshot {
             digest = $match.Groups[1].Value
             amd64 = $registry.Contains('linux/amd64')
         }
+        localImage = Get-LocalCandidateIdentity
         production = Get-ContainerSnapshot 'babytracker-sprout'
         preview = Get-ContainerSnapshot 'babytracker-ocr-staging'
     }
@@ -134,6 +151,16 @@ function Assert-ReleasePlan($snapshot) {
     if ($snapshot.registry.amd64 -cne $true) {
         throw 'PREFLIGHT_BLOCKED: linux/amd64 platform missing'
     }
+    $local = $snapshot.localImage
+    Assert-MatchValue $local.imageId ($contract.candidate.Split('@')[1]) 'local pinned image ID'
+    Assert-MatchValue $local.labels.'org.opencontainers.image.revision' $contract.releaseSha 'local image source revision'
+    Assert-MatchValue $local.labels.'io.mtech.hotfix.base-revision' $contract.baselineSha 'hotfix production baseline label'
+    Assert-MatchValue $local.labels.'org.opencontainers.image.source.canonical' $contract.canonicalSource 'canonical source label'
+    Assert-MatchValue $local.labels.'org.opencontainers.image.source' $contract.historicalSource 'original publisher source label'
+    Assert-MatchValue $local.labels.'io.mtech.hotfix.scope' $contract.hotfixScope 'hotfix authorization scope'
+    if (@($local.repoDigests) -cnotcontains $contract.candidate) {
+        throw 'PREFLIGHT_BLOCKED: local image is not bound to the pinned GHCR repo digest'
+    }
     $production = $snapshot.production
     $preview = $snapshot.preview
     foreach ($pair in @(@($production, '/babytracker-sprout', $contract.productionStart),
@@ -173,6 +200,7 @@ Assert-ReleasePlan $snapshot
     releaseBranch = $contract.releaseBranch
     releaseSha = $contract.releaseSha
     imageDigest = $contract.candidate.Split('@')[1]
+    localCandidateProvenanceVerified = $true
     originalProductionImage = $contract.priorImage
     productionHealthy = $true
     protectedPreviewHealthy = $true

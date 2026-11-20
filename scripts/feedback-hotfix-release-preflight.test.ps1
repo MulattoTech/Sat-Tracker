@@ -35,6 +35,17 @@ $good = [ordered]@{
     )
     publisher = @{ name = 'Publish pinned feedback-attachment security hotfix'; status = 'completed'; conclusion = 'success' }
     registry = @{ digest = 'sha256:7521979f4e9af6b5c9ee6cbfa1ec1ec8adb812b5ee2ce915e22168343c2f4cad'; amd64 = $true }
+    localImage = @{
+        imageId = 'sha256:7521979f4e9af6b5c9ee6cbfa1ec1ec8adb812b5ee2ce915e22168343c2f4cad'
+        repoDigests = @('ghcr.io/mulattotech/babytracker-master@sha256:7521979f4e9af6b5c9ee6cbfa1ec1ec8adb812b5ee2ce915e22168343c2f4cad')
+        labels = @{
+            'org.opencontainers.image.revision' = $sha
+            'org.opencontainers.image.source.canonical' = 'https://github.com/MulattoTech/Sat-Tracker'
+            'org.opencontainers.image.source' = 'https://github.com/MulattoTech/BabyTracker-Master'
+            'io.mtech.hotfix.base-revision' = 'b24ccc9cd70076cb1d8e0fed477e14d0cf533444'
+            'io.mtech.hotfix.scope' = 'feedback-attachment-family-admin-boundary'
+        }
+    }
     production = @{ name = '/babytracker-sprout'; imageId = $oldImage; running = $true; paused = $false; health = 'healthy'; startedAt = '2026-11-19T22:56:10.569818426Z'; mounts = $productionNames }
     preview = @{ name = '/babytracker-ocr-staging'; imageId = $oldImage; running = $true; paused = $false; health = 'healthy'; startedAt = '2026-11-19T22:56:10.575791966Z'; mounts = $previewNames }
 }
@@ -50,6 +61,7 @@ function Invoke-Case([string]$name, [scriptblock]$mutate, [bool]$shouldPass) {
     $output = ($raw -join "`n")
     if ($shouldPass) {
         $ok = $exitCode -eq 0 -and $output.Contains('"result":"SYNTHETIC_ONLY_PASS"') -and
+            $output.Contains('"localCandidateProvenanceVerified":true') -and
             $output.Contains('"deploymentApproved":false') -and $output.Contains('"approvedForCutover":false')
     } else {
         $ok = $exitCode -ne 0 -and -not $output.Contains('"result":"SYNTHETIC_ONLY_PASS"')
@@ -77,6 +89,14 @@ try {
     Invoke-Case 'publisher identity changed' {param($v) $v.publisher.name = 'Different publisher'} $false
     Invoke-Case 'registry index digest changed' {param($v) $v.registry.digest = 'sha256:' + ('c' * 64)} $false
     Invoke-Case 'architecture missing' {param($v) $v.registry.amd64 = $false} $false
+    Invoke-Case 'local image ID mismatched' {param($v) $v.localImage.imageId = 'sha256:' + ('c' * 64)} $false
+    Invoke-Case 'local image revision label mismatched' {param($v) $v.localImage.labels.'org.opencontainers.image.revision' = 'd' * 40} $false
+    Invoke-Case 'local image baseline label mismatched' {param($v) $v.localImage.labels.'io.mtech.hotfix.base-revision' = 'e' * 40} $false
+    Invoke-Case 'canonical source label changed' {param($v) $v.localImage.labels.'org.opencontainers.image.source.canonical' = 'https://github.com/other/repo'} $false
+    Invoke-Case 'historical publisher source label changed' {param($v) $v.localImage.labels.'org.opencontainers.image.source' = 'https://github.com/other/repo'} $false
+    Invoke-Case 'hotfix scope label changed' {param($v) $v.localImage.labels.'io.mtech.hotfix.scope' = 'unrelated-change'} $false
+    Invoke-Case 'image is not bound to approved repo digest' {param($v) $v.localImage.repoDigests = @('ghcr.io/other/image@sha256:' + ('c' * 64))} $false
+    Invoke-Case 'local image metadata absent' {param($v) $v.PSObject.Properties.Remove('localImage')} $false
     Invoke-Case 'production image unexpectedly updated' {param($v) $v.production.imageId = 'sha256:' + ('d' * 64)} $false
     Invoke-Case 'production unhealthy' {param($v) $v.production.health = 'unhealthy'} $false
     Invoke-Case 'production stopped' {param($v) $v.production.running = $false} $false
