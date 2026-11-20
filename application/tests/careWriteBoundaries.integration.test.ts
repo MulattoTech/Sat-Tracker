@@ -17,7 +17,7 @@ vi.mock('../src/lib/notifications/activityHook', () => ({
 }));
 import { POST as postNote, PUT as putNote } from '../app/api/note/route';
 import { POST as postSleep, PUT as putSleep } from '../app/api/sleep-log/route';
-import { POST as postDiaper, PUT as putDiaper } from '../app/api/diaper-log/route';
+import { GET as getDiaper, POST as postDiaper, PUT as putDiaper } from '../app/api/diaper-log/route';
 import { GET as getMedicineLog, POST as postMedicine, PUT as putMedicine } from '../app/api/medicine-log/route';
 import { POST as postMeasurement, PUT as putMeasurement } from '../app/api/measurement-log/route';
 import { POST as postBath, PUT as putBath } from '../app/api/bath-log/route';
@@ -27,6 +27,7 @@ import { POST as postVaccine, PUT as putVaccine } from '../app/api/vaccine-log/r
 import { GET as getBaby, POST as postBaby, PUT as putBaby } from '../app/api/baby/route';
 import { POST as postAdjustment, PUT as putAdjustment } from '../app/api/breast-milk-adjustment/route';
 import { GET as getTimeline } from '../app/api/timeline/route';
+import { DIAPER_RASH_TEXT_LIMITS } from '@/src/utils/diaperRash';
 
 const owner = 'care-write-family', foreign = 'care-write-foreign';
 const ownChild = 'care-write-child', foreignChild = 'care-write-foreign-child';
@@ -130,6 +131,158 @@ afterAll(async () => {
   await db?.$disconnect();
   if (directory) rmSync(directory, { recursive: true, force: true });
   if (previousSecret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previousSecret;
+});
+
+describe('nullable diaper rash observations with real authorization and migrated SQLite', () => {
+  const rashText = {
+    rashLocation: ' Synthetic location ', rashDescription: 'Synthetic caregiver observation\nOriginal wording',
+    rashProductsApplied: 'Synthetic product record', rashFollowUpNotes: 'Synthetic follow-up record',
+  };
+  const unknownRash = {
+    rashObserved: null, rashLocation: null, rashDescription: null, rashProductsApplied: null, rashFollowUpNotes: null,
+  };
+  const observationTime = '2026-10-20T12:34:56.789Z';
+  const createBody = { babyId: ownChild, time: observationTime, type: 'WET' };
+  const read = (query: string) => getDiaper(new NextRequest(`http://localhost/api/diaper-log?${query}`, {
+    headers: { Authorization: `Bearer ${token()}` },
+  }));
+
+  it.each(['WET', 'DIRTY', 'BOTH', 'DRY'].flatMap(type => [true, false, null, undefined].map(rashObserved => ({
+    type, rashObserved, state: rashObserved === undefined ? 'omitted' : String(rashObserved),
+  }))))('creates and reads $type rash observation $state without inferring from cream or notes', async ({ type, rashObserved }) => {
+    const before = await snapshot();
+    const rash = rashObserved === undefined ? {} : { rashObserved, ...rashText };
+    const expectedRash = rashObserved === undefined ? unknownRash : rash;
+    const response = await postDiaper(createRequest('diaper-log', {
+      ...createBody, type, creamApplied: true, notes: 'Synthetic note mentions rash; it must not infer an observation.', ...rash,
+    }));
+    expect(response.status).toBe(200);
+    const created = (await response.json()).data;
+    expect(created).toMatchObject({ type, time: observationTime, familyId: owner, babyId: ownChild, caretakerId: ownCarer, ...expectedRash });
+    const stored = await db.diaperLog.findUniqueOrThrow({ where: { id: created.id } });
+    expect(stored).toMatchObject(expectedRash);
+    expect(stored.time.toISOString()).toBe(observationTime);
+    const result = await read(`id=${created.id}`);
+    expect(result.status).toBe(200);
+    expect((await result.json()).data).toMatchObject({ id: created.id, time: observationTime, ...expectedRash });
+    const after = await snapshot();
+    expect({ ...after, diapers: after.diapers.filter(row => row.id !== created.id) }).toEqual(before);
+  });
+
+  it('preserves omitted fields and exact care metadata while false and explicit null remain distinct', async () => {
+    await db.diaperLog.update({ where: { id: 'owned-diaper' }, data: { time: new Date(observationTime) } });
+    const before = await snapshot();
+    const original = before.diapers.find(row => row.id === 'owned-diaper')!;
+    let expected = { ...unknownRash } as Record<string, unknown>;
+    let notes = original.notes;
+    for (const patch of [
+      { rashObserved: true, ...rashText },
+      { notes: 'Legacy client edits only the ordinary notes' },
+      { rashObserved: undefined, rashDescription: undefined },
+      { rashObserved: false },
+      { rashLocation: null },
+      { rashObserved: null },
+      unknownRash,
+    ]) {
+      const response = await putDiaper(request('diaper-log', 'owned-diaper', patch));
+      expect(response.status).toBe(200);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value !== undefined && key !== 'notes') expected[key] = value;
+      }
+      if ('notes' in patch) notes = patch.notes!;
+      expect((await response.json()).data).toMatchObject({ id: original.id, time: observationTime, ...expected });
+      const after = await snapshot();
+      const updated = after.diapers.find(row => row.id === original.id)!;
+      expect(updated).toEqual({ ...original, ...expected, notes, updatedAt: updated.updatedAt });
+      expect({ ...after, diapers: after.diapers.map(row => row.id === original.id ? original : row) }).toEqual(before);
+    }
+  });
+
+  it.each(Object.entries(DIAPER_RASH_TEXT_LIMITS))('accepts the exact %s text limit without trimming caregiver wording', async (field, limit) => {
+    const value = ' ' + 'é'.repeat(limit - 3) + '\n ';
+    expect(value.length).toBe(limit);
+    for (const response of [
+      await postDiaper(createRequest('diaper-log', { ...createBody, [field]: value })),
+      await putDiaper(request('diaper-log', 'owned-diaper', { [field]: value })),
+    ]) {
+      expect(response.status).toBe(200);
+      const row = (await response.json()).data;
+      expect(row[field]).toBe(value);
+      expect((await db.diaperLog.findUniqueOrThrow({ where: { id: row.id } }))[field as keyof typeof DIAPER_RASH_TEXT_LIMITS]).toBe(value);
+    }
+  });
+
+  it.each(Object.entries(DIAPER_RASH_TEXT_LIMITS).flatMap(([field, limit]) => [
+    { field, kind: 'over limit', value: 'x'.repeat(limit + 1) },
+    { field, kind: 'number', value: 1 }, { field, kind: 'boolean', value: false },
+    { field, kind: 'array', value: [] }, { field, kind: 'operation object', value: { set: 'Synthetic' } },
+  ]))('rejects $field $kind on create and edit before any partial write', async ({ field, value }) => {
+    const before = await snapshot();
+    expect((await postDiaper(createRequest('diaper-log', { ...createBody, rashObserved: true, [field]: value }))).status).toBe(400);
+    expect(await snapshot()).toEqual(before);
+    expect((await putDiaper(request('diaper-log', 'owned-diaper', { type: 'BOTH', rashObserved: false, [field]: value }))).status).toBe(400);
+    expect(await snapshot()).toEqual(before);
+  });
+
+  it.each(['true', 'false', '', 0, 1, [], { set: true }].map(value => ({ value })))(
+    'rejects rashObserved $value without coercion or partial writes', async ({ value }) => {
+      const before = await snapshot();
+      expect((await postDiaper(createRequest('diaper-log', { ...createBody, rashObserved: value, ...rashText }))).status).toBe(400);
+      expect(await snapshot()).toEqual(before);
+      expect((await putDiaper(request('diaper-log', 'owned-diaper', { rashObserved: value, notes: 'Must not save' }))).status).toBe(400);
+      expect(await snapshot()).toEqual(before);
+    },
+  );
+
+  it('does not infer observations when cream and legacy notes are edited', async () => {
+    const response = await putDiaper(request('diaper-log', 'owned-diaper', { creamApplied: true, notes: 'Synthetic note mentions rash' }));
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject(unknownRash);
+    expect(await db.diaperLog.findUniqueOrThrow({ where: { id: 'owned-diaper' } })).toMatchObject(unknownRash);
+  });
+
+  it('keeps rash edits scoped to the original child and excludes other family observations from reads', async () => {
+    const sibling = await db.baby.create({ data: { familyId: owner, firstName: 'Synthetic sibling', lastName: 'Child', birthDate: at } });
+    await db.diaperLog.create({ data: { id: 'sibling-diaper', familyId: owner, babyId: sibling.id, caretakerId: ownCarer, time: at, type: 'DIRTY', rashObserved: false } });
+    await db.diaperLog.create({ data: { id: 'foreign-diaper', familyId: foreign, babyId: foreignChild, caretakerId: foreignCarer, time: at, type: 'BOTH', rashObserved: true, rashDescription: 'Foreign synthetic observation' } });
+    const before = await snapshot();
+    expect((await postDiaper(createRequest('diaper-log', { ...createBody, babyId: foreignChild, rashObserved: true }))).status).toBe(404);
+    expect((await putDiaper(request('diaper-log', 'foreign-diaper', { rashObserved: false }))).status).toBe(404);
+    expect((await read('id=foreign-diaper')).status).toBe(404);
+    for (const injection of [{ familyId: foreign }, { caretakerId: foreignCarer }, { baby: { connect: { id: foreignChild } } }]) {
+      expect((await putDiaper(request('diaper-log', 'owned-diaper', { rashObserved: true, ...injection }))).status).toBe(400);
+    }
+    expect(await snapshot()).toEqual(before);
+    const edited = await putDiaper(request('diaper-log', 'owned-diaper', { babyId: sibling.id, rashObserved: true }));
+    expect(edited.status).toBe(200);
+    expect((await edited.json()).data).toMatchObject({ babyId: ownChild, familyId: owner, rashObserved: true });
+    expect(await db.diaperLog.findUniqueOrThrow({ where: { id: 'sibling-diaper' } })).toEqual(before.diapers.find(row => row.id === 'sibling-diaper'));
+    const listed = await read(`babyId=${ownChild}`);
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).data).toEqual([expect.objectContaining({ id: 'owned-diaper', rashObserved: true })]);
+    const foreignList = await read(`babyId=${foreignChild}`);
+    expect(foreignList.status).toBe(200);
+    expect((await foreignList.json()).data).toEqual([]);
+    const timeline = await getTimeline(new NextRequest(`http://localhost/api/timeline?babyId=${ownChild}&types=diaper`, {
+      headers: { Authorization: `Bearer ${token()}` },
+    }));
+    expect(timeline.status).toBe(200);
+    const entries = (await timeline.json()).data;
+    expect(entries).toEqual([expect.objectContaining({ id: 'owned-diaper', rashObserved: true })]);
+    expect(JSON.stringify(entries)).not.toContain('Foreign synthetic observation');
+  });
+
+  it('requires authentication before reading or writing rash observations', async () => {
+    const before = await snapshot();
+    const unauthenticated = (method: string) => new NextRequest('http://localhost/api/diaper-log?id=owned-diaper', {
+      method, headers: { 'Content-Type': 'application/json' },
+      ...(method === 'GET' ? {} : { body: JSON.stringify({ ...createBody, rashObserved: true }) }),
+    });
+    expect((await postDiaper(unauthenticated('POST'))).status).toBe(401);
+    expect((await putDiaper(unauthenticated('PUT'))).status).toBe(401);
+    expect((await getDiaper(unauthenticated('GET'))).status).toBe(401);
+    expect(await snapshot()).toEqual(before);
+  });
 });
 
 describe('baby gestational age corrections with real authorization and migrated SQLite', () => {

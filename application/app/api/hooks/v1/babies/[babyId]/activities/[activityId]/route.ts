@@ -8,6 +8,7 @@ import { hookSuccess, hookError } from '../../../../response';
 import { BATH_TYPES, BOTTLE_TYPES, DIAPER_COLORS, DIAPER_CONDITIONS, FEED_SIDES, PUMP_ACTIONS, SLEEP_QUALITIES, normalizeEnumValue } from '../../../../field-values';
 import { prepareHookPumpFields, type PumpValidationContext } from '../../../../pump-validation';
 import { deletePumpWithFeed, PumpReconciliationConflict, updatePumpWithFeed } from '@/app/api/utils/pumpReconciliation';
+import { DIAPER_RASH_FIELDS, hookDiaperRashDetails, readHookDiaperRash } from '../../../../diaper-rash';
 
 const VALID_TYPES = ['sleep', 'feed', 'diaper', 'note', 'pump', 'play', 'bath', 'measurement', 'medicine', 'supplement'] as const;
 type ActivityType = typeof VALID_TYPES[number];
@@ -51,7 +52,7 @@ const TYPE_ALIASES: Record<string, ActivityType> = {
 const TYPE_FIELDS: Record<ActivityType, readonly string[]> = {
   sleep: ['type', 'sleepType', 'time', 'startTime', 'endTime', 'duration', 'location', 'quality', 'notes'],
   feed: ['type', 'feedType', 'time', 'startTime', 'endTime', 'duration', 'feedDuration', 'amount', 'unitAbbr', 'side', 'food', 'notes', 'bottleType', 'breastMilkAmount'],
-  diaper: ['type', 'diaperType', 'time', 'condition', 'color', 'blowout', 'creamApplied', 'notes'],
+  diaper: ['type', 'diaperType', 'time', 'condition', 'color', 'blowout', 'creamApplied', 'notes', ...DIAPER_RASH_FIELDS],
   note: ['type', 'time', 'content', 'category'],
   pump: ['type', 'time', 'startTime', 'endTime', 'duration', 'leftAmount', 'rightAmount', 'totalAmount', 'unitAbbr', 'pumpAction', 'notes'],
   play: ['type', 'time', 'startTime', 'duration', 'playType', 'notes', 'activities'],
@@ -249,7 +250,7 @@ async function buildFeedData(body: JsonObject): Promise<{ data?: Prisma.FeedLogU
   return empty ? { error: empty } : { data: data as Prisma.FeedLogUpdateInput };
 }
 
-function buildDiaperData(body: JsonObject): { data?: Prisma.DiaperLogUpdateInput; error?: string } {
+async function buildDiaperData(body: JsonObject): Promise<{ data?: Prisma.DiaperLogUpdateInput; error?: string }> {
   const data: JsonObject = {};
   const diaperType = requireEnum(body.diaperType, 'diaperType', ['WET', 'DIRTY', 'BOTH', 'DRY'] as const);
   if (diaperType.error) return { error: diaperType.error };
@@ -266,6 +267,9 @@ function buildDiaperData(body: JsonObject): { data?: Prisma.DiaperLogUpdateInput
   }
   const notesError = assignString(data, body, 'notes');
   if (notesError) return { error: notesError };
+  const rash = await readHookDiaperRash(body);
+  if (rash.error) return { error: rash.error };
+  Object.assign(data, rash.data);
   const empty = ensureNonEmptyUpdate(data);
   return empty ? { error: empty } : { data: data as Prisma.DiaperLogUpdateInput };
 }
@@ -491,10 +495,10 @@ async function updateActivity(type: ActivityType, activityId: string, babyId: st
       return { result: summary(type, row.id, row.babyId, 'updated', row.time, { type: row.type, amount: row.amount, unitAbbr: row.unitAbbr, notes: row.notes }) };
     }
     case 'diaper': {
-      const built = buildDiaperData(body);
+      const built = await buildDiaperData(body);
       if (built.error) return { error: built.error, status: 400 };
       const row = await prisma.diaperLog.update({ where: { id: activityId }, data: built.data! });
-      return { result: summary(type, row.id, row.babyId, 'updated', row.time, { type: row.type, condition: row.condition, color: row.color, blowout: row.blowout, creamApplied: row.creamApplied, notes: row.notes }) };
+      return { result: summary(type, row.id, row.babyId, 'updated', row.time, { type: row.type, condition: row.condition, color: row.color, blowout: row.blowout, creamApplied: row.creamApplied, notes: row.notes, ...hookDiaperRashDetails(row) }) };
     }
     case 'sleep': {
       const built = buildSleepData(body, existing.time!);

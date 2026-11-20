@@ -192,6 +192,11 @@ export interface DiaperLogCreate {
   blowout?: boolean;
   creamApplied?: boolean;
   notes?: string;
+  rashObserved?: boolean | null;
+  rashLocation?: string | null;
+  rashDescription?: string | null;
+  rashProductsApplied?: string | null;
+  rashFollowUpNotes?: string | null;
 }
 
 // Mood log types

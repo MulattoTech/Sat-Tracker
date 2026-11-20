@@ -39,6 +39,7 @@ import { FOOD_ENJOYMENT_LABELS, formatFoodMealTitle, isFoodLogActivity, isValidE
 import { lbToLbOz, formatWeightDisplay } from '@/src/utils/weightUnits';
 import { formatPauseDuration } from '@/src/utils/pauseDisplay';
 import { isDirtyDiaper } from '@/src/utils/diaperStats';
+import { getDiaperRashDetails, getDiaperRashSummary } from '@/src/utils/diaperRash';
 import { localizeSleepLocation } from '@/src/utils/sleepLocationUtils';
 
 export { lbToLbOz, formatWeightDisplay };
@@ -482,6 +483,8 @@ export const getActivityDetails = (activity: ActivityType, settings: Settings | 
       if (activity.creamApplied) {
         details.push({ label: t('Diaper Cream Applied'), value: t('Yes') });
       }
+
+      details.push(...getDiaperRashDetails(activity, t));
 
       if ((activity as any).notes) {
         details.push({ label: t('Notes'), value: (activity as any).notes });
@@ -950,7 +953,7 @@ export const getActivityDescription = (activity: ActivityType, settings: Setting
       const time = formatTime(activity.time, settings, true, t);
       return {
         type: formatDiaperType(activity.type),
-        details: [time, ...conditions, blowout, cream, notesText].filter(Boolean).join(' • ')
+        details: [time, ...conditions, blowout, cream, getDiaperRashSummary(activity, t), notesText].filter(Boolean).join(' • ')
       };
     }
   }

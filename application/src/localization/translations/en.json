@@ -3302,5 +3302,20 @@
   "Not applicable": "Not applicable",
   "{age} before estimated due date": "{age} before estimated due date",
   "Select a birth date before saving.": "Select a birth date before saving.",
-  "Unable to save baby. Please try again.": "Unable to save baby. Please try again."
+  "Unable to save baby. Please try again.": "Unable to save baby. Please try again.",
+  "Rash observation": "Rash observation",
+  "Rash observed": "Rash observed",
+  "No rash observed": "No rash observed",
+  "Clear rash observation": "Clear rash observation",
+  "Rash location": "Rash location",
+  "Rash description": "Rash description",
+  "Products applied": "Products applied",
+  "Follow-up notes": "Follow-up notes",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Optional. Record what you observed; leave unknown observations unrecorded.",
+  "Maximum {count} characters.": "Maximum {count} characters.",
+  "Please select a diaper type.": "Please select a diaper type.",
+  "One or more rash details exceed the character limit.": "One or more rash details exceed the character limit.",
+  "Export PDF": "Export PDF",
+  "Unable to export activities. Please try again.": "Unable to export activities. Please try again.",
+  "Preparing PDF...": "Preparing PDF..."
 }

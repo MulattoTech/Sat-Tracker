@@ -12,6 +12,7 @@ import { useUnit } from '@/src/hooks/useUnit';
 import { FeedLogResponse, TimelinePhotoInfo } from '@/app/api/types';
 import LinkedFeedsSection from '@/src/components/forms/FeedForm/LinkedFeedsSection';
 import { useAuthedImage, photoFileUrl } from '@/src/hooks/useAuthedImage';
+import { cn } from '@/src/lib/utils';
 
 import './timeline-activity-details.css';
 
@@ -136,9 +137,11 @@ const TimelineActivityDetails = ({
             ))
           ) : (
             activityDetails.details.map((detail, index) => (
-              <div key={index} className="flex justify-between items-center">
+              <div key={index} className={cn('flex justify-between items-center',
+                'condition' in activity && 'min-w-0 flex-col items-stretch gap-1 sm:flex-row sm:items-start sm:gap-4')}>
                 <span className="text-sm font-medium text-gray-500 timeline-details-label">{detail.label}:</span>
-                <span className="text-sm text-gray-900 timeline-details-value">{detail.value}</span>
+                <span className={cn('text-sm text-gray-900 timeline-details-value',
+                  'condition' in activity && 'min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere] sm:text-right')}>{detail.value}</span>
               </div>
             ))
           )}

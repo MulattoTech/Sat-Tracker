@@ -12,7 +12,8 @@ fs.mkdirSync(reportDir, { recursive: true });
 const runId = randomUUID();
 const servicePath = path.join(reportDir, 'acceptance-service-report.json');
 const browserPath = path.join(reportDir, 'ocr-browser-report.json');
-for (const file of [servicePath, browserPath]) fs.rmSync(file, { force: true });
+const rashPath = path.join(reportDir, 'diaper-rash-browser-report.json');
+for (const file of [servicePath, browserPath, rashPath]) fs.rmSync(file, { force: true });
 let gitRevision = 'unknown';
 try { gitRevision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', timeout: 10_000 }).trim(); } catch {}
 const report = {
@@ -80,6 +81,16 @@ try {
   assert.equal(browser.familyReadBoundaryChecksPassed, true, 'Authenticated HTTP family boundaries for timeline/export labels and hook activities, status, measurements and history-derived references must run');
   assert.equal(browser.logoutLifecycleChecksPassed, true, 'One owned logout transition, stale-session suppression, cookie ordering, aborted failure recovery and terminal navigation must run');
   assert.equal(browser.correctedAgeChecksPassed, true, 'Actual default/storybook profile edits, calendar corrected age, exact birth preservation, scoped cache refresh and unknown gestation must run');
+  assert.equal(browser.diaperRashChecksPassed, true, 'Actual three-state rash entry, history, legacy omission, retained drafts, ownership and selected CSV/XLSX/PDF exports must run');
+  const rash = JSON.parse(fs.readFileSync(rashPath, 'utf8'));
+  assert.equal(rash.runId, runId, 'Rash evidence must belong to this invocation');
+  assert.equal(rash.syntheticOnly, true);
+  assert.equal(rash.status, 'PASS', 'Rash browser scenarios and fixture cleanup must pass');
+  assert.equal(rash.checks.length, 12, 'All twelve rash browser scenarios must execute');
+  assert.ok(rash.checks.every(check => browser.checks.includes(check)), 'Rash scenarios must appear in aggregate runtime evidence');
+  assert.ok(browser.checks.length >= 186, 'The existing 174 runtime checks and twelve rash scenarios must be retained');
+  assert.deepEqual(rash.errors, []); assert.deepEqual(rash.captureErrors, []); assert.deepEqual(rash.cleanup?.errors, []);
+  assert.equal(rash.cleanup?.contextClosed, true); assert.equal(rash.cleanup?.fixtureFamiliesRemoved, true);
   assert.deepEqual(browser.cleanup?.errors, [], 'Owned browser/server cleanup must be verified');
   assert.equal(browser.cleanup?.server?.exited, true, 'Synthetic server exit must be verified');
   assert.equal(browser.cleanup?.browser?.exited, true, 'Synthetic browser exit must be verified');

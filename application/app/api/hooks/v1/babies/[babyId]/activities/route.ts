@@ -10,6 +10,7 @@ import { startBreastfeedSession, updateBreastfeedSession, endBreastfeedSession, 
 import { BATH_TYPES, BOTTLE_TYPES, DIAPER_COLORS, DIAPER_CONDITIONS, FEED_SIDES, PUMP_ACTIONS, SLEEP_QUALITIES, normalizeEnumValue } from '../../../field-values';
 import { prepareHookPumpFields } from '../../../pump-validation';
 import { parsePumpTimestamp, validPumpDuration } from '@/src/utils/pump-validation';
+import { DIAPER_RASH_FIELDS, hookDiaperRashDetails, readHookDiaperRash } from '../../../diaper-rash';
 
 const VALID_TYPES = ['sleep', 'feed', 'diaper', 'note', 'pump', 'play', 'bath', 'measurement', 'medicine', 'supplement'] as const;
 type ActivityType = typeof VALID_TYPES[number];
@@ -20,7 +21,7 @@ type ActivityType = typeof VALID_TYPES[number];
 // instead of being silently accepted and dropped.
 const TYPE_FIELDS: Record<ActivityType, readonly string[]> = {
   feed: ['type', 'time', 'caretakerName', 'feedType', 'amount', 'unitAbbr', 'side', 'food', 'notes', 'bottleType', 'action', 'duration'],
-  diaper: ['type', 'time', 'caretakerName', 'diaperType', 'condition', 'color', 'blowout', 'creamApplied', 'notes'],
+  diaper: ['type', 'time', 'caretakerName', 'diaperType', 'condition', 'color', 'blowout', 'creamApplied', 'notes', ...DIAPER_RASH_FIELDS],
   sleep: ['type', 'time', 'caretakerName', 'sleepType', 'action', 'duration', 'location', 'quality', 'notes'],
   note: ['type', 'time', 'caretakerName', 'content', 'category'],
   pump: ['type', 'time', 'caretakerName', 'action', 'duration', 'leftAmount', 'rightAmount', 'totalAmount', 'unitAbbr', 'pumpAction'],
@@ -164,7 +165,7 @@ async function handleGet(req: NextRequest, ctx: ApiKeyContext, routeContext: any
           activityType: 'diaper',
           id: r.id,
           time: r.time.toISOString(),
-          details: { type: r.type, condition: r.condition, color: r.color, blowout: r.blowout, creamApplied: r.creamApplied, notes: r.notes },
+          details: { type: r.type, condition: r.condition, color: r.color, blowout: r.blowout, creamApplied: r.creamApplied, notes: r.notes, ...hookDiaperRashDetails(r) },
           caretakerName: r.caretaker?.name || null,
         }));
       })
@@ -531,13 +532,15 @@ async function handlePost(req: NextRequest, ctx: ApiKeyContext, routeContext: an
         if (conditionResult.error) return hookError('INVALID_CONDITION', conditionResult.error, 400, rl.headers);
         const colorResult = normalizeRequiredEnumIfPresent(color, 'color', DIAPER_COLORS);
         if (colorResult.error) return hookError('INVALID_COLOR', colorResult.error, 400, rl.headers);
+        const rash = await readHookDiaperRash(body);
+        if (rash.error) return hookError('INVALID_FIELD', rash.error, 400, rl.headers);
 
         result = await prisma.diaperLog.create({
-          data: { time, type: diaperType, condition: conditionResult.value, color: colorResult.value, blowout: blowout === true, creamApplied: creamApplied === true, notes: notes || null, babyId, caretakerId, familyId },
+          data: { time, type: diaperType, condition: conditionResult.value, color: colorResult.value, blowout: blowout === true, creamApplied: creamApplied === true, notes: notes || null, ...rash.data, babyId, caretakerId, familyId },
         });
         notifyActivityCreated(babyId, 'diaper', { caretakerId }, { type: diaperType }).catch(console.error);
         resetTimerNotificationState(babyId, 'diaper').catch(console.error);
-        return hookSuccess({ activityType: 'diaper', id: result.id, time: result.time.toISOString(), details: { type: diaperType, condition: conditionResult.value, color: colorResult.value, blowout: result.blowout, creamApplied: result.creamApplied, notes: result.notes } }, { familyId, babyId }, rl.headers);
+        return hookSuccess({ activityType: 'diaper', id: result.id, time: result.time.toISOString(), details: { type: diaperType, condition: conditionResult.value, color: colorResult.value, blowout: result.blowout, creamApplied: result.creamApplied, notes: result.notes, ...hookDiaperRashDetails(result) } }, { familyId, babyId }, rl.headers);
       }
 
       case 'sleep': {

@@ -1,0 +1,13 @@
+html.dark .diaper-rash-fields {
+  border-color: #9f4564;
+  background-color: #2d2230;
+}
+
+html.dark .diaper-rash-help,
+html.dark .diaper-rash-status {
+  color: #e2e8f0;
+}
+
+html.dark .diaper-form-error {
+  color: #fecdd3;
+}

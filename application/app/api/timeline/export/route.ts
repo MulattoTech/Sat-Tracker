@@ -5,6 +5,8 @@ import { ApiResponse } from '../../types';
 import { withAuthContext, AuthResult } from '../../utils/auth';
 import { toUTC, formatForResponse } from '../../utils/timezone';
 import { objectArrayToCsv } from '../../utils/csv-export';
+import { getDiaperRashDetails } from '@/src/utils/diaperRash';
+import { literalCsvCell } from './csv-cell';
 import { legacyOzToLb } from '@/src/utils/weightUnits';
 import { pumpActionLabel } from '@/src/utils/pumpAction';
 import * as ExcelJS from 'exceljs';
@@ -207,6 +209,7 @@ function getDetails(activity: any, type: string, translations: Record<string, st
       if (activity.condition) parts.push(`${t('Condition', translations)}: ${activity.condition}`);
       if (activity.blowout) parts.push(t('Blowout', translations));
       if (activity.creamApplied) parts.push(t('Cream Applied', translations));
+      parts.push(...getDiaperRashDetails(activity, key => t(key, translations)).map(({ label, value }) => `${label}: ${value}`));
       break;
     case 'bath':
       if (activity.soapUsed) parts.push(t('Soap', translations));
@@ -537,6 +540,15 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     const babyName = `${baby.firstName}${baby.lastName ? '-' + baby.lastName : ''}`;
     const dateStr = new Date().toISOString().split('T')[0];
 
+    // The selected-range PDF uses exactly these authorized, localized rows.
+    // Browser rendering preserves the same glyphs as the on-screen history.
+    if (format === 'json') {
+      return NextResponse.json({ success: true, data: {
+        rows, babyName: [baby.firstName, baby.lastName].filter(Boolean).join(' '),
+        filename: `activity-log-${babyName}-${dateStr}.pdf`,
+      } }, { headers: { 'Cache-Control': 'private, no-store' } });
+    }
+
     if (format === 'xlsx') {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(t('Activity Log', translations));
@@ -575,7 +587,9 @@ async function handleGet(req: NextRequest, authContext: AuthResult) {
     }
 
     // CSV format (default)
-    const csvContent = objectArrayToCsv(rows);
+    const csvContent = objectArrayToCsv(rows.map(row => Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key, literalCsvCell(value)]),
+    )));
     const filename = `activity-log-${babyName}-${dateStr}.csv`;
 
     return new NextResponse(csvContent, {

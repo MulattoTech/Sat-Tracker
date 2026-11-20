@@ -455,6 +455,12 @@ model DiaperLog {
   blowout      Boolean    @default(false)
   creamApplied Boolean    @default(false)
   notes        String?
+  // Caregiver observations: null means not recorded, never inferred from cream or notes.
+  rashObserved        Boolean?
+  rashLocation        String?
+  rashDescription     String?
+  rashProductsApplied String?
+  rashFollowUpNotes    String?
   createdAt    DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   deletedAt DateTime?

@@ -209,6 +209,33 @@ describe('conditional Nursery Undo through real login/JWT and migrated SQLite', 
     const winner = await snapshot(); expect((await remove(undo)).status).toBe(409); expect(await snapshot()).toEqual(winner);
   });
 
+  it.each([
+    { rashObserved: true }, { rashObserved: false }, { rashLocation: 'Synthetic area' },
+    { rashDescription: 'Observed after the original save' }, { rashProductsApplied: 'Synthetic product' },
+    { rashFollowUpNotes: 'Peer follow-up' },
+  ])('atomically preserves a rash edit committed after the Undo snapshot read: %j', async change => {
+    const { undo } = await create('diaper'), original = await db.diaperLog.findFirstOrThrow();
+    let release!: () => void, arrived!: () => void;
+    const reached = new Promise<void>(resolve => { arrived = resolve; }), blocked = new Promise<void>(resolve => { release = resolve; });
+    state.gate = { model: 'diaperLog', enter: async () => { arrived(); await blocked; } };
+    const pending = remove(undo);
+    try {
+      await reached;
+      await db.diaperLog.update({ where: { id: original.id }, data: { ...change, updatedAt: original.updatedAt } });
+      const winner = await snapshot(); release();
+      expect((await pending).status).toBe(409); expect(await snapshot()).toEqual(winner);
+    } finally { release(); await pending; }
+  });
+
+  it('can undo the exact original manual diaper observation with its own complete descriptor', async () => {
+    const response = await postDiaper(request('POST', '/api/diaper-log', { babyId, time: at, type: 'BOTH',
+      nurseryScope: scope(), rashObserved: false, rashLocation: 'Synthetic area', rashDescription: 'Caregiver description',
+      rashProductsApplied: 'Synthetic product', rashFollowUpNotes: 'Caregiver follow-up' }));
+    expect(response.status).toBe(200); const result = await response.json();
+    const undo = readNurseryUndo(result.undo); expect(undo).not.toBeNull();
+    expect((await remove(undo!)).status).toBe(200); expect(await db.diaperLog.count()).toBe(0);
+  });
+
   it.each(['edited', 'removed', 'extra', 'moved'] as const)('keeps all remaining breast sides when group membership is %s', async change => {
     const { undo } = await create('breast'), row = await db.feedLog.findUniqueOrThrow({ where: { id: undo.records[1].id } });
     if (change === 'edited') await db.feedLog.update({ where: { id: row.id }, data: { feedDuration: 120, updatedAt: row.updatedAt } });

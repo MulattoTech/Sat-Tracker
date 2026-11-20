@@ -4,7 +4,6 @@ import React, { useState, useEffect, useId } from 'react';
 import { DiaperType } from '@prisma/client';
 import { DiaperLogResponse } from '@/app/api/types';
 import { Button } from '@/src/components/ui/button';
-import { Input } from '@/src/components/ui/input';
 import { DateTimePicker } from '@/src/components/ui/date-time-picker';
 import { Checkbox } from '@/src/components/ui/checkbox';
 import { Textarea } from '@/src/components/ui/textarea';
@@ -20,12 +19,15 @@ import {
   FormPageContent, 
   FormPageFooter 
 } from '@/src/components/ui/form-page';
-import { useTimezone } from '@/app/context/timezone';
 import { useToast } from '@/src/components/ui/toast';
 import { handleExpirationError } from '@/src/lib/expiration-error-handler';
-import { useParams } from 'next/navigation';
 import { useLocalization } from '@/src/context/localization';
 import { isDirtyDiaper } from '@/src/utils/diaperStats';
+import DiaperRashFields from './DiaperRashFields';
+import {
+  diaperRashToDraft, buildDiaperRashPayload, buildDiaperTimePayload, getInvalidDiaperRashField,
+  type DiaperRashDraft, type DiaperRashTouched,
+} from './diaper-form-data';
 
 interface DiaperFormProps {
   isOpen: boolean;
@@ -46,10 +48,7 @@ export default function DiaperForm({
 }: DiaperFormProps) {
   const { t } = useLocalization();
   const formId = useId();
-  const { toUTCString } = useTimezone();
   const { showToast } = useToast();
-  const params = useParams();
-  const familySlug = params?.slug as string;
   
   const [selectedDateTime, setSelectedDateTime] = useState<Date>(() => {
     try {
@@ -65,133 +64,82 @@ export default function DiaperForm({
       return new Date(); // Fallback to current date
     }
   });
-  const [formData, setFormData] = useState({
-    time: initialTime,
+  const emptyForm = {
     type: '' as DiaperType | '',
     condition: '',
     color: '',
     blowout: false,
     creamApplied: false,
     notes: '',
-  });
+  };
+  const [formData, setFormData] = useState(emptyForm);
+  const [rash, setRash] = useState(diaperRashToDraft());
+  const [rashTouched, setRashTouched] = useState<DiaperRashTouched>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [initializedTime, setInitializedTime] = useState<string | null>(null);
+  const [originalTime, setOriginalTime] = useState<string | undefined>();
 
   // Handle date/time change
   const handleDateTimeChange = (date: Date) => {
     setSelectedDateTime(date);
-    
-    // Also update the time in formData for compatibility with existing code
-    // Format the date as ISO string for storage in formData
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    
-    const formattedTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-    setFormData(prev => ({ ...prev, time: formattedTime }));
+    setSubmitError(null);
   };
 
+  const handleRashChange = <K extends keyof DiaperRashDraft>(key: K, value: DiaperRashDraft[K]) => {
+    setRash(prev => ({ ...prev, [key]: value }));
+    setRashTouched(prev => ({ ...prev, [key]: true }));
+    setSubmitError(null);
+  };
+
+  // Initialize each opened record once; refreshes and failed saves keep the draft.
   useEffect(() => {
-    if (isOpen && !isInitialized) {
-      if (activity) {
-        // Editing mode - populate with activity data
-        try {
-          const activityDate = new Date(activity.time);
-          // Check if the date is valid
-          if (!isNaN(activityDate.getTime())) {
-            setSelectedDateTime(activityDate);
-          }
-        } catch (error) {
-          console.error('Error parsing activity time:', error);
-        }
-        
-        // Format the date for the time property
-        const date = new Date(activity.time);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const formattedTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-        
-        setFormData({
-          time: formattedTime,
-          type: activity.type,
-          condition: activity.condition || '',
-          color: activity.color || '',
-          blowout: activity.blowout || false,
-          creamApplied: activity.creamApplied || false,
-          notes: activity.notes || '',
-        });
-        
-        // Store the initial time used for editing
-        setInitializedTime(activity.time);
-      } else {
-        // New entry mode - initialize from initialTime prop
-        try {
-          const date = new Date(initialTime);
-          if (!isNaN(date.getTime())) {
-            setSelectedDateTime(date);
-            
-            // Also update the time in formData
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const formattedTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-            
-            setFormData(prev => ({ ...prev, time: formattedTime }));
-          }
-        } catch (error) {
-          console.error('Error parsing initialTime:', error);
-        }
-        
-        // Store the initial time used for new entry
-        setInitializedTime(initialTime);
-      }
-      
-      // Mark as initialized
-      setIsInitialized(true);
-    } else if (!isOpen) {
-      // Reset initialization flag and stored time when form closes
-      setIsInitialized(false);
-      setInitializedTime(null);
-    }
-  }, [isOpen, activity, initialTime]);
+    if (!isOpen) return;
+    const date = new Date(activity?.time ?? initialTime);
+    setSelectedDateTime(Number.isFinite(date.getTime()) ? date : new Date());
+    setOriginalTime(activity?.time);
+    setFormData(activity ? {
+      type: activity.type,
+      condition: activity.condition || '',
+      color: activity.color || '',
+      blowout: activity.blowout || false,
+      creamApplied: activity.creamApplied || false,
+      notes: activity.notes || '',
+    } : emptyForm);
+    setRash(diaperRashToDraft(activity));
+    setRashTouched({});
+    setSubmitError(null);
+  }, [isOpen, activity?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!babyId) return;
+    if (!babyId || loading) return;
 
     // Validate required fields
     if (!formData.type) {
-      console.error('Required fields missing: type');
+      setSubmitError(t('Please select a diaper type.'));
       return;
     }
     
     // Validate date time
     if (!selectedDateTime || isNaN(selectedDateTime.getTime())) {
-      console.error('Required fields missing: valid date time');
+      setSubmitError(t('Please select a valid date and time'));
+      return;
+    }
+    const invalidRashField = getInvalidDiaperRashField(rash, rashTouched);
+    if (invalidRashField) {
+      setSubmitError(t('One or more rash details exceed the character limit.'));
+      (e.currentTarget.querySelector(`[name="${invalidRashField}"]`) as HTMLElement | null)?.focus();
       return;
     }
 
     setLoading(true);
+    setSubmitError(null);
 
     try {
-      // Convert local time to UTC ISO string using the timezone context
-      // We use selectedDateTime instead of formData.time for better accuracy
-      const utcTimeString = toUTCString(selectedDateTime);
-      
-      console.log('Original time (local):', formData.time);
-      console.log('Converted time (UTC):', utcTimeString);
-
       const payload = {
         babyId,
-        time: utcTimeString, // Send the UTC ISO string instead of local time
+        ...buildDiaperTimePayload(selectedDateTime, originalTime),
+        ...buildDiaperRashPayload(rash, rashTouched),
         type: formData.type,
         // Condition/color only apply when there's contents — clear stale values from a
         // previous type instead of carrying them into a WET/DRY log (e.g. DIRTY -> DRY).
@@ -224,6 +172,7 @@ export default function DiaperForm({
           );
           if (isExpirationError) {
             // Don't close the form, let user see the error
+            setSubmitError(t('Failed to save diaper log'));
             return;
           }
         }
@@ -232,22 +181,13 @@ export default function DiaperForm({
         throw new Error(t('Failed to save diaper log'));
       }
 
+      const result = await response.json();
+      if (!result.success) throw new Error(t('Failed to save diaper log'));
       onClose();
       onSuccess?.();
-      
-      // Reset form data
-      setSelectedDateTime(new Date(initialTime));
-      setFormData({
-        time: initialTime,
-        type: '' as DiaperType | '',
-        condition: '',
-        color: '',
-        blowout: false,
-        creamApplied: false,
-        notes: '',
-      });
     } catch (error) {
       console.error('Error saving diaper log:', error);
+      setSubmitError(t('Failed to save diaper log'));
     } finally {
       setLoading(false);
     }
@@ -260,8 +200,8 @@ export default function DiaperForm({
       title={activity ? t('Edit Diaper Change') : t('Log Diaper Change')}
       description={activity ? t('Update details about your baby\'s diaper change') : t('Record details about your baby\'s diaper change')}
     >
-        <FormPageContent>
-          <form onSubmit={handleSubmit}>
+        <FormPageContent className={submitError ? 'pb-16' : undefined}>
+          <form id={`${formId}-form`} onSubmit={handleSubmit}>
           <div className="space-y-4">
             {/* Time Selection - Full width on all screens */}
             <div>
@@ -295,6 +235,8 @@ export default function DiaperForm({
                 </SelectContent>
               </Select>
             </div>
+
+            <DiaperRashFields value={rash} onChange={handleRashChange} disabled={loading} />
 
             {/* Blowout/Leakage checkbox - visible for all diaper types */}
             {formData.type && (
@@ -387,17 +329,19 @@ export default function DiaperForm({
           </div>
           </form>
         </FormPageContent>
-        <FormPageFooter>
+        <FormPageFooter className="flex-col items-stretch">
+          {submitError && <p role="alert" className="text-sm text-rose-700 diaper-form-error">{submitError}</p>}
           <div className="flex justify-end space-x-2">
             <Button
               type="button"
               variant="outline"
+              className="min-h-11"
               onClick={onClose}
               disabled={loading}
             >
               {t('Cancel')}
             </Button>
-            <Button onClick={handleSubmit} disabled={loading}>
+            <Button type="submit" form={`${formId}-form`} className="min-h-11" disabled={loading}>
               {activity ? t('Update') : t('Save')}
             </Button>
           </div>

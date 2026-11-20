@@ -90,7 +90,7 @@ const BOOLEAN_COLUMNS: Record<string, string[]> = {
   Caretaker: ['inactive'],
   Settings: ['enableDebugTimer', 'enableDebugTimezone', 'enableBreastMilkTracking'],
   BathLog: ['soapUsed', 'shampooUsed'],
-  DiaperLog: ['blowout', 'creamApplied'],
+  DiaperLog: ['blowout', 'creamApplied', 'rashObserved'],
   CalendarEvent: ['allDay', 'recurring', 'notificationSent'],
   Medicine: ['active', 'isSupplement'],
   BetaSubscriber: ['isOptedIn'],
