@@ -170,8 +170,9 @@ async function run() {
     await page.getByLabel('Backup archive', { exact: true }).setInputFiles(fixture.archivePath);
     await page.getByLabel('Source recovery key', { exact: true }).fill('0'.repeat(64));
     const response = page.waitForResponse(response => response.url() === base + '/api/recovery/inspect' && response.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Inspect backup', exact: true }).click();
-    assert.equal((await response).status(), 400);
+    const [rejectedResponse] = await Promise.all([response,
+      page.getByRole('button', { name: 'Inspect backup', exact: true }).click()]);
+    assert.equal(rejectedResponse.status(), 400);
     await page.locator('main.recovery-panel').getByRole('alert').filter({
       hasText: 'Encrypted content could not be authenticated with the supplied source key and original scope.',
     }).waitFor();
@@ -197,16 +198,23 @@ async function run() {
     await inspection.waitFor(); await screenshot('recovery-mobile-reviewed');
   });
   await check('rejected_commit_preserves_review_and_draft', async () => {
+    const interception = Promise.withResolvers();
     await page.route(base + '/api/recovery/commit', async route => {
-      await page.unroute(base + '/api/recovery/commit');
-      const originalBody = route.request().postDataBuffer();
-      assert.ok(originalBody?.includes(Buffer.from(fixture.archiveSha256)));
-      const changed = Buffer.from(originalBody.toString('latin1').replace(fixture.archiveSha256, '0'.repeat(64)), 'latin1');
-      await route.continue({ postData: changed });
-    });
+      try {
+        const originalBody = route.request().postDataBuffer();
+        assert.ok(originalBody?.includes(Buffer.from(fixture.archiveSha256)));
+        const changed = Buffer.from(originalBody.toString('latin1').replace(fixture.archiveSha256, '0'.repeat(64)), 'latin1');
+        await route.continue({ postData: changed });
+        interception.resolve();
+      } catch (error) {
+        // Route callbacks run as events; make failures reject the awaited scenario and reach cleanup.
+        interception.reject(error);
+      }
+    }, { times: 1 });
     const response = page.waitForResponse(response => response.url() === base + '/api/recovery/commit');
-    await page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click();
-    assert.equal((await response).status(), 409);
+    const [rejectedResponse] = await Promise.all([response, interception.promise,
+      page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click()]);
+    assert.equal(rejectedResponse.status(), 409);
     await page.locator('main.recovery-panel').getByRole('alert').filter({
       hasText: 'Inspect this exact archive before recovering it.',
     }).waitFor();
@@ -216,8 +224,9 @@ async function run() {
   });
   await check('real_ui_commit_exact_metadata_and_media', async () => {
     const response = page.waitForResponse(response => response.url() === base + '/api/recovery/commit');
-    await page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click();
-    const result = await response; assert.equal(result.status(), 200);
+    const [result] = await Promise.all([response,
+      page.getByRole('button', { name: 'Recover into this empty destination', exact: true }).click()]);
+    assert.equal(result.status(), 200);
     const receipt = (await result.json()).data;
     assert.equal(receipt.status, 'RECOVERED'); assert.equal(receipt.verified, true); assert.equal(receipt.activationRequired, true);
     assert.equal(receipt.recordsRestored, 77); assert.equal(receipt.tablesRestored, 66);
