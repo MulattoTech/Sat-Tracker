@@ -91,6 +91,10 @@ A *separately reviewed deployment implementation* would still require all of:
    expected downtime, followed by post-activation health, authorization, image-digest,
    record-preservation and encrypted-media checks.
 
+For the specifically scoped downtime/backup plan, exact-archive restore warnings,
+offline caregiver-write quiescence and the non-executing rollback decision policy,
+see [feedback-hotfix-maintenance-runbook.md](feedback-hotfix-maintenance-runbook.md).
+
 No production backup, restart, deployment, Cloudflare change, real-family access,
 historical data repair or sensitive key export is authorized by the preflight or the
 approved source-review package. Keep privacy issue #25 and release issue #50 open
