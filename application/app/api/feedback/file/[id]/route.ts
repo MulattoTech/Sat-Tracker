@@ -25,10 +25,10 @@ async function verifyAccess(attachmentId: string, authContext: AuthResult) {
 
   if (!attachment) return null;
 
-  const isAdmin = authContext.isSysAdmin || authContext.caretakerRole === 'ADMIN';
-  if (isAdmin) return attachment;
-
   const fb = attachment.feedback;
+  if (authContext.isSysAdmin || (authContext.caretakerRole === 'ADMIN' &&
+    authContext.familyId && fb.familyId === authContext.familyId)) return attachment;
+
   let hasAccess = false;
   if (authContext.isAccountAuth && authContext.accountId) {
     hasAccess = fb.accountId === authContext.accountId ||

@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Recovery has an independent guard and must run before env defaults, migrations or seeding.
+if [ "${SAT_TRACKER_RECOVERY_MODE:-}" = "1" ]; then
+  exec node --import tsx scripts/recovery-startup.ts "$@"
+fi
+
 # Detect database provider from environment
 DB_PROVIDER="${DATABASE_PROVIDER:-sqlite}"
 echo "Database provider: $DB_PROVIDER"

@@ -51,6 +51,8 @@ jobs:
         id: build
         with:
           context: ./application
+          build-args: |
+            SAT_TRACKER_SOURCE_REVISION=${{ env.SOURCE_SHA }}
           push: true
           tags: ghcr.io/mulattotech/babytracker-master:sha-${{ env.SOURCE_SHA }}
           labels: |

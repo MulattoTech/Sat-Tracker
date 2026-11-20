@@ -1,268 +1,108 @@
-# BackupRestore Component
+# Complete backup and isolated recovery
 
-A standalone component for managing database backup and restore operations in the Baby Tracker application. This component provides a clean interface for users to create database backups and restore from existing backup files.
+`BackupRestore` provides installation-owner downloads and a link to the operator setup instructions for a separate
+recovery instance. It never overwrites the running installation.
 
-## Features
+## Source installation
 
-- Database backup with automatic file download
-- Database restore from uploaded backup files
-- Loading states and progress indicators
-- Error and success message handling
-- Dark mode support
-- Cross-platform compatibility
-- Proper error handling and user feedback
+The existing App Configuration screen renders `OwnerBackupControls` for the
+installation administrator. Each download requires both a signed system-admin
+session and a fresh check of the current, configured administrator password.
+Blank/default `admin` credentials do not qualify. Family `ADMIN`, system caretaker
+`00`, account ownership and setup invitations do not grant installation authority.
 
-## Usage
+- **Download complete backup** calls `POST /api/database/backup` with JSON
+  `{password}` and downloads the portable metadata/encrypted-media archive.
+- **Download recovery key** calls `POST /api/database/recovery-key` with the same
+  fresh password check. This separate text attachment contains the exact source
+  encryption key, including its original case. It is never embedded in the ZIP.
+- Both responses are `no-store`; keys/passwords are not placed in URLs or browser
+  storage, and privileged auditing contains only request metadata.
+- The password field clears after a successful download. A failed request retains
+  the field for correction and displays an accessible error.
 
-### Basic Usage
+Keep the archive and recovery key private and separately protected. A complete
+archive includes application metadata that can contain personal information and
+installation credentials even though media remains encrypted.
 
-```tsx
-import { BackupRestore } from '@/src/components/BackupRestore';
+## Empty destination
 
-// Example usage in a settings form
-function SettingsPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  const handleBackupSuccess = () => {
-    console.log('Backup completed successfully');
-  };
-  
-  const handleBackupError = (error: string) => {
-    console.error('Backup failed:', error);
-  };
-  
-  const handleRestoreSuccess = () => {
-    console.log('Restore completed successfully');
-    // Page will reload automatically
-  };
-  
-  const handleRestoreError = (error: string) => {
-    console.error('Restore failed:', error);
-  };
-  
-  return (
-    <div>
-      <BackupRestore
-        isLoading={isLoading}
-        isSaving={isSaving}
-        onBackupSuccess={handleBackupSuccess}
-        onBackupError={handleBackupError}
-        onRestoreSuccess={handleRestoreSuccess}
-        onRestoreError={handleRestoreError}
-      />
-    </div>
-  );
-}
-```
+`/recovery` renders `RecoveryPanel` in an explicitly started, isolated recovery
+instance. Startup is owned by `scripts/recovery-startup.ts`; it checks the explicit
+SQLite/PostgreSQL destination and media directory before schema preparation. It
+never runs normal seeding or activates the application.
 
-### Import-Only Usage (Initial Setup)
+The bootstrap credential is the operator-provided `SAT_TRACKER_RECOVERY_TOKEN`
+(64–128 hexadecimal characters). The UI holds it only in component memory and
+sends it as `X-Sat-Recovery-Token`. Ordinary JWTs, cookies and URL query parameters
+cannot replace it. All recovery APIs first require
+`SAT_TRACKER_RECOVERY_MODE=1` and a constant-time exact-token match.
 
-```tsx
-import { BackupRestore } from '@/src/components/BackupRestore';
+1. Enter the operator token and choose **Check recovery destination**. Status must
+   be empty and ready. A completed destination can display its existing receipt;
+   it cannot accept another import.
+2. Choose a `.zip`, `.db` or `.sqlite` archive and enter the exact 64-character
+   source recovery key. It is the existing encryption key, not a new password.
+3. Choose **Inspect backup**. Review source provider, complete/incomplete coverage,
+   source revision and UTC export time, model/record/media counts, omissions,
+   diagnostics and the archive SHA-256.
+4. Only a restorable inspection enables **Recover into this empty destination**.
+   The commit includes the inspected digest and the server repeats preflight and
+   destination checks. Changing the archive, key or token invalidates the review.
+5. A verified receipt reports completion and the separate activation requirement.
+   The screen does not reload, seed, migrate, restart services or activate normal
+   application access. Failed requests retain the selected file and draft.
 
-// Example usage during initial setup wizard
-function InitialSetupImport() {
-  const handleImportSuccess = () => {
-    console.log('Database imported successfully during setup');
-    // Page will reload automatically after migration
-  };
-  
-  const handleImportError = (error: string) => {
-    console.error('Import failed during setup:', error);
-    // Error messages are handled by the component
-  };
-  
-  return (
-    <BackupRestore
-      importOnly={true}
-      initialSetup={true}
-      onRestoreSuccess={handleImportSuccess}
-      onRestoreError={handleImportError}
-    />
-  );
-}
-```
+Legacy native SQLite files and database-only ZIPs are inspectable as incomplete
+backups. They do not satisfy the complete metadata/media contract and cannot be
+committed through this flow. Archived environment files are never replayed.
 
-## Component API
+## Request boundaries
 
-### BackupRestore
+| Endpoint | Method | Request |
+| --- | --- | --- |
+| `/api/recovery/status` | GET | Bootstrap header; no upload or source key |
+| `/api/recovery/inspect` | POST | Multipart `archive`, `sourceKey` |
+| `/api/recovery/commit` | POST | Multipart `archive`, `sourceKey`, `archiveSha256` |
 
-Main component for database backup and restore operations.
+The source key is case-sensitive. `archiveSha256` is 64 lowercase hexadecimal
+characters. Duplicate/unknown multipart fields are rejected. The server counts
+actual streamed bytes before multipart parsing, capped at 512 MiB plus 64 KiB of
+multipart overhead; the file itself remains capped at 512 MiB. Content-Length is
+an early rejection hint, not proof of the body size. The Next proxy clone cap is
+also 512 MiB plus 64 KiB; its internal bounded clone happens before the proxy
+callback. The shared token check prevents unauthorized forwarding, and route
+authorization/current empty-ready status are checked before application upload
+reading or multipart parsing. This does not claim zero framework buffering.
 
-#### Props
+In recovery mode the global Next proxy allows only the recovery page, the three
+explicit recovery API methods, required static chunks and icons. Other pages and
+APIs, including authentication, public configuration, setup, cron and care
+writers, remain blocked even after recovery completes. Normal-mode routing is
+unchanged; recovery inspection and commit are unavailable there.
 
-| Prop | Type | Description | Default |
-|------|------|-------------|---------|
-| `isLoading` | `boolean` | Whether the parent component is in a loading state | `false` |
-| `isSaving` | `boolean` | Whether the parent component is in a saving state | `false` |
-| `onBackupSuccess` | `() => void` | Callback when backup operation succeeds | `undefined` |
-| `onBackupError` | `(error: string) => void` | Callback when backup operation fails | `undefined` |
-| `onRestoreSuccess` | `() => void` | Callback when restore operation succeeds | `undefined` |
-| `onRestoreError` | `(error: string) => void` | Callback when restore operation fails | `undefined` |
-| `className` | `string` | Custom CSS classes for the container | `undefined` |
-| `importOnly` | `boolean` | Whether to show only import/restore functionality (hides backup button) | `false` |
-| `initialSetup` | `boolean` | Whether this is being used during initial setup (uses different migration API) | `false` |
+## Retired operations and compatibility
 
-## Visual Behavior
+The previous `/api/database` download/restore, `restore-initial`, `migrate`,
+`migrate-initial`, `pre-migration-check`, and `pre-migration-check-initial` handlers
+now check system-admin authority and then return HTTP 410. They cannot replay an
+`.env`, replace a live database file, reset administrator credentials, invoke
+Prisma CLI commands or run conversion/seed scripts.
 
-- Displays a section header with "Database Management" title (or "Import Previous Data" in import-only mode)
-- Two action buttons: "Backup Database" and "Restore Database" (or just "Import Database" in import-only mode)
-- Help text explaining the functionality (contextual based on mode)
-- Error messages appear in red styling when operations fail
-- Success messages appear in green styling when operations succeed
-- Migration progress indicators show during database migration steps
-- Buttons are disabled during operations to prevent conflicts
-- Restore button shows "Restoring..."/"Importing..." text when a restore is in progress
+Existing `BackupRestoreProps` callbacks remain source-compatible. Restore and
+administrator-reset callbacks are deprecated and never invoked. `initialSetup`
+and `importOnly` display operator setup documentation instead of an import action.
 
-## Implementation Details
+## Verification
 
-The component handles all database backup and restore logic internally:
-
-### Backup Process
-1. Makes an authenticated request to `/api/database` with GET method
-2. Downloads the response as a blob
-3. Creates a temporary download link and triggers the download
-4. Cleans up the temporary URL and DOM elements
-5. Shows success/error messages based on the result
-
-### Restore Process
-1. Accepts a `.db` file through a hidden file input
-2. Uploads the file to `/api/database` (normal mode) or `/api/database/restore-initial` (initial setup mode) with POST method using FormData
-3. Shows progress during the upload
-4. **Automatically runs post-restore migrations** to update older database schemas
-5. Displays detailed progress during migration steps
-6. Reloads the page after successful restore and migration
-7. Shows detailed error messages if any step fails
-
-### Post-Restore Migration
-When restoring from an older backup, the component automatically runs a migration process that includes:
-- **Prisma Client Generation**: Ensures the client matches the current schema
-- **Schema Migrations**: Updates the database structure to the current version using Prisma migrations
-- **Family Data Migration**: Converts single-family data to multi-family structure if needed
-- **Database Seeding**: Adds any new default settings, units, and required data
-
-This ensures that restored databases are fully compatible with the current application version.
-
-**⚠️ Security Requirement**: Database migration operations require **system administrator authentication**. Only users authenticated as system administrators can perform post-restore migrations. Regular family administrators do not have sufficient privileges for these operations.
-
-## Error Handling
-
-The component provides comprehensive error handling:
-- Network failures during backup/restore operations
-- Invalid file types (only `.db` files accepted)
-- Authentication errors (uses stored auth token)
-- **Authorization errors**: Clear messages when system admin privileges are required
-- Server-side errors during processing
-- **Migration failures**: Detailed error messages when schema migrations fail
-- **Compatibility issues**: Clear feedback when database versions are incompatible
-- **Partial failures**: Distinguishes between restore failures and migration failures
-
-## File Structure
-
-```
-src/components/BackupRestore/
-├── index.tsx                    # Main component
-├── backup-restore.types.ts      # TypeScript interfaces
-├── backup-restore.styles.ts     # Tailwind CSS styles (light mode)
-├── backup-restore.css          # Dark mode CSS overrides
-└── README.md                   # This documentation
-
-Related API Endpoints:
-├── /api/database                    # Backup (GET) and restore (POST) operations (System Admin only)
-├── /api/database/restore-initial    # Initial setup restore operations (Setup Auth allowed)
-├── /api/database/migrate            # Post-restore migration operations (System Admin only)
-└── /api/database/migrate-initial    # Initial setup migration operations (Setup Auth allowed)
-```
-
-## Cross-Platform Considerations
-
-This component is designed with cross-platform compatibility in mind:
-
-- Uses standard web APIs that can be adapted for mobile environments
-- File download mechanism can be replaced with platform-specific file sharing
-- Authentication handling uses localStorage, which has mobile equivalents
-- UI components follow responsive design patterns
-- Error handling patterns are platform-agnostic
-
-When converting to React Native:
-- Replace file download with platform-specific file sharing APIs
-- Use React Native's DocumentPicker for file selection
-- Adapt authentication token storage to use AsyncStorage
-- Replace CSS styling with React Native StyleSheet
-
-## Integration Example
-
-### With AppConfigForm
-
-```tsx
-import { BackupRestore } from '@/src/components/BackupRestore';
-
-export default function AppConfigForm({ isOpen, onClose }: AppConfigFormProps) {
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  
-  return (
-    <FormPage isOpen={isOpen} onClose={onClose} title="App Configuration">
-      <FormPageContent>
-        {/* Other form content */}
-        
-        <BackupRestore
-          isLoading={loading}
-          isSaving={saving}
-          onBackupError={(error) => setError(error)}
-          onRestoreError={(error) => setError(error)}
-        />
-      </FormPageContent>
-    </FormPage>
-  );
-}
-```
-
-## Migration Troubleshooting
-
-### Common Migration Issues
-- **Schema incompatibility**: Older databases may require manual schema updates
-- **Missing dependencies**: Ensure all npm packages are installed before migration
-- **Permission errors**: Database file must be writable by the application
-- **Family structure**: Very old databases may need manual family data conversion
-
-### Manual Migration Fallback
-If automatic migration fails, you can run migrations manually:
-```bash
-# Generate Prisma client
-npm run prisma:generate
-
-# Run schema migrations
-npx prisma migrate deploy
-# or for development
-npm run prisma:migrate
-
-# Run family migration (if needed)
-node scripts/family-migration.js
-
-# Seed with default data
-npm run prisma:seed
-```
-
-### Deployment Integration
-This component integrates with the project's deployment scripts:
-- Uses the same migration order as `scripts/update.sh`
-- Follows the same error handling patterns as `scripts/deployment.sh`
-- Leverages existing migration scripts (`family-migration.js`, `seed.ts`)
-
-## Security Considerations
-
-- All API requests include authentication tokens when available
-- File upload validation is handled server-side
-- Only `.db` files are accepted for restore operations
-- Error messages don't expose sensitive system information
-- Temporary URLs are properly cleaned up after downloads
-- **System Admin Authentication**: Database operations require appropriate authentication
-  - **Standard backup/restore**: Requires system administrator privileges (`withSysAdminAuth`)
-  - **Initial setup restore**: Allows system admin OR setup authentication (`withAuthContext`)
-  - **Migration operations**: System admin only (standard) or setup auth allowed (initial setup)
-  - Clear error messages guide users who lack sufficient privileges
-- **Migration security**: Server-side scripts run with application privileges
-- **Backup validation**: Restored databases are validated before migration begins
-- **App Configuration Security**: System configuration endpoints also require system admin authentication 
+- `portableRecoveryHttp.test.ts`: exact bootstrap capability, actual streamed
+  upload limits, multipart ambiguity and the recovery-only proxy allowlist.
+- `portableRecoveryRoutes.integration.test.ts`: real SQLite fixtures and actual
+  login-issued credentials, configured-owner reauthentication, denial before
+  body parsing, retired endpoint immutability, and exact service arguments.
+- The portable recovery engine/provider tests own archive integrity, all-model
+  emptiness, cross-provider fidelity, transaction/media rollback and durable
+  receipts. Route tests deliberately mock that service boundary while preserving
+  actual authorization and request handling.
+- `acceptance-recovery-browser.mjs` exercises the real isolated application UI and
+  HTTP boundary with disposable synthetic source/archive/destination fixtures.

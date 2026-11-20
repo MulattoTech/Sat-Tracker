@@ -4,6 +4,8 @@ FROM node:22-alpine
 # Build arguments
 ARG ENABLE_NOTIFICATIONS=true
 ARG DATABASE_PROVIDER=sqlite
+ARG SAT_TRACKER_SOURCE_REVISION
+ENV SAT_TRACKER_SOURCE_REVISION=${SAT_TRACKER_SOURCE_REVISION}
 
 # Install system packages:
 # - tzdata: timezone support

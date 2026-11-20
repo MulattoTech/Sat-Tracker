@@ -14,51 +14,26 @@ export interface BackupRestoreProps {
   /** Callback for when backup fails */
   onBackupError?: (error: string) => void;
   
-  /** Callback for when restore succeeds */
+  /** @deprecated Recovery uses its dedicated isolated screen and never activates this installation. */
   onRestoreSuccess?: () => void;
 
-  /** Callback for when restore fails */
+  /** @deprecated Recovery errors are displayed on the dedicated recovery screen. */
   onRestoreError?: (error: string) => void;
 
-  /** Callback for when admin password reset is detected during restore */
+  /** @deprecated Recovery never resets the installation administrator password. */
   onAdminPasswordReset?: () => void;
 
   /**
-   * Callback that returns a promise for when restore completes with admin reset.
-   * Parent should resolve this promise after user acknowledges the password reset modal.
-   * If not provided, the default behavior (immediate redirect/reload) will occur.
+   * @deprecated Retained for existing callers; recovery never resets passwords or reloads the application.
    */
   onAdminResetAcknowledged?: () => Promise<void>;
 
   /** Custom className for the container */
   className?: string;
 
-  /** Whether to show only import/restore functionality (hides backup button) */
+  /** Show only the link explaining isolated recovery (no local import action). */
   importOnly?: boolean;
 
-  /** Whether this is being used during initial setup (uses different migration API) */
+  /** Initial setup shows isolated recovery guidance; it has no restore authority. */
   initialSetup?: boolean;
 }
-
-/**
- * State interface for backup/restore operations
- */
-export interface BackupRestoreState {
-  /** Whether a restore operation is in progress */
-  isRestoring: boolean;
-
-  /** Whether a migration is in progress after restore */
-  isMigrating: boolean;
-
-  /** Error message if operation fails */
-  error: string | null;
-
-  /** Success message if operation succeeds */
-  success: string | null;
-
-  /** Current migration step for progress tracking */
-  migrationStep: string | null;
-
-  /** Whether admin password was reset and we're waiting for user acknowledgment */
-  awaitingAdminResetAck: boolean;
-} 
