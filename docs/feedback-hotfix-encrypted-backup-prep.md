@@ -39,7 +39,11 @@ encrypted archive envelope:
   command lines, in environment variables or printed in logs.
 - Read-only `--verify-only` mode authenticates a previously encrypted file
   from an interactive private terminal without ever extracting plaintext.
-  Invalid CLI options refuse without echoing unexpected argument text.
+  The reported SHA-256 is computed on the **same open file stream** that was
+  authenticated, rather than reopening its path after verification. Open-time
+  file identity and size are checked to reject replacement between the
+  filesystem identity check and opening the file. Invalid CLI options refuse
+  without echoing unexpected argument text.
 
 The `.satenc` format is a private internal v1 envelope, not an interchangeable
 ZIP, age, GPG or VeraCrypt archive. Do not rely on it as the **only** recoverable
@@ -71,6 +75,11 @@ The tests cover one- and two-frame roundtrips, authenticated final markers,
 wrong passwords, bit flips, truncation, reordering, a malicious KDF header,
 unrecognized fields, size limits, file collision refusal, temporary ciphertext
 cleanup, safe CLI error output and symlink rejection where the OS permits it.
+Additional synthetic checks use a **separately written, test-only decoder**
+to recover the original bytes from a multiple-frame envelope and refuse wrong
+passwords/tampering; they also verify the digest is calculated from the same
+open file and detect a simulated file replacement during open. This does not
+constitute independent cryptographic review or true cross-machine recovery.
 The Linux-hosted suite must run the symlink case; a Windows permissions skip
 must be reported rather than counted as executed.
 

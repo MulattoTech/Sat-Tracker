@@ -148,37 +148,56 @@ def verify_stream(source: BinaryIO, password: bytes) -> dict:
 
 
 def _source_file(path: Path) -> BinaryIO:
-    """Reject nonregular or symlink inputs. Never follow a link by choice."""
+    """Open only a stable regular file, rejecting replacement after lstat."""
+    handle = None
     try:
-        if not stat.S_ISREG(path.lstat().st_mode):
+        before = path.lstat()
+        if not stat.S_ISREG(before.st_mode):
             raise Blocked("NOT_A_REGULAR_ENCRYPTED_ARCHIVE")
-        if path.stat().st_size > MAX_ENCRYPTED_BYTES:
+        if before.st_size > MAX_ENCRYPTED_BYTES:
             raise Blocked("ENCRYPTED_ARCHIVE_SIZE_LIMIT")
         mode = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
         handle = os.open(path, mode)
-        if not stat.S_ISREG(os.fstat(handle).st_mode):
-            os.close(handle)
-            raise Blocked("NOT_A_REGULAR_ENCRYPTED_ARCHIVE")
-        return os.fdopen(handle, "rb")
+        after = os.fstat(handle)
+        if (not stat.S_ISREG(after.st_mode)
+                or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
+                != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)):
+            raise Blocked("ARCHIVE_CHANGED_DURING_OPEN")
+        reader = os.fdopen(handle, "rb")
+        handle = None
+        return reader
     except OSError:
         raise Blocked("ENCRYPTED_ARCHIVE_UNAVAILABLE") from None
+    finally:
+        if handle is not None:
+            os.close(handle)
+
+
+class DigestingReader:
+    """Hash exactly the same bytes consumed by the authenticated decoder."""
+
+    def __init__(self, source: BinaryIO) -> None:
+        self.source = source
+        self.sha256 = hashlib.sha256()
+
+    def read(self, size: int = -1) -> bytes:
+        data = self.source.read(size)
+        self.sha256.update(data)
+        return data
+
+    def hexdigest(self) -> str:
+        return self.sha256.hexdigest()
 
 
 def verify_file(path: Path, password: bytes) -> dict:
     with _source_file(path) as source:
-        result = verify_stream(source, password)
+        observed = DigestingReader(source)
+        result = verify_stream(observed, password)
+        authenticated_sha256 = observed.hexdigest()
     return {**result, "status": "CIPHERTEXT_AUTHENTICATED",
-            "archive_sha256": _digest(path),
+            "archive_sha256": authenticated_sha256,
             "plaintext_extracted": False, "restoration_approved": False,
             "production_modified": False}
-
-
-def _digest(path: Path) -> str:
-    value = hashlib.sha256()
-    with _source_file(path) as stream:
-        for chunk in iter(lambda: stream.read(CHUNK_BYTES), b""):
-            value.update(chunk)
-    return value.hexdigest()
 
 
 def encrypt_stdin_atomic(output: Path, password: bytes, source: BinaryIO) -> dict:
@@ -200,10 +219,11 @@ def encrypt_stdin_atomic(output: Path, password: bytes, source: BinaryIO) -> dic
             target.flush()
             os.fsync(target.fileno())
         with _source_file(temporary) as candidate:
-            integrity = verify_stream(candidate, password)
+            observed = DigestingReader(candidate)
+            integrity = verify_stream(observed, password)
+            sha256 = observed.hexdigest()
         if encryption != {k: integrity[k] for k in ("plaintext_bytes", "chunk_count")}:
             raise Blocked("POST_ENCRYPTION_VERIFY_FAILED")
-        sha256 = _digest(temporary)
         # Hard-link is an atomic, no-overwrite commit within the same directory.
         # If unsupported, fail closed; do not silently replace an existing file.
         os.link(temporary, output)

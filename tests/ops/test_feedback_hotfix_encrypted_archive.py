@@ -1,4 +1,5 @@
 """Fabricated-data-only tests: no production backup, volumes, Docker, or keys."""
+import hashlib
 import importlib.util
 import io
 import json
@@ -10,7 +11,11 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
+
+from argon2.low_level import Type, hash_secret_raw
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "scripts" / "feedback_hotfix_encrypted_archive.py"
@@ -19,6 +24,47 @@ mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 PASSWORD = b"SYNTHETIC_ONLY_32_CHAR_NOT_REAL_2026"
 WRONG = b"SYNTHETIC_ONLY_WRONG_SECRET_2026"
+
+
+def independently_recover_fixture(ciphertext: bytes, password: bytes) -> bytes:
+    """Independent, test-only decoder from the documented v1 envelope layout.
+
+    Do not use this helper for actual backups; this is a small synthetic
+    compatibility check, not an independent cryptographic/security audit.
+    """
+    header_fmt = struct.Struct(">8sBIII16s4sI")
+    frame_fmt = struct.Struct(">cI")
+    if len(ciphertext) > 5 * 1024 * 1024:
+        raise ValueError("test fixture exceeds bounded limit")
+    header = ciphertext[:header_fmt.size]
+    magic, version, time_cost, memory_kib, parallelism, salt, prefix, chunk_size = header_fmt.unpack(header)
+    assert (magic, version, time_cost, memory_kib, parallelism, chunk_size) == (
+        b"SATBKUP1", 1, 3, 65536, 1, 1 << 20
+    )
+    key = hash_secret_raw(password, salt, time_cost=time_cost,
+                          memory_cost=memory_kib, parallelism=parallelism,
+                          hash_len=32, type=Type.ID)
+    aead = AESGCM(key)
+    content = bytearray()
+    cursor = header_fmt.size
+    index = 0
+    while cursor < len(ciphertext):
+        kind, length = frame_fmt.unpack(ciphertext[cursor:cursor + frame_fmt.size])
+        cursor += frame_fmt.size
+        payload = ciphertext[cursor:cursor + length]
+        cursor += length
+        counter = struct.pack(">Q", index)
+        decoded = aead.decrypt(prefix + counter, payload, header + kind + counter)
+        if kind == b"D":
+            content.extend(decoded)
+            index += 1
+            continue
+        assert kind == b"F"
+        final_count, final_size = struct.unpack(">QQ", decoded)
+        assert (final_count, final_size) == (index, len(content))
+        assert cursor == len(ciphertext)
+        return bytes(content)
+    raise ValueError("missing authenticated final frame")
 
 
 class EncryptedBackupTests(unittest.TestCase):
@@ -68,6 +114,42 @@ class EncryptedBackupTests(unittest.TestCase):
         self.assertNotIn(b"ENC_HASH=FAKE", destination.read_bytes())
         self.assertFalse(receipt["production_modified"])
         self.assertFalse(receipt["restore_authorized"])
+
+    def test_separate_decoder_recovers_exact_synthetic_archive_bytes(self):
+        original = b"FAKE+SYNTHETIC+BACKUP!" * (mod.CHUNK_BYTES // 22 + 75)
+        ciphertext, receipt = self.envelope(original)
+        self.assertEqual(receipt["chunk_count"], 2)
+        recovered = independently_recover_fixture(ciphertext, PASSWORD)
+        self.assertEqual(recovered, original)
+        self.assertEqual(hashlib.sha256(recovered).digest(), hashlib.sha256(original).digest())
+        with self.assertRaises(Exception):
+            independently_recover_fixture(ciphertext, WRONG)
+        changed = bytearray(ciphertext)
+        changed[-1] ^= 1
+        with self.assertRaises(Exception):
+            independently_recover_fixture(bytes(changed), PASSWORD)
+
+    def test_verified_checksum_is_from_the_same_authenticated_file_open(self):
+        archive = self.root / "one-open.satenc"
+        mod.encrypt_stdin_atomic(archive, PASSWORD, io.BytesIO(b"synthetic-only"))
+        with patch.object(mod, "_source_file", wraps=mod._source_file) as opened:
+            result = mod.verify_file(archive, PASSWORD)
+        self.assertEqual(opened.call_count, 1)
+        self.assertEqual(result["archive_sha256"], hashlib.sha256(archive.read_bytes()).hexdigest())
+
+    def test_file_replacement_between_lstat_and_open_is_refused(self):
+        archive = self.root / "changed-during-open.satenc"
+        mod.encrypt_stdin_atomic(archive, PASSWORD, io.BytesIO(b"synthetic-only"))
+        before = archive.stat()
+        fake_after = SimpleNamespace(
+            st_mode=before.st_mode, st_dev=before.st_dev,
+            st_ino=before.st_ino + 1, st_size=before.st_size,
+            st_mtime_ns=before.st_mtime_ns
+        )
+        with patch.object(mod.os, "fstat", return_value=fake_after):
+            with self.assertRaises(mod.Blocked) as error:
+                mod._source_file(archive)
+        self.assertEqual(str(error.exception), "ARCHIVE_CHANGED_DURING_OPEN")
 
     def test_authenticates_stream_and_finality_with_no_plaintext_output(self):
         plaintext = b"synthetic test envelope" * 500
