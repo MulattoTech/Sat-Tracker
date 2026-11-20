@@ -3290,5 +3290,17 @@
   "Retry sign-out": "Reîncercați deconectarea",
   "Return to sign-in": "Reveniți la autentificare",
   "The sign-in page did not open. Try again.": "Pagina de autentificare nu s-a deschis. Încercați din nou.",
-  "Sleep periods awaiting valid times": "Perioade de somn în așteptarea unor ore valide"
+  "Sleep periods awaiting valid times": "Perioade de somn în așteptarea unor ore valide",
+  "Chronological age": "Vârsta cronologică",
+  "Corrected age": "Vârsta corectată",
+  "Gestational age at birth (optional)": "Vârsta gestațională la naștere (opțional)",
+  "Gestational weeks at birth": "Săptămâni de gestație la naștere",
+  "Additional days at birth": "Zile suplimentare la naștere",
+  "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.": "Lăsați ambele câmpuri goale dacă nu cunoașteți valoarea. Lăsați zilele suplimentare necompletate pentru 0 sau introduceți 0–6.",
+  "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.": "Introduceți săptămâni întregi și 0–6 zile suplimentare, de la 1 zi până la 45 de săptămâni.",
+  "Age unavailable": "Vârsta nu este disponibilă",
+  "Not applicable": "Nu se aplică",
+  "{age} before estimated due date": "Cu {age} înainte de data estimată a nașterii",
+  "Select a birth date before saving.": "Selectați data nașterii înainte de a salva.",
+  "Unable to save baby. Please try again.": "Datele copilului nu au putut fi salvate. Încercați din nou."
 }

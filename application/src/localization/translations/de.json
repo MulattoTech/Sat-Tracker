@@ -3290,5 +3290,17 @@
   "Retry sign-out": "Abmeldung erneut versuchen",
   "Return to sign-in": "Zur Anmeldung zurückkehren",
   "The sign-in page did not open. Try again.": "Die Anmeldeseite wurde nicht geöffnet. Versuchen Sie es erneut.",
-  "Sleep periods awaiting valid times": "Schlafphasen mit noch ungültigen Zeitangaben"
+  "Sleep periods awaiting valid times": "Schlafphasen mit noch ungültigen Zeitangaben",
+  "Chronological age": "Chronologisches Alter",
+  "Corrected age": "Korrigiertes Alter",
+  "Gestational age at birth (optional)": "Schwangerschaftsdauer bei Geburt (optional)",
+  "Gestational weeks at birth": "Schwangerschaftswochen bei Geburt",
+  "Additional days at birth": "Zusätzliche Tage bei Geburt",
+  "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.": "Lassen Sie beide Felder leer, wenn die Angabe unbekannt ist. Lassen Sie zusätzliche Tage für 0 leer oder geben Sie 0–6 ein.",
+  "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.": "Geben Sie ganze Wochen und 0–6 zusätzliche Tage ein, von 1 Tag bis 45 Wochen.",
+  "Age unavailable": "Alter nicht verfügbar",
+  "Not applicable": "Nicht zutreffend",
+  "{age} before estimated due date": "{age} vor dem errechneten Geburtstermin",
+  "Select a birth date before saving.": "Wählen Sie vor dem Speichern ein Geburtsdatum aus.",
+  "Unable to save baby. Please try again.": "Das Baby konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
 }

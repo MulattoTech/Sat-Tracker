@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DiaperType, Gender, MeasurementType, MilestoneCategory, SleepQuality, SleepType } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
+import { isValidGestationalAgeDays } from '@/src/utils/childAge';
 
 type FieldRule = {
   kind: 'string' | 'number' | 'boolean' | 'ids';
@@ -9,6 +10,7 @@ type FieldRule = {
   date?: boolean;
   nonempty?: boolean;
   choices?: readonly string[];
+  validate?: (value: unknown) => boolean;
 };
 type FieldRules = Readonly<Record<string, FieldRule>>;
 
@@ -44,6 +46,7 @@ export const careFields = {
   medicine: { name: text, typicalDoseSize: { ...number, nullable: true }, unitAbbr: nullableText, doseMinTime: nullableText, notes: nullableText, active: boolean, isSupplement: boolean, contactIds },
   baby: {
     firstName: text, lastName: text, birthDate: date, gender: { ...choice(Gender), nullable: true }, inactive: boolean,
+    gestationalAgeDays: { ...number, integer: true, nullable: true, validate: isValidGestationalAgeDays },
     feedWarningTime: text, diaperWarningTime: text, feedTimerFrom: text, feedTimerTypes: nullableText,
   },
   adjustment: { babyId: careIdentifier, time: date, amount: number, unitAbbr: nullableText, reason: nullableText, notes: nullableText },
@@ -56,6 +59,7 @@ export class CareWriteError extends Error {
 
 function validScalar(value: unknown, rule: FieldRule): boolean {
   if (value === null) return rule.nullable === true;
+  if (rule.validate && !rule.validate(value)) return false;
   if (rule.kind === 'ids') return Array.isArray(value) && value.every(id => typeof id === 'string' && id.trim().length > 0);
   if (typeof value !== rule.kind) return false;
   if (typeof value === 'number') return Number.isFinite(value) && (!rule.integer || Number.isSafeInteger(value));

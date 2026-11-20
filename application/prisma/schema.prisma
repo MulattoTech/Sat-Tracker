@@ -247,6 +247,7 @@ model Baby {
   firstName         String
   lastName          String
   birthDate         DateTime
+  gestationalAgeDays Int? // Optional gestational age at birth in whole days; null means unknown
   gender            Gender?
   inactive          Boolean   @default(false)
   feedWarningTime   String    @default("03:00") // Default 3 hours

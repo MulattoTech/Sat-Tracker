@@ -6,12 +6,16 @@ import { checkWritePermission } from '@/app/api/utils/writeProtection';
 import { resolveFamilyScope } from '@/app/api/utils/family-scope';
 import { Baby, Gender } from '@prisma/client';
 import { isValidFeedTimerTypes } from '@/src/utils/feedTimerConfig';
+import { isValidGestationalAgeDays, MAX_GESTATIONAL_AGE_DAYS } from '@/src/utils/childAge';
 
 const CreateBabySchema = z.object({
   familyId: z.string(),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   birthDate: z.string().datetime(),
+  gestationalAgeDays: z.number()
+    .refine(isValidGestationalAgeDays, `Gestational age must be a whole number from 1 to ${MAX_GESTATIONAL_AGE_DAYS} days`)
+    .nullable().optional(),
   gender: z.nativeEnum(Gender),
   feedWarningTime: z.string().regex(/^\d{2}:\d{2}$/, 'Invalid time format'),
   diaperWarningTime: z.string().regex(/^\d{2}:\d{2}$/, 'Invalid time format'),

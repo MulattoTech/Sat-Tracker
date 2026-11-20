@@ -15,8 +15,8 @@ import { cn } from "@/src/lib/utils";
  */
 export const babySelectorContainer = (gender: 'MALE' | 'FEMALE' | null | undefined) => {
   return cn(
-    "h-auto py-1 px-2 text-white transition-colors duration-200 flex items-center space-x-2 rounded-full",
-    gender === 'MALE' ? 'bg-blue-500' : gender === 'FEMALE' ? 'bg-rose-300' : ''
+    "h-auto min-w-0 max-w-full py-2 px-2 text-white transition-colors duration-200 flex items-center gap-2 rounded-2xl",
+    gender === 'MALE' ? 'bg-blue-700' : gender === 'FEMALE' ? 'bg-rose-700' : 'bg-teal-800'
   );
 };
 
@@ -27,7 +27,7 @@ export const babySelectorContainer = (gender: 'MALE' | 'FEMALE' | null | undefin
  */
 export const babySelectorContent = () => {
   return cn(
-    "flex flex-col items-start cursor-pointer text-left"
+    "flex min-w-0 flex-1 flex-col items-start cursor-pointer text-left"
   );
 };
 
@@ -38,7 +38,7 @@ export const babySelectorContent = () => {
  */
 export const babySelectorNameContainer = () => {
   return cn(
-    "flex items-center ml-2 space-x-1"
+    "flex min-w-0 items-center ml-1 space-x-1"
   );
 };
 
@@ -49,7 +49,7 @@ export const babySelectorNameContainer = () => {
  */
 export const babySelectorName = () => {
   return cn(
-    "text-sm font-medium"
+    "text-sm font-medium break-words"
   );
 };
 
@@ -60,7 +60,7 @@ export const babySelectorName = () => {
  */
 export const babySelectorAge = () => {
   return cn(
-    "text-xs opacity-80 ml-2"
+    "text-xs ml-1"
   );
 };
 
@@ -71,7 +71,7 @@ export const babySelectorAge = () => {
  */
 export const babySelectorDropdownButton = () => {
   return cn(
-    "h-8 w-8 rounded-full flex items-center justify-center",
+    "h-11 w-11 shrink-0 rounded-full flex items-center justify-center",
     "bg-white/10 hover:bg-white/20 transition-colors duration-200",
     "ml-1 p-1"
   );

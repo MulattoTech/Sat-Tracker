@@ -3290,5 +3290,17 @@
   "Retry sign-out": "Uitloggen opnieuw proberen",
   "Return to sign-in": "Terug naar inloggen",
   "The sign-in page did not open. Try again.": "De inlogpagina is niet geopend. Probeer opnieuw.",
-  "Sleep periods awaiting valid times": "Slaapperioden die wachten op geldige tijden"
+  "Sleep periods awaiting valid times": "Slaapperioden die wachten op geldige tijden",
+  "Chronological age": "Chronologische leeftijd",
+  "Corrected age": "Gecorrigeerde leeftijd",
+  "Gestational age at birth (optional)": "Zwangerschapsduur bij geboorte (optioneel)",
+  "Gestational weeks at birth": "Zwangerschapsweken bij geboorte",
+  "Additional days at birth": "Extra dagen bij geboorte",
+  "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.": "Laat beide velden leeg als dit onbekend is. Laat extra dagen leeg voor 0, of voer 0–6 in.",
+  "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.": "Voer hele weken en 0–6 extra dagen in, van 1 dag tot 45 weken.",
+  "Age unavailable": "Leeftijd niet beschikbaar",
+  "Not applicable": "Niet van toepassing",
+  "{age} before estimated due date": "{age} vóór de uitgerekende datum",
+  "Select a birth date before saving.": "Selecteer een geboortedatum voordat je opslaat.",
+  "Unable to save baby. Please try again.": "De babygegevens konden niet worden opgeslagen. Probeer het opnieuw."
 }

@@ -3290,5 +3290,17 @@
   "Retry sign-out": "Retry sign-out",
   "Return to sign-in": "Return to sign-in",
   "The sign-in page did not open. Try again.": "The sign-in page did not open. Try again.",
-  "Sleep periods awaiting valid times": "Sleep periods awaiting valid times"
+  "Sleep periods awaiting valid times": "Sleep periods awaiting valid times",
+  "Chronological age": "Chronological age",
+  "Corrected age": "Corrected age",
+  "Gestational age at birth (optional)": "Gestational age at birth (optional)",
+  "Gestational weeks at birth": "Gestational weeks at birth",
+  "Additional days at birth": "Additional days at birth",
+  "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.": "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.",
+  "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.": "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.",
+  "Age unavailable": "Age unavailable",
+  "Not applicable": "Not applicable",
+  "{age} before estimated due date": "{age} before estimated due date",
+  "Select a birth date before saving.": "Select a birth date before saving.",
+  "Unable to save baby. Please try again.": "Unable to save baby. Please try again."
 }

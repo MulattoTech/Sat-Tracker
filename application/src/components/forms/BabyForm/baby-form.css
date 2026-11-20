@@ -1,0 +1,15 @@
+.baby-form-help {
+  color: #4b5563;
+}
+
+.baby-form-error {
+  color: #b91c1c;
+}
+
+html.dark .baby-form-help {
+  color: #d1d5db;
+}
+
+html.dark .baby-form-error {
+  color: #fca5a5;
+}

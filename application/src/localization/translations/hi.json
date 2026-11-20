@@ -3290,5 +3290,17 @@
   "Retry sign-out": "साइन आउट फिर से करें",
   "Return to sign-in": "साइन इन पर लौटें",
   "The sign-in page did not open. Try again.": "साइन इन पेज नहीं खुला। फिर से कोशिश करें।",
-  "Sleep periods awaiting valid times": "मान्य समय की प्रतीक्षा में नींद की अवधियाँ"
+  "Sleep periods awaiting valid times": "मान्य समय की प्रतीक्षा में नींद की अवधियाँ",
+  "Chronological age": "जन्म के बाद की आयु",
+  "Corrected age": "समायोजित आयु",
+  "Gestational age at birth (optional)": "जन्म के समय गर्भकाल (वैकल्पिक)",
+  "Gestational weeks at birth": "जन्म के समय गर्भावस्था के सप्ताह",
+  "Additional days at birth": "जन्म के समय अतिरिक्त दिन",
+  "Leave both fields blank if unknown. Leave additional days blank for 0, or enter 0–6.": "जानकारी न होने पर दोनों फ़ील्ड खाली छोड़ दें। 0 अतिरिक्त दिनों के लिए दिन वाला फ़ील्ड खाली छोड़ें, या 0–6 दर्ज करें।",
+  "Enter whole weeks and 0–6 additional days, from 1 day to 45 weeks.": "पूरे सप्ताह और 0–6 अतिरिक्त दिन दर्ज करें, कुल अवधि 1 दिन से 45 सप्ताह तक हो सकती है।",
+  "Age unavailable": "आयु उपलब्ध नहीं है",
+  "Not applicable": "लागू नहीं",
+  "{age} before estimated due date": "अनुमानित प्रसव तिथि से {age} पहले",
+  "Select a birth date before saving.": "सहेजने से पहले जन्म तिथि चुनें।",
+  "Unable to save baby. Please try again.": "बच्चे की जानकारी सहेजी नहीं जा सकी। कृपया फिर से कोशिश करें।"
 }

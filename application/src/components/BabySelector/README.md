@@ -4,7 +4,7 @@ A component that displays the currently selected baby and allows switching betwe
 
 ## Features
 
-- Shows the currently selected baby's name and age
+- Shows the currently selected baby's name and separately labelled chronological and corrected ages
 - Displays a moon icon if the baby is currently sleeping
 - Provides a dropdown menu to switch between babies
 - Separates the dropdown trigger from the main content
@@ -17,16 +17,14 @@ Import and use the component in your layout or page component:
 
 ```tsx
 import { BabySelector } from "@/src/components/BabySelector";
+import { useTimezone } from '@/app/context/timezone';
 
 export function MyComponent() {
   const { selectedBaby, setSelectedBaby, sleepingBabies } = useBaby();
   const [babies, setBabies] = useState<Baby[]>([]);
   const [quickStatsOpen, setQuickStatsOpen] = useState(false);
 
-  // Function to calculate baby's age
-  const calculateAge = (birthday: Date) => {
-    // Age calculation logic
-  };
+  const { userTimezone } = useTimezone();
 
   return (
     <>
@@ -35,7 +33,7 @@ export function MyComponent() {
         onBabySelect={setSelectedBaby}
         babies={babies}
         sleepingBabies={sleepingBabies}
-        calculateAge={calculateAge}
+        timeZone={userTimezone}
         onOpenQuickStats={() => setQuickStatsOpen(true)}
       />
       
@@ -68,15 +66,22 @@ The component follows a modular structure:
 | `onBabySelect` | `(baby: Baby) => void` | Function to call when a baby is selected |
 | `babies` | `Baby[]` | List of available babies |
 | `sleepingBabies` | `Set<string>` | Set of baby IDs that are currently sleeping |
-| `calculateAge` | `(birthDate: Date) => string` | Function to calculate the age of a baby |
+| `timeZone` | `string` | Explicit IANA timezone from the existing timezone context |
 | `onOpenQuickStats` | `() => void` | Function to open the baby quick stats form |
 
 ## Component Structure
 
 The component is divided into two main sections:
 
-1. **Baby Info Section** - Displays the baby's name, sleeping status, and age. Clicking on this section opens the baby quick stats form.
+1. **Baby Info Section** - Displays the baby's name, sleeping status, and both ages through `ChildAgeDisplay`. Clicking on this section opens the baby quick stats form. The ages are also the button's accessible description.
 2. **Dropdown Button** - A circular button containing a chevron icon that triggers the dropdown menu for baby selection.
+
+The header and dropdown use the same canonical age helper and localized formatter
+as the profile editor. Unknown gestation is “Not recorded”; term gestation is
+“Not applicable”; dates before the estimated due date show time remaining.
+Labels wrap within the available width, and the dropdown trigger has a 44px touch
+target. The parent layout refreshes the selected record from the server after a
+`babyProfileChanged` event, including when the selected ID has not changed.
 
 ## Mobile Considerations (React Native)
 

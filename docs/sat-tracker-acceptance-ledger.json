@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "asOfRelease": "sat-tracker-2026-11-02",
-  "asOfSourceRevision": "236856df566064a6ea720e95b9ffbfcd84a724ec",
+  "asOfSourceRevision": "2ed233ba0107996818f8b59d518142bd793d442d",
   "observedAtUTC": "2026-11-20",
   "scopeVersion": "2026-11-19-v3",
   "scopeComplete": false,
@@ -1654,16 +1654,31 @@
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
-        "application/prisma/schema.prisma"
+        "application/prisma/schema.prisma",
+        "application/src/utils/childAge.ts",
+        "application/src/components/ChildAgeDisplay/",
+        "application/src/components/forms/BabyForm/",
+        "application/prisma/migrations/20261120060000_add_baby_gestational_age/migration.sql",
+        "application/tests/childAge.test.ts",
+        "application/tests/babyGestationalAgeMigration.integration.test.ts",
+        "application/scripts/corrected-age-browser.mjs",
+        "application/scripts/verify-gestational-age-postgres.ts",
+        "application/documentation/Architecture-Documentation/ChildAge.md"
       ],
       "evidence": {
-        "tests": [],
+        "tests": [
+          {
+            "reference": "https://github.com/MulattoTech/Sat-Tracker/commit/0601666a3c67b64521ca976903f0bd3e19357c1e",
+            "revision": "0601666a3c67b64521ca976903f0bd3e19357c1e",
+            "scope": "Profile/header foundation only: 253 focused tests across six files, full TypeScript and production build passed locally. Real API/SQLite tests verify both creation paths, strict whole-day validation, omission/null behavior, family rejection, exact birth/care preservation, the additive migration and actual JSON/legacy/current SQLite restore. Pure cases cover current/historical calendar age, gestational days, unknown/term/pre-due states, leap/month/DST/host-timezone boundaries. UI formatter/input and all-locale checks passed. Hosted browser/PostgreSQL execution, deployed and physical-device evidence remain pending at this checkpoint."
+          }
+        ],
         "preview": [],
         "production": [],
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Historical status is retained, but current Baby schema and searched app code contain no due-date/gestational-age fields or corrected-age implementation at 236856d. Implement one canonical age contract and qualify profile/growth/milestone/sleep consumers with synthetic cases.",
+      "remainingWork": "The optional gestational-age profile/API model, shared daily-age helper, both profile editors and child header are implemented in candidate 0601666 with scoped local verification. Complete hosted browser and PostgreSQL gates and qualified source merge. Extend the same contract deliberately to growth/reference charts, milestone interpretation, sleep planning and applicable import/report views; obtain preview/production and required device evidence. The derived due-date reference is not a separately recorded clinician due date. PAR-042 remains IN PROGRESS.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -4364,6 +4379,32 @@
       ],
       "evidenceScope": "The existing unpublished logout-session correction was recovered and independently reviewed. Eleven new OCR summary regressions failed before the correction; selected source timezone and explicit repeated-clock choices now determine elapsed sleep and rejected rows are excluded. Fresh combined local verification at c433713: 278 targeted tests passed, TypeScript passed, operations ran 44 tests (34 passed, 10 platform skips), and the ledger validator plus 13 ledger tests passed. Source reviews found no blocking findings. Full hosted application/browser gates are tracked in PR97 and PR99 and were still pending when this checkpoint was written. No new broad contract PASS, production promotion, handwriting or physical-device acceptance is claimed.",
       "remainingWork": "Inspect and resolve the fresh complete browser gate, merge only qualified exact heads, and retain the current deployed b24ccc9 image until a separately qualified and approved release. Continue the next ready core/OCR or family-workflow slice from the mandatory coverage queue. Existing Project board discovery is blocked by missing read:project scope; issues/ledger were maintained without new credentials or a competing board."
+    },
+    {
+      "id": "2026-11-20-corrected-age-profile-foundation",
+      "revision": "0601666a3c67b64521ca976903f0bd3e19357c1e",
+      "status": "IMPLEMENTATION_AND_LOCAL_VERIFICATION",
+      "scope": [
+        "PAR-001",
+        "PAR-042",
+        "PAR-050",
+        "PAR-055",
+        "GOV-001"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/issues/15",
+      "implementationReferences": [
+        "application/src/utils/childAge.ts",
+        "application/src/components/ChildAgeDisplay/",
+        "application/src/components/forms/BabyForm/",
+        "application/prisma/migrations/20261120060000_add_baby_gestational_age/migration.sql",
+        "application/tests/childAge.test.ts",
+        "application/tests/babyGestationalAgeMigration.integration.test.ts",
+        "application/scripts/corrected-age-browser.mjs",
+        "application/scripts/verify-gestational-age-postgres.ts",
+        "application/documentation/Architecture-Documentation/ChildAge.md"
+      ],
+      "evidenceScope": "The owner approved the issue #15 profile/shared-age package after the previous source checkpoint. Candidate 0601666 adds nullable gestationalAgeDays without backfill; preserves birth precision; applies explicit calendar/timezone and AAP/WHO-derived correction semantics; updates both profile editors; labels chronological/corrected states in the child header; and refreshes selected profiles. Integrated local verification passed 253 tests, TypeScript and production build. Independent source/backend/harness reviews found no blocking issues. A mandatory browser module and separate guarded PostgreSQL 17 service job are implemented; their actual hosted outcomes must be attached through the PR before merge. This does not accept the whole PAR-042 contract or deploy production.",
+      "remainingWork": "Inspect hosted browser and PostgreSQL results, resolve actual failures, independently review any fixes, and merge only qualified exact source. Current production/preview remains separately observed b24ccc9 and needs specific immutable-image preview/recovery/owner-release approval. Continue one-tap diaper-rash capture under issue #5 after this approved foundation, following the existing queue."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."

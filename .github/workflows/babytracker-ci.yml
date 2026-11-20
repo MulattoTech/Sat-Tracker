@@ -56,3 +56,47 @@ jobs:
           path: application/test-results/
           if-no-files-found: warn
           retention-days: 7
+
+  postgres-age-compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: application
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: sat_tracker_gestation_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sat_tracker_gestation_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_PROVIDER: postgresql
+      DATABASE_URL: postgresql://postgres:synthetic-ci-only@127.0.0.1:5432/sat_tracker_gestation_test
+      SAT_TRACKER_SYNTHETIC_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: application/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run prisma:generate
+      - name: Verify additive age schema and PostgreSQL restore
+        run: node --import tsx scripts/verify-gestational-age-postgres.ts
+      - name: Upload synthetic PostgreSQL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestational-age-postgres-${{ github.sha }}
+          path: application/test-results/gestational-age-postgres-report.json
+          if-no-files-found: warn
+          retention-days: 7

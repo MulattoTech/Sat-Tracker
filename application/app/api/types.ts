@@ -90,6 +90,7 @@ export interface BabyCreate {
   firstName: string;
   lastName: string;
   birthDate: string;
+  gestationalAgeDays?: number | null;
   gender?: Gender;
   inactive?: boolean;
   feedWarningTime?: string;

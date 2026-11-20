@@ -28,9 +28,9 @@ export interface BabySelectorProps {
   sleepingBabies: Set<string>;
   
   /**
-   * Function to calculate the age of a baby
+   * Explicit IANA timezone used for the two age displays
    */
-  calculateAge: (birthDate: Date) => string;
+  timeZone: string;
   
   /**
    * Function to open the baby quick stats form

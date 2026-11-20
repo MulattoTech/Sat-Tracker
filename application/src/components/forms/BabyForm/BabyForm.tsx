@@ -30,6 +30,9 @@ import { useTimezone } from '@/app/context/timezone';
 import { formatDateLong } from '@/src/utils/dateFormat';
 import FeedTimerTypesField from '@/src/components/forms/FeedTimerTypesField';
 import { FEED_TIMER_CATEGORIES, FeedTimerCategory, parseFeedTimerTypes } from '@/src/utils/feedTimerConfig';
+import ChildAgeDisplay from '@/src/components/ChildAgeDisplay';
+import GestationalAgeFields from './GestationalAgeFields';
+import { gestationalAgeToInput, parseGestationalAgeInput } from './gestational-age-input';
 
 interface BabyFormProps {
   isOpen: boolean;
@@ -62,15 +65,25 @@ export default function BabyForm({
   appearance = 'default',
 }: BabyFormProps) {
   const { t } = useLocalization();
-  const { dateFormat } = useTimezone();
+  const { dateFormat, userTimezone } = useTimezone();
   const { showToast } = useToast();
   const [formData, setFormData] = useState(defaultFormData);
+  const [gestation, setGestation] = useState(gestationalAgeToInput());
+  const [gestationChanged, setGestationChanged] = useState(false);
+  const [birthDateChanged, setBirthDateChanged] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const formId = useId();
+  const parsedGestation = parseGestationalAgeInput(gestation);
 
-  // Reset form when form opens/closes or baby changes
+  // Reset on opening or selecting another baby, not after a failed save.
   useEffect(() => {
-    if (baby && isOpen && !isSubmitting) {
+    if (!isOpen) return;
+    setBirthDateChanged(false);
+    setGestationChanged(false);
+    setSubmitError(null);
+    setGestation(gestationalAgeToInput(baby?.gestationalAgeDays));
+    if (baby) {
       const birthDate = baby.birthDate instanceof Date 
         ? baby.birthDate
         : new Date(baby.birthDate as string);
@@ -86,17 +99,34 @@ export default function BabyForm({
         feedTimerFrom: (baby as any).feedTimerFrom || 'start',
         feedTimerTypes: parseFeedTimerTypes((baby as any).feedTimerTypes) ?? [...FEED_TIMER_CATEGORIES],
       });
-    } else if (!isOpen && !isSubmitting) {
+    } else {
       setFormData(defaultFormData);
     }
-  }, [baby?.id, isOpen, isSubmitting]); // Use baby.id instead of full baby object to prevent unnecessary resets
+  }, [baby?.id, isOpen]); // Do not reset in-progress edits when the same profile refreshes.
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleBirthDateChange = (date: Date | undefined) => {
+    const original = baby ? new Date(baby.birthDate) : undefined;
+    const unchanged = original && date && format(original, 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+    setFormData({ ...formData, birthDate: unchanged ? original : date });
+    setBirthDateChanged(!unchanged);
+    setSubmitError(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (isSubmitting) return;
+    if (!parsedGestation.valid) {
+      (e.currentTarget.querySelector('[aria-invalid="true"]') as HTMLElement | null)?.focus();
+      return;
+    }
+    if (!formData.birthDate) {
+      setSubmitError(t('Select a birth date before saving.'));
+      return;
+    }
 
     try {
       setIsSubmitting(true);
+      setSubmitError(null);
       
       // Get auth token for API request
       const authToken = localStorage.getItem('authToken');
@@ -108,13 +138,17 @@ export default function BabyForm({
         headers['Authorization'] = `Bearer ${authToken}`;
       }
       
+      const { birthDate, ...profileFields } = formData;
       const response = await fetch('/api/baby', {
         method: isEditing ? 'PUT' : 'POST',
         headers,
         body: JSON.stringify({
-          ...formData,
+          ...profileFields,
           id: baby?.id,
-          birthDate: formData.birthDate,
+          // A gestation-only edit must not rewrite the original birth instant.
+          ...(!isEditing || birthDateChanged ? { birthDate } : {}),
+          // An untouched legacy profile may not contain this newer field at all.
+          ...(!isEditing || gestationChanged ? { gestationalAgeDays: parsedGestation.value } : {}),
           gender: formData.gender as Gender,
           // null = all feeds count (default)
           feedTimerTypes: formData.feedTimerTypes.length === FEED_TIMER_CATEGORIES.length
@@ -141,6 +175,7 @@ export default function BabyForm({
         throw new Error('Failed to save baby');
       }
 
+      window.dispatchEvent(new Event('babyProfileChanged'));
       if (onBabyChange) {
         onBabyChange();
       }
@@ -148,10 +183,31 @@ export default function BabyForm({
       onClose();
     } catch (error) {
       console.error('Error saving baby:', error);
+      setSubmitError(t('Unable to save baby. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const birthContext = (
+    <div className="space-y-3">
+      <GestationalAgeFields
+        value={gestation}
+        onChange={(value) => { setGestation(value); setGestationChanged(true); setSubmitError(null); }}
+        disabled={isSubmitting}
+        appearance={appearance}
+      />
+      {formData.birthDate && parsedGestation.valid && (
+        <ChildAgeDisplay
+          birthDate={formData.birthDate}
+          gestationalAgeDays={parsedGestation.value}
+          timeZone={userTimezone}
+          className="text-sm"
+        />
+      )}
+      {submitError && <p className="baby-form-error text-sm" role="alert">{submitError}</p>}
+    </div>
+  );
 
   if (appearance === 'storybook') {
     return (
@@ -204,7 +260,7 @@ export default function BabyForm({
                   <CalendarComponent
                     mode="single"
                     selected={formData.birthDate}
-                    onSelect={(date) => setFormData({ ...formData, birthDate: date })}
+                    onSelect={handleBirthDateChange}
                     maxDate={new Date()} // Can't select future dates
                     initialFocus
                   />
@@ -221,6 +277,7 @@ export default function BabyForm({
               </select>
             </div>
           </div>
+          {birthContext}
           <div className="sb-fgroup">
             <b>{t('Gentle nudges')}</b>
             <p className="sb-fh">{t("Sprout Track quietly warns whoever's on duty when it's been this long.")}</p>
@@ -323,13 +380,14 @@ export default function BabyForm({
                 <CalendarComponent
                   mode="single"
                   selected={formData.birthDate}
-                  onSelect={(date) => setFormData({ ...formData, birthDate: date })}
+                  onSelect={handleBirthDateChange}
                   maxDate={new Date()} // Can't select future dates
                   initialFocus
                 />
               </PopoverContent>
             </Popover>
           </div>
+          {birthContext}
           <div>
             <label htmlFor={`${formId}-gender`} className="form-label">{t('Gender')}</label>
             <Select

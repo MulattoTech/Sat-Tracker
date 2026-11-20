@@ -51,6 +51,9 @@ import { consumeInjectedSession } from '@/src/utils/native-session';
 import { isSessionUnlocked } from '@/src/utils/session-state';
 import { captureAuthSession, isAuthSessionCurrent, isLogoutInProgress, logoutAuthSession } from '@/src/utils/session-lifecycle';
 import LogoutTransition, { useLogoutPhase } from '@/src/components/LoginSecurity/LogoutTransition';
+import { useTimezone } from '@/app/context/timezone';
+import { calculateChildAge } from '@/src/utils/childAge';
+import { formatChildAgeSpan } from '@/src/components/ChildAgeDisplay/format';
 // Loading fallback is a component so it can use the localization hook
 const PaymentModalLoading = () => {
   const { t } = useLocalization();
@@ -84,7 +87,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
   const { selectedBaby, setSelectedBaby, sleepingBabies } = useBaby();
   const { isSaasMode, notificationsEnabled } = useDeployment();
   const logoutPhase = useLogoutPhase();
-  const { t } = useLocalization();
+  const { t, language } = useLocalization();
+  const { userTimezone } = useTimezone();
   const [mounted, setMounted] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickStatsOpen, setQuickStatsOpen] = useState(false);
@@ -167,22 +171,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Function to calculate baby's age
+  // Legacy quick-info callback shares the same calendar-age contract as the header.
   const calculateAge = (birthday: Date) => {
-    const today = new Date();
-    const birthDate = new Date(birthday);
-    
-    const ageInWeeks = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 7));
-    const ageInMonths = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
-    const ageInYears = Math.floor((today.getTime() - birthDate.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-    
-    if (ageInMonths < 6) {
-      return `${ageInWeeks} ${ageInWeeks === 1 ? t('week') : t('weeks')}`;
-    } else if (ageInMonths < 24) {
-      return `${ageInMonths} ${ageInMonths === 1 ? t('month') : t('months')}`;
-    } else {
-      return `${ageInYears} ${ageInYears === 1 ? t('year') : t('years')}`;
-    }
+    const age = calculateChildAge({ birthDate: birthday, asOf: new Date(), timeZone: userTimezone });
+    return age.status === 'valid'
+      ? formatChildAgeSpan(age.chronological, language)
+      : t('Age unavailable');
   };
 
   const fetchData = async () => {
@@ -309,10 +303,12 @@ function AppContent({ children }: { children: React.ReactNode }) {
           const babyId = urlParams.get('babyId');
 
           const foundBaby = activeBabies.find((b: Baby) => b.id === babyId);
+          const currentBaby = activeBabies.find((b: Baby) => b.id === selectedBabyRef.current?.id);
           if (foundBaby) {
             setSelectedBaby(foundBaby);
-          } else if (selectedBabyRef.current && activeBabies.find((b: Baby) => b.id === selectedBabyRef.current?.id)) {
-            // Current selection is still valid — keep it
+          } else if (currentBaby) {
+            // Keep the selection, but refresh its profile instead of retaining cached values.
+            setSelectedBaby(currentBaby);
           } else if (activeBabies.length === 1) {
             setSelectedBaby(activeBabies[0]);
           } else if (family?.id) {
@@ -336,6 +332,15 @@ function AppContent({ children }: { children: React.ReactNode }) {
       console.error('Error fetching data:', error);
     }
   };
+
+  // Both profile-form appearances can save outside the settings drawer.
+  useEffect(() => {
+    const handleProfileChanged = () => {
+      if (localStorage.getItem('authToken') && !isLogoutInProgress()) void fetchData();
+    };
+    window.addEventListener('babyProfileChanged', handleProfileChanged);
+    return () => window.removeEventListener('babyProfileChanged', handleProfileChanged);
+  }, [family?.id, familySlug]);
 
   // Update unlock timer on any activity
   const updateUnlockTimer = () => {
@@ -815,8 +820,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
           <div className={`flex flex-col flex-1 h-dvh ${isWideScreen ? 'w-[calc(100%-16rem)]' : 'w-full'}`}>
             <header className="w-full bg-gradient-to-r from-teal-600 to-teal-700 sticky top-0 z-40 pt-[env(safe-area-inset-top)]">
               <div className="mx-auto py-2">
-                <div className="flex justify-between items-center h-16"> {/* Fixed height for consistency */}
-                  <div className={`flex items-center ${isWideScreen ? 'ml-8' : 'ml-4 sm:ml-6 lg:ml-8'}`}>
+                <div className="flex flex-wrap justify-between items-center gap-y-2 min-h-16">
+                  <div className={`flex min-w-0 items-center ${isWideScreen ? 'ml-8' : 'ml-4 sm:ml-6 lg:ml-8'}`}>
                     {/* Only show Sprout button on small screens */}
                     {!isWideScreen ? (
                       <SideNavTrigger
@@ -834,7 +839,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
                         />
                       </SideNavTrigger>
                     ) : null}
-                    <div className="flex flex-col">
+                    <div className="flex min-w-0 flex-col">
                       {/* Show caretaker name for PIN-based authentication */}
                       {!isAccountAuth && caretakerName && caretakerName !== 'system' && (
                         <span className="text-white text-xs opacity-80">
@@ -868,14 +873,14 @@ function AppContent({ children }: { children: React.ReactNode }) {
                       </h1>
                     </div>
                   </div>
-                  <div className="flex items-center mr-4 sm:mr-6 lg:mr-8">
+                  <div className="flex min-w-0 max-w-full items-center ml-auto mr-4 sm:mr-6 lg:mr-8 pl-4">
                     {babies.length > 0 && (
                       <BabySelector
                         selectedBaby={selectedBaby}
                         onBabySelect={(baby) => setSelectedBaby(baby)}
                         babies={babies}
                         sleepingBabies={sleepingBabies}
-                        calculateAge={calculateAge}
+                        timeZone={userTimezone}
                         onOpenQuickStats={() => setQuickStatsOpen(true)}
                       />
                     )}

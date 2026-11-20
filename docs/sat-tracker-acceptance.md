@@ -27,6 +27,38 @@ remain pinned to their recorded `64c69c4` evidence, not silently reassigned to t
 observed runtime or future builds. Production promotion still requires fresh
 exact-image qualification and explicit approval.
 
+## Corrected-age profile foundation — November 20, 2026
+
+The previous continuation merged through [PR #99](https://github.com/MulattoTech/Sat-Tracker/pull/99)
+to source `2ed233ba0107996818f8b59d518142bd793d442d`. Its acceptance, operations,
+deployment-validation and image-build workflows passed. This is the latest
+verified merged-source checkpoint in `asOfSourceRevision`; it was not promoted
+to the observed production or preview containers.
+
+The owner then approved the bounded [issue #15](https://github.com/MulattoTech/Sat-Tracker/issues/15)
+profile and shared-age foundation. Application candidate
+`0601666a3c67b64521ca976903f0bd3e19357c1e` adds optional gestational age, an
+explicit calendar/timezone age calculation, chronological/corrected header
+labels, and both profile editor variants. Unknown gestation remains unknown;
+the additive migration does not backfill data, and unchanged birth timestamps
+retain their original precision. The [age architecture record](../application/documentation/Architecture-Documentation/ChildAge.md)
+defines the calculation, derived due-date meaning and consumer boundaries.
+
+Integrated local verification passed **253 focused tests**, TypeScript and a
+production build. This includes real SQLite migration and restore checks,
+both creation APIs, update boundaries, calendar/timezone cases, profile
+presentation and localization. Independent source reviews found no blocking
+issues. Hosted browser and PostgreSQL outcomes were still pending when this
+checkpoint was written; their exact-head results must be recorded in the PR
+before a qualified merge. Browser viewport emulation cannot establish
+physical-device acceptance.
+
+**PAR-042 remains IN PROGRESS.** Growth, milestone, sleep, import/report consumers,
+complete deployed workflows and required device evidence still need their own
+implementation and qualification. No contract count or historical release
+evidence changes, and this source package does not authorize a production
+promotion.
+
 ## Historical November 2 evidence baseline
 
 The earlier **provisional evidence acceptance inventory** was independently reconciled
