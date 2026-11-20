@@ -139,7 +139,7 @@ describe('OCR review state safety', () => {
     };
 
     const rows = [feed1, feed2, diaperWet, diaperDirty, diaperBoth, unapprovedFeed, rejectedRow, sleepRow];
-    const totals = calculateReviewTotals(rows);
+    const totals = calculateReviewTotals(rows, 'America/Chicago');
 
     expect(totals.totalRows).toBe(8);
     expect(totals.approvedCount).toBe(6);
@@ -165,5 +165,53 @@ describe('OCR review state safety', () => {
     expect(totals.sleep.approvedCount).toBe(1);
     expect(totals.sleep.totalMinutes).toBe(90);
     expect(totals.sleep.napCount).toBe(1);
+  });
+
+  it.each([
+    ['2026-03-08', '01:30', '03:30', 60],
+    ['2026-11-01', '00:30', '02:30', 180],
+  ])('totals elapsed sleep across the clock change on %s', (date, start, end, minutes) => {
+    const row = { ...manualOcrRow(1, 'sleep-dst'), eventType: 'sleep' as const, approved: true,
+      localDate: date, endLocalDate: date, localTime: start, endLocalTime: end, sleepType: 'NIGHT_SLEEP' as const };
+    expect(calculateReviewTotals([row], 'America/Chicago').sleep).toMatchObject({ totalMinutes: minutes, unresolvedCount: 0 });
+    // The selected source zone, not the browser/server zone, determines duration.
+    expect(calculateReviewTotals([row], 'UTC').sleep.totalMinutes).toBe(120);
+  });
+
+  it('uses both selected occurrences when a fall-back sleep ends at an earlier wall time', () => {
+    const row = { ...manualOcrRow(1, 'sleep-repeat'), eventType: 'sleep' as const, approved: true,
+      localDate: '2026-11-01', endLocalDate: '2026-11-01', localTime: '01:50', endLocalTime: '01:10' };
+    expect(calculateReviewTotals([row], 'America/Chicago', { [row.id]: { start: -300, end: -360 } }).sleep)
+      .toMatchObject({ totalMinutes: 20, unresolvedCount: 0 });
+    for (const offsets of [{}, { start: -300 }, { start: -360, end: -360 }, { start: 60, end: -360 }]) {
+      expect(calculateReviewTotals([row], 'America/Chicago', { [row.id]: offsets }).sleep)
+        .toMatchObject({ totalMinutes: 0, unresolvedCount: 1 });
+    }
+  });
+
+  it.each([
+    ['2026-03-08', '02:30', '03:30', 'America/Chicago'],
+    ['2026-04-14', '08:00', '09:00', 'Invalid/Zone'],
+    ['2026-04-14', '08:00', '09:00', ''],
+    ['2026-02-30', '08:00', '09:00', 'UTC'],
+    ['2026-04-14', null, '09:00', 'UTC'],
+    ['2026-04-14', '08:00', '08:00', 'UTC'],
+    ['2026-04-14', '09:00', '08:00', 'UTC'],
+  ])('excludes unresolved sleep without presenting it as a resolved zero (%s %s %s %s)', (date, start, end, zone) => {
+    const row = { ...manualOcrRow(1, 'sleep-invalid'), eventType: 'sleep' as const, approved: true,
+      localDate: date, endLocalDate: date, localTime: start, endLocalTime: end };
+    expect(calculateReviewTotals([row], zone).sleep)
+      .toMatchObject({ totalMinutes: 0, approvedCount: 1, unresolvedCount: 1 });
+    expect(calculateReviewTotals([{ ...row, approved: false }], zone).sleep.unresolvedCount).toBe(0);
+  });
+
+  it('excludes rejected records from every domain total even if an obsolete approval remains', () => {
+    const rows = ['8 AM bottle 60 ml', '9 AM wet diaper', '10 AM - 11 AM nap']
+      .flatMap(text => parseOcrPages([{ page: 1, text }], { defaultDate: '2026-04-14' }))
+      .map(row => ({ ...row, approved: true, rejected: true }));
+    const totals = calculateReviewTotals(rows, 'UTC');
+    expect(totals).toMatchObject({ approvedCount: 0, rejectedCount: 3,
+      feeds: { approvedCount: 0, totalMl: 0 }, diapers: { approvedCount: 0, wet: 0 },
+      sleep: { approvedCount: 0, totalMinutes: 0, unresolvedCount: 0 } });
   });
 });

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "asOfRelease": "sat-tracker-2026-11-02",
-  "asOfSourceRevision": "a07289755b9a142e300f5367eba48ede8b999f1d",
-  "observedAtUTC": "2026-11-02",
-  "scopeVersion": "2026-11-02-v2",
+  "asOfSourceRevision": "236856df566064a6ea720e95b9ffbfcd84a724ec",
+  "observedAtUTC": "2026-11-20",
+  "scopeVersion": "2026-11-19-v3",
   "scopeComplete": false,
-  "scopeNote": "Independent continuation audit preserves all 77 original capability contracts and the 24 existing mission contracts, and adds three distinct omitted issue-level capabilities: data-quality resolution, caregiver handoff, and prospective prediction evaluation. There are 103 required and one desired contracts. Detailed criteria and duplicate mappings are recorded in docs/sat-tracker-scope-audit-2026-11-02.md. Scope remains provisional until pinned source parity, package commitments, deferred recovery proposals and remaining source/test gaps are reconciled. No whole-product percentage is emitted.",
+  "scopeNote": "November 19 owner-mission reconciliation preserves all 77 original parity rows and every prior contract, status and evidence item. Detailed baby-care, permissions, memories and reporting criteria extend existing owners; only the previously uncontracted Apple Watch capability is added as DEV-004. The provisional inventory is 104 Required plus one Desired. See docs/sat-tracker-mandatory-coverage-2026-11-19.md for source evidence, duplicate mappings, issue ownership and a bounded queue. Pinned upstream parity, package/recovery dispositions and final independent counterexample audit remain open; no whole-product percentage is emitted.",
   "sourceSpecifications": [
     "docs/FEATURE_PARITY_MATRIX.md",
     "docs/sat-tracker-source-parity-2026-11-01.md",
@@ -14,7 +14,9 @@
     "docs/sat-tracker-scope-audit-2026-11-02.md",
     "docs/PRODUCT_VISION.md",
     "docs/IMPORT_PIPELINE.md",
-    "docs/SLEEP_INTELLIGENCE.md"
+    "docs/SLEEP_INTELLIGENCE.md",
+    "Owner supplied Sat-Tracker mandatory feature mission 2026-11-19",
+    "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
   ],
   "requirements": [
     {
@@ -28,17 +30,20 @@
         "issues": [
           1,
           22
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P0",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Each child has a stable family-scoped identity and explicit profile/time precision; imports cannot reassign another family's child. Birth/due/corrected-age semantics follow PAR-042."
+        "Each child has a stable family-scoped identity and explicit profile/time precision; imports cannot reassign another family's child. Birth/due/corrected-age semantics follow PAR-042.",
+        "Keep feeding, sleep, measurements, milestones, media and other care history separate for each child. A child switch must not silently retarget an open form, active timer, upload or queued event; mixed-child reporting requires explicit authorized selection."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -65,7 +70,8 @@
         "issues": [
           1,
           22
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P0",
       "acceptanceCriteria": [
@@ -73,10 +79,14 @@
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Parent/admin and caregiver roles, scoped child access, secure invitation/pairing, expiry/re-authentication and shared-iPad timeout behavior are explicit and tested.",
-        "Every create/edit/delete records the authenticated actor and source provenance; source caregiver text cannot grant identity or permission. Caregiver handoff is separately accepted under CARE-001."
+        "Every create/edit/delete records the authenticated actor and source provenance; source caregiver text cannot grant identity or permission. Caregiver handoff is separately accepted under CARE-001.",
+        "Invite partners, relatives, babysitters and other authorized caregivers with explicit acceptance and expiration. Apply understandable least-privilege permissions for viewing records; creating entries; editing own or others entries; deleting or voiding; viewing health, medication, photos or cameras; exporting; and managing invitations, permissions, children, family settings or modules.",
+        "Audit meaningful record creation, correction and voiding, permission changes, invitations, revocation, sensitive exports and administration with authenticated actor and time, without unnecessary private content. Revoked caregivers lose protected access despite existing sessions or cached authorization while historical attribution remains intact."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/utils/auth.ts",
+        "application/src/components/familymanager/"
       ],
       "evidence": {
         "tests": [],
@@ -103,17 +113,21 @@
         "issues": [
           1,
           22
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P0",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Wrong-family and unauthorized-child access is denied consistently across UI, API, reports, source files, audit and import paths, including combined filters and identifiers."
+        "Wrong-family and unauthorized-child access is denied consistently across UI, API, reports, source files, audit and import paths, including combined filters and identifiers.",
+        "Enforce permissions on attached photos, rash images, medical documents, reaction notes and wearable tokens as well as their parent records; public links, cross-family IDs and stale sessions cannot bypass those boundaries."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/utils/auth.ts",
+        "application/app/api/photos/"
       ],
       "evidence": {
         "tests": [],
@@ -139,7 +153,8 @@
         "capability": "Bottle feeding",
         "issues": [
           3
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -149,12 +164,17 @@
         "Preserve consumed and offered volume, mL/oz conversion, formula/concentration, bottle ID, caregiver and notes.",
         "Support explicit optional feeding duration without manufacturing absent values; import/export/API/timeline must retain reviewed duration.",
         "Backdated and current writes, duplicate prevention, lost responses and concurrent editing have real API/database evidence.",
-        "Source feeding time and elapsed duration remain distinct; missing/ambiguous timestamps are never replaced by a plausible default. Cross-midnight, explicit-offset and DST fixtures preserve the intended instant."
+        "Source feeding time and elapsed duration remain distinct; missing/ambiguous timestamps are never replaced by a plausible default. Cross-midnight, explicit-offset and DST fixtures preserve the intended instant.",
+        "Keep bottle preparation time, offered time and feeding start/end explicit when supplied. Distinguish prepared, offered, consumed and remaining quantities; absent or uncertain quantities remain unknown rather than inferred as fact.",
+        "Each session supports optional private photos, notes, observations and actual caregiver attribution. Historical corrections preserve reviewable history, and partial bottles retain their original units and meaning."
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
         "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/67"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67",
+        "application/prisma/schema.prisma",
+        "application/src/components/BottleJournal/",
+        "application/src/components/forms/FeedForm/"
       ],
       "evidence": {
         "tests": [
@@ -296,16 +316,19 @@
         "capability": "Feeding reactions",
         "issues": [
           3
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Caregivers can record spit-up, refusal, gagging, vomiting, unusual reactions and general observations as descriptive records, without automatic diagnosis."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/FeedForm/"
       ],
       "evidence": {
         "tests": [],
@@ -440,16 +463,21 @@
         "capability": "Solid foods",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Record the selected or custom foods, first introduction and repeated exposures, date/time, observed amount and unit, preparation or texture, preferences, notes, reactions, photos and caregiver; retain historical corrections.",
+        "Solid-food entries share canonical care events, timeline, daily summaries, reporting and exports, family/media authorization, and supported offline synchronization. Do not create a competing food-event store."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/food-log/",
+        "application/src/components/forms/FoodForm/"
       ],
       "evidence": {
         "tests": [],
@@ -475,16 +503,22 @@
         "capability": "Dedicated foods catalog",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "A fresh installation offers at least 75 distinct curated common foods without requiring caregivers to enter them manually; a larger catalog should support the existing First 100 Foods experience.",
+        "Provide search, useful categories (fruit, vegetables, grains/cereals, proteins, dairy, legumes, mixed foods and common allergen groupings), family custom foods, favorites, and selection from previously used foods. Catalog updates preserve existing family names, choices and recorded exposures."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/food/route.ts",
+        "application/prisma/seed.ts",
+        "application/src/components/forms/SettingsForm/FoodManager.tsx"
       ],
       "evidence": {
         "tests": [],
@@ -493,7 +527,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "Current source provides family-created Food rows and a food manager, but no curated default-food seed, category field or food favorites were found at 236856d. Implement the 75-entry minimum and complete catalog UX with upgrade/ownership/history preservation; source and acceptance evidence remain separate.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -510,16 +544,20 @@
         "capability": "First 100 foods",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Show foods tried and not yet tried, recent introductions, repeated foods and categories explored with accurate per-child first-food progress. The number of foods is a private journal metric, never a medical development score."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/FoodForm/ProgressTab.tsx",
+        "application/app/api/food-log/progress/route.ts"
       ],
       "evidence": {
         "tests": [],
@@ -528,7 +566,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "Existing per-child first-food counter and exposure/progress UI are partial. Complete untried/recent/repeated/category views with the preloaded catalog and attach full workflow evidence without presenting food count as a developmental score.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -545,16 +583,20 @@
         "capability": "Allergens/reactions",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Preserve caregiver observations of refusal, spit-up, rash or other reactions and food/texture preferences alongside exposure history, without diagnosing allergy or prescribing introduction schedules."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/FoodForm/LogFoodTab.tsx",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -580,17 +622,21 @@
         "capability": "Wet/dirty/both/dry",
         "issues": [
           5
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Wet, dirty, both and dry classifications retain their meanings in manual/OCR/adapter entries and ordinary exports/reports."
+        "Wet, dirty, both and dry classifications retain their meanings in manual/OCR/adapter entries and ordinary exports/reports.",
+        "Provide quick wet, dirty, mixed and dry recording with visible child/caregiver/time and duplicate protection; standard overnight logging requires minimal interaction."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/diaper-log/route.ts",
+        "application/src/components/forms/DiaperForm/"
       ],
       "evidence": {
         "tests": [],
@@ -616,7 +662,8 @@
         "capability": "Color/condition/amount",
         "issues": [
           5
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -624,10 +671,13 @@
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Preserve numeric diaper amounts, observations and tags when present.",
-        "Numeric amount is separate from qualitative condition/color; notes, observations and imported metadata are retained or explicitly unresolved."
+        "Numeric amount is separate from qualitative condition/color; notes, observations and imported metadata are retained or explicitly unresolved.",
+        "Optional stool color, consistency, amount, frequency and observations persist with historical notes/corrections, contribute to descriptive bowel-habit summaries, and retain selected-date-range reporting semantics."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/DiaperForm/",
+        "application/src/utils/diaperStats.ts"
       ],
       "evidence": {
         "tests": [],
@@ -653,16 +703,21 @@
         "capability": "Blowout/cream",
         "issues": [
           5
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "A prominent one-tap rash indicator supports optional location, caregiver-entered severity or description, notes, private photos, products/creams applied and follow-up observations. Rash recording is observational and must not diagnose dermatitis.",
+        "Rash details and attached images follow caregiver permissions in ordinary history, handoff and selected reports; a cream-applied flag alone does not establish rash support."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/DiaperForm/",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -671,7 +726,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "Existing DiaperLog and form provide blowout, cream and notes, but no explicit rash field or diaper photo control was found at 236856d. Add the one-tap rash workflow and authorized details/media/handoff/reporting, retaining existing diaper history.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -688,17 +743,21 @@
         "capability": "Start/end/timer",
         "issues": [
           6
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Ongoing and historical sleep sessions support start/end/manual/backdate and safe corrections/undo; invalid or negative intervals fail visibly."
+        "Ongoing and historical sleep sessions support start/end/manual/backdate and safe corrections/undo; invalid or negative intervals fail visibly.",
+        "Nap and nighttime timers support start, stop, supported interrupted-session resume and timestamp correction, survive refresh/connectivity interruption/device sleep within documented platform limits, and avoid conflicting or duplicate sessions across caregivers."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/sleep-log/",
+        "application/src/components/features/nursery-mode/activities/useSleepActions.ts"
       ],
       "evidence": {
         "tests": [],
@@ -724,17 +783,21 @@
         "capability": "Nap/night classification",
         "issues": [
           6
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Nap/night classification, overnight boundaries and local calendar days remain correct across timezone and DST changes."
+        "Nap/night classification, overnight boundaries and local calendar days remain correct across timezone and DST changes.",
+        "Sleeping-through-the-night tracking uses a caregiver-configurable definition and actual recorded sessions. Distinguish individual long sessions, repeated overnight patterns, interrupted nights, night feeds and wake-ups without fabricating sleep during missing records."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma",
+        "application/src/components/Reports/SleepStatsSection.tsx"
       ],
       "evidence": {
         "tests": [],
@@ -743,7 +806,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "Nap/night source classification exists. Configurable sleeping-through-the-night definitions and repeated/interrupted overnight-pattern acceptance are not established; retain actual events and verify timezone/day boundaries.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -760,16 +823,19 @@
         "capability": "Location",
         "issues": [
           6
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Sleep location and caregiver notes are optional, persist through historical corrections and appear in authorized history and reports."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/SleepForm/"
       ],
       "evidence": {
         "tests": [],
@@ -830,17 +896,20 @@
         "capability": "Average wake windows",
         "issues": [
           6
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Wake-window aggregates exclude invalid/incomplete intervals according to a documented rule and match golden per-child historical fixtures."
+        "Wake-window aggregates exclude invalid/incomplete intervals according to a documented rule and match golden per-child historical fixtures.",
+        "Display wake windows and caregiver-defined nap routines with manual adjustments; descriptive averages and editable routine planning are distinct from predictions and do not prescribe medical sleep practices."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/Reports/SleepStatsSection.tsx"
       ],
       "evidence": {
         "tests": [],
@@ -1064,17 +1133,20 @@
           8,
           9,
           28
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Show confidence ranges, sparse-data limits and contributing factors as planning assistance; do not present a model output as a medical diagnosis."
+        "Show confidence ranges, sparse-data limits and contributing factors as planning assistance; do not present a model output as a medical diagnosis.",
+        "Explain model inputs, age basis, confidence and limitations; allow caregiver overrides and preserve actual sleep history. Predictions never replace recorded events, and prospective evaluation under SLP-001 is required before default enablement."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "docs/SLEEP_INTELLIGENCE.md"
       ],
       "evidence": {
         "tests": [],
@@ -1100,17 +1172,20 @@
         "capability": "Tummy time",
         "issues": [
           17
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Dedicated tummy-time records retain duration, source milestone, notes and tags rather than dropping one source field for another."
+        "Dedicated tummy-time records retain duration, source milestone, notes and tags rather than dropping one source field for another.",
+        "Provide fast tummy-time entry, start/end timers where relevant, caregiver notes/photos, and daily/history views; routine reminders and repetition use the canonical schedule contract PAR-048."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -1136,17 +1211,20 @@
         "capability": "Play/walk/outdoor",
         "issues": [
           17
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Activity subtypes and reusable timers preserve canonical history without a separate authoritative store; subtype extensions have import/export/API representations."
+        "Activity subtypes and reusable timers preserve canonical history without a separate authoritative store; subtype extensions have import/export/API representations.",
+        "Support story time, walks, indoor/outdoor play, bedtime routines and other caregiver-defined activities with quick entry, relevant timers, notes, photos and historical correction, integrated into daily schedules and handoff."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -1172,16 +1250,19 @@
         "capability": "Bath tracking",
         "issues": [
           17
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Bath events support quick entry, optional notes/photos, caregiver attribution, historical correction and participation in personalized routines."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -1243,7 +1324,8 @@
         "capability": "Medication",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -1251,11 +1333,14 @@
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Missing dosage remains unresolved, distinct from numeric zero; preserve real dose/unit/frequency across imports and exports.",
-        "Dose interval/reminders, medication name and source units remain faithful; a later corrected source dose uses explicit reconciliation rather than rewriting a previously imported event."
+        "Dose interval/reminders, medication name and source units remain faithful; a later corrected source dose uses explicit reconciliation rather than rewriting a previously imported event.",
+        "Preserve medication name, caregiver-entered dose and unit, administration time, caregiver, notes, configured reminders and selected history exports. Never prescribe doses or fill missing quantities automatically."
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/70"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/70",
+        "application/prisma/schema.prisma",
+        "application/src/components/forms/MedicineForm/"
       ],
       "evidence": {
         "tests": [
@@ -1322,17 +1407,21 @@
         "capability": "Vaccines + documents",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Vaccine attachments remain family-scoped, type/size validated, portable with the record and restorable with encryption requirements intact."
+        "Vaccine attachments remain family-scoped, type/size validated, portable with the record and restorable with encryption requirements intact.",
+        "Preserve vaccine name, administration date, dose/series, provider, notes and supporting documents, and permit caregiver-configured follow-up reminders linked to appointments."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/vaccine-log/",
+        "application/src/components/forms/VaccineForm/"
       ],
       "evidence": {
         "tests": [],
@@ -1358,16 +1447,20 @@
         "capability": "Weight",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Weight records retain actual measurement date/time where supplied, metric/imperial unit, notes and source. Newborn gain and period comparisons use actual elapsed intervals and corrected measurements, including imported histories and premature infants; missing measurements are not zero."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/measurement-log/route.ts",
+        "application/src/utils/measurementConversion.ts"
       ],
       "evidence": {
         "tests": [],
@@ -1393,16 +1486,20 @@
         "capability": "Height/length",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Length/height records retain measurement date/time, original unit, notes and source; metric/imperial conversions, irregular measurement intervals and historical corrections remain consistent in graphs, timelines and exports."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/measurement-log/route.ts",
+        "application/src/utils/measurementConversion.ts"
       ],
       "evidence": {
         "tests": [],
@@ -1428,16 +1525,20 @@
         "capability": "Head circumference",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Head-circumference records retain date/time, units, source and notes with accurate conversions and historical corrections; missing measurements are never fabricated."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/measurement-log/route.ts",
+        "application/src/utils/measurementConversion.ts"
       ],
       "evidence": {
         "tests": [],
@@ -1499,17 +1600,21 @@
         "capability": "CDC/WHO percentiles",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Pinned CDC/WHO reference data, units, age basis and applicable ranges are documented; plotted results match golden calculations and explain unavailable references."
+        "Pinned CDC/WHO reference data, units, age basis and applicable ranges are documented; plotted results match golden calculations and explain unavailable references.",
+        "Growth reference charts clearly label validated reference, applicable age and unit basis. Prematurity-aware presentation uses PAR-042 consistently and uncertain trends are not represented as diagnoses."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/utils/growthStandard.ts",
+        "application/src/components/Reports/GrowthChart.tsx"
       ],
       "evidence": {
         "tests": [],
@@ -1535,7 +1640,8 @@
         "capability": "Due date / corrected age",
         "issues": [
           15
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -1543,10 +1649,12 @@
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Store due date or gestational context explicitly; preserve birth-time precision and compute chronological/corrected age consistently at local-day boundaries.",
-        "Corrected age is a deliberate canonical extension, not a claimed native Baby Buddy field; growth and sleep consumers use the same documented contract."
+        "Corrected age is a deliberate canonical extension, not a claimed native Baby Buddy field; growth and sleep consumers use the same documented contract.",
+        "Record gestational age at birth with birth date, calculate chronological and corrected/adjusted age consistently for current and historical dates, and label both clearly in profiles, growth, milestones and sleep planning. Configurable milestone interpretation must not automatically diagnose delay."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -1555,7 +1663,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "Historical status is retained, but current Baby schema and searched app code contain no due-date/gestational-age fields or corrected-age implementation at 236856d. Implement one canonical age contract and qualify profile/growth/milestone/sleep consumers with synthetic cases.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -1572,16 +1680,21 @@
         "capability": "Dedicated milestones",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Record first smile, rolling, sitting, crawling, steps, words, teeth and caregiver-defined milestones with child, date, chronological/corrected age at occurrence, category, notes and private photos.",
+        "Extend the milestone and memory experience to first laugh, first food, holidays, birthdays and custom memories, retaining title, description/notes, date, category, child, caregiver and photos. The unified chronological journal supports child/date/category/milestone filters, historical corrections and private summaries/exports; existing photo and event models remain authoritative."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/forms/MilestoneForm/",
+        "application/src/components/PhotoGallery/"
       ],
       "evidence": {
         "tests": [],
@@ -1590,7 +1703,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Source presence and partial historical tests do not establish this broad contract. Attach complete current acceptance evidence and resolve mapped issue gaps.",
+      "remainingWork": "Milestone records/forms, linked private photos and gallery grouping exist. Complete the explicit memory journal and filter/export/corrected-age criteria using those canonical models; source presence does not establish full acceptance.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -1607,17 +1720,21 @@
         "capability": "Photos linked to activities",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Imported image references are retained with source provenance or actionable unresolved warnings; no external source URL is silently treated as a fetched trusted attachment."
+        "Imported image references are retained with source provenance or actionable unresolved warnings; no external source URL is silently treated as a fetched trusted attachment.",
+        "Optional feeding, food, diaper-rash, milestone, memory and routine photos attach to the correct child/event, survive authorized corrections/export/restore and remain inaccessible to other families or unauthorized caregivers. Failed/interrupted uploads are visible and recoverable; private media and location metadata are never published by default."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/photos/",
+        "application/src/components/ui/photo-attachments/"
       ],
       "evidence": {
         "tests": [],
@@ -1643,16 +1760,19 @@
         "capability": "Free-form notes",
         "issues": [
           17
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Caregiver notes can accompany any supported feeding, diaper, sleep, food, milestone, health or routine session and remain editable, attributable and visible in authorized summaries without losing historical context."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma"
       ],
       "evidence": {
         "tests": [],
@@ -1750,17 +1870,23 @@
         "capability": "Calendar/events",
         "issues": [
           24
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Recurring events/reminders preserve recurrence rules, local dates and timezone/DST behavior; day/week/month navigation and edits do not silently rewrite unrelated occurrences."
+        "Recurring events/reminders preserve recurrence rules, local dates and timezone/DST behavior; day/week/month navigation and edits do not silently rewrite unrelated occurrences.",
+        "Caregivers can maintain editable feeding schedules and targets, flexible scheduled versus cue-based routines, missed/delayed indicators and historical schedule comparisons. Optional history-based assistance respects caregiver choices and clinician-entered plans without prescribing intervals.",
+        "Personalized tummy-time, bath, story, walk, play and bedtime routines support repetition and configurable reminders; daily overview and handoff distinguish upcoming, completed and active activities.",
+        "Appointments support providers, visit notes, caregiver-entered diagnoses, care plans, follow-up instructions/dates, private supporting documents and associated measurements, with selected authorized export and clear separation from automatic medical advice."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/app/api/calendar-event/route.ts",
+        "application/src/components/forms/CalendarEventForm/"
       ],
       "evidence": {
         "tests": [],
@@ -1786,16 +1912,20 @@
         "capability": "Providers/contacts",
         "issues": [
           16
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
-        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached."
+        "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
+        "Provider/contact information associates with appointments, medical documents, visit notes, care plans, medication and vaccine records where applicable, within family/health permissions."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/prisma/schema.prisma",
+        "application/src/components/forms/ContactForm/"
       ],
       "evidence": {
         "tests": [],
@@ -1823,17 +1953,20 @@
           2,
           23,
           30
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Feed, diaper and sleep can be initiated within two interaction steps from the primary screen; common one-handed flows have readable units, usable keyboards, large touch targets and no horizontal overflow."
+        "Feed, diaper and sleep can be initiated within two interaction steps from the primary screen; common one-handed flows have readable units, usable keyboards, large touch targets and no horizontal overflow.",
+        "Quick bottle, diaper, sleep start/stop, solid food, note and tummy-time actions provide accessible one-handed controls, clear confirmation and appropriate undo without duplicate entry; supported Android/tablet/Windows layouts retain private authenticated workflows."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/features/nursery-mode/"
       ],
       "evidence": {
         "tests": [],
@@ -1899,7 +2032,8 @@
           2,
           23,
           30
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -1910,11 +2044,15 @@
         "Reconnect and lost-response replay create one canonical record; authentication, validation and concurrent-edit conflicts remain visible.",
         "Qualify all promised care-entry types; Bottle Journal-only support is a partial checkpoint.",
         "Separate loaded-app offline writes from cold offline startup, background delivery while closed and offline historical edits; explicitly qualify or retain each boundary as unresolved.",
-        "Queued entries remain local pending state until confirmed, retain immutable timestamp/UUID and original actor/family/child scope, and expose bounded retries, conflicts and local-discard behavior."
+        "Queued entries remain local pending state until confirmed, retain immutable timestamp/UUID and original actor/family/child scope, and expose bounded retries, conflicts and local-discard behavior.",
+        "Exercise feeding, diapers, sleep, solid foods, activities, milestones, notes, historical corrections and relevant media metadata through the existing outbox architecture as each domain is supported. Document remaining limits rather than treating bottle-only queueing as complete synchronization.",
+        "Tests cover repeated presses, lost connections/responses, device or browser restarts, interrupted uploads, expired sessions and concurrent caregiver edits, with visible pending, retry, conflict and failure states."
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/67"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67",
+        "application/src/lib/bottle-journal/outbox.ts",
+        "application/src/components/BottleJournal/useJournalOutbox.ts"
       ],
       "evidence": {
         "tests": [
@@ -2061,17 +2199,20 @@
         "issues": [
           19,
           24
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "The dashboard shows current canonical state, active/recent sessions and pending/sync states without presenting unsent local entries as confirmed history."
+        "The dashboard shows current canonical state, active/recent sessions and pending/sync states without presenting unsent local entries as confirmed history.",
+        "Daily overview combines recent feeding/diapers/sleep/activities, upcoming configured routines, completed routines, active timers and important notes, with freshness and pending synchronization visible."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/DailyStats/"
       ],
       "evidence": {
         "tests": [],
@@ -2098,7 +2239,8 @@
         "issues": [
           19,
           24
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -2106,10 +2248,13 @@
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Timeline/full-log views represent every canonical event type, combine child/caregiver/type/tag/date filters safely, support day/week/month navigation and paginate long histories.",
-        "Historical edit/delete/undo records actor/provenance and never silently changes later-edited events."
+        "Historical edit/delete/undo records actor/provenance and never silently changes later-edited events.",
+        "Memory/milestone filtering joins the ordinary child/date/category history without a separate authoritative journal; notes/photos and corrected ages retain their event association."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/Timeline/",
+        "application/src/components/PhotoGallery/"
       ],
       "evidence": {
         "tests": [],
@@ -2135,17 +2280,22 @@
         "capability": "Graphs/analytics",
         "issues": [
           19
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Feeding/sleep/diaper and growth reports match golden date-window/unit/rounding calculations, including local midnight and DST; absent data remains explicit."
+        "Feeding/sleep/diaper and growth reports match golden date-window/unit/rounding calculations, including local midnight and DST; absent data remains explicit.",
+        "Feeding graphs show frequency, average interval, mean consumed volume, daily/rolling totals, time distribution, overnight patterns, changes and caregiver-target comparisons using confirmed observations.",
+        "Diaper graphs show daily wet/dirty/mixed/dry counts, time since last change, weekly comparisons and bowel observations. Sleep graphs show daily total/night/nap durations, nap count and mean duration, bedtime changes and week/day comparisons without filling missing sleep.",
+        "Descriptive solid-food, activity and growth patterns can inform transparent editable caregiver routines using preferences, configured targets and chronological/corrected age; suggestions never override care records or prescribe treatment."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/Reports/"
       ],
       "evidence": {
         "tests": [],
@@ -2171,17 +2321,20 @@
         "capability": "Monthly report card",
         "issues": [
           19
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Monthly report cards use the same canonical period and aggregates as API/exports and preserve per-child/family boundaries."
+        "Monthly report cards use the same canonical period and aggregates as API/exports and preserve per-child/family boundaries.",
+        "Provide concise daily and weekly family-care summaries alongside monthly reports, with authorized caregiver handoff linked through CARE-001 and observation-versus-computation labels."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/Reports/MonthlyReportCard/"
       ],
       "evidence": {
         "tests": [],
@@ -2207,17 +2360,20 @@
         "capability": "PDF report",
         "issues": [
           19
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "PDF reports preserve units/date context and relevant provenance, remain readable on representative page layouts and contain only authorized records."
+        "PDF reports preserve units/date context and relevant provenance, remain readable on representative page layouts and contain only authorized records.",
+        "Caregivers explicitly choose child, date range and permitted feeding/intake, diaper/bowel/rash, growth, sleep, medication, vaccine or appointment details for a pediatrician-readable report with timestamps, units and observed-versus-computed summaries. Export/share requires explicit action; do not transmit records to a provider automatically or expose public links."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/Reports/"
       ],
       "evidence": {
         "tests": [],
@@ -2243,17 +2399,20 @@
         "capability": "CSV/XLSX",
         "issues": [
           19
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "CSV/XLSX exports preserve faithful values and stable provenance while escaping malicious imported text and spreadsheet formulas."
+        "CSV/XLSX exports preserve faithful values and stable provenance while escaping malicious imported text and spreadsheet formulas.",
+        "Selected CSV/XLSX exports cover the same authorized care/health/food/memory history and date windows as reports, preserve notes/observations and units, and require deliberate caregiver action."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/components/Reports/"
       ],
       "evidence": {
         "tests": [],
@@ -2327,7 +2486,8 @@
           22,
           29,
           34
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -2338,11 +2498,14 @@
         "Actual database import, duplicate retry and export round trips preserve source provenance.",
         "Pin Baby Buddy v2.11.0 and source commit for acceptance; food type/method, fortified milk, both-breast, numeric diaper amounts, durations, birth precision, BMI, notes/tags and timer semantics receive explicit golden mappings.",
         "Unsupported source fields are preserved with provenance or block with actionable warnings; behavioral parity, wire compatibility and migration coverage are separately described.",
-        "Actual database tests cover cross-family/child rejection, malformed-row transaction rollback, simultaneous retries, lost responses and displayed-field equality; undo preserves later edits and preexisting history."
+        "Actual database tests cover cross-family/child rejection, malformed-row transaction rollback, simultaneous retries, lost responses and displayed-field equality; undo preserves later edits and preexisting history.",
+        "Baby Buddy/Sprout behavioral parity includes feeding, pumping, solids, diapers, sleep, growth, medication, vaccines, activities, milestones, caregiver attribution and historical reporting. Distinguish upstream import coverage from implementation parity; retain source/license attribution and canonical ownership during reviewed migrations."
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/70"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/70",
+        "application/src/lib/importers/baby-buddy/",
+        "upstreams.lock.json"
       ],
       "evidence": {
         "tests": [
@@ -2357,7 +2520,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "PR #70 fixes unknown medication dose fidelity. Feeding timestamps/duration, fortified milk, both breasts, numeric diaper amounts, tags, BMI, image references, pump disposition and complete golden runtime/export/undo acceptance remain; do not build a second importer.",
+      "remainingWork": "Existing adapter, provenance, feeding-time helpers and unknown-dose preservation are partial source evidence. Qualify pinned upstream fields and all golden database/import/export/undo cases; recheck historical omissions against current source instead of treating earlier missing-field lists as current proof.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -2418,7 +2581,8 @@
           12,
           26,
           29
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -2427,11 +2591,13 @@
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
         "Native, scanned and mixed PDFs and embedded form values use local extraction, bounded input handling and explicit review.",
         "Prefer native form fields (including supported AcroForm/XFA-style fields) and embedded text/table geometry before recognition; unsupported/password-protected formats fail visibly.",
-        "Feeding, diaper, sleep, medication, temperature/vitals and growth inputs emit source/page-linked candidates with warnings, never direct canonical writes."
+        "Feeding, diaper, sleep, medication, temperature/vitals and growth inputs emit source/page-linked candidates with warnings, never direct canonical writes.",
+        "Where canonical models support them, add reviewed candidate extraction for solid foods, activities, growth, appointment notes and vaccinations; uncertainty in medical information blocks automatic ingestion."
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/66"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
+        "application/src/lib/ocr/"
       ],
       "evidence": {
         "tests": [
@@ -2469,7 +2635,8 @@
           37,
           38,
           49
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -2483,11 +2650,14 @@
         "Every selected row requires explicit approval after its latest edit; multi-row selection and final summary recompute counts/totals without writing from preview.",
         "Exact source identity and fuzzy/transformed-rescan duplicate warnings preserve legitimate same-time events and child/family separation; partial batches have explicit per-row results.",
         "Cancel/back/retry/interruption create no unintended care records; transaction failures and import undo are exercised against the real database, preserving later-edited records and unrelated history.",
-        "Malicious extracted text remains data in UI/export; no external document transfer or sensitive diagnostic logging occurs."
+        "Malicious extracted text remains data in UI/export; no external document transfer or sensitive diagnostic logging occurs.",
+        "Source documents are untrusted data, not executable or agent instructions. Imported accepted records become ordinary editable/reportable canonical events with original timestamps, child/family authorization, caregiver/source provenance and audited corrections."
       ],
       "implementationReferences": [
         "docs/sat-tracker-source-parity-2026-11-01.md",
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/66"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/66",
+        "application/src/components/OcrImport/",
+        "application/src/lib/ocr/"
       ],
       "evidence": {
         "tests": [
@@ -2502,7 +2672,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "Merged review, confirmation, duration and privacy paths have synthetic API/database/browser evidence. Complete full crop/split/merge, safe partial batch/undo and current runtime acceptance; representative handwriting and physical devices remain separate unresolved contracts.",
+      "remainingWork": "Current source includes reviewed OCR rows and selected-page/manual split/merge controls. Complete current-source API/database/browser acceptance for all criteria, including displayed-timezone grouping, crop/provenance, partial batches and safe undo; genuine handwriting and physical devices remain separate unaccepted contracts.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -2848,17 +3018,20 @@
         "capability": "Web/native push",
         "issues": [
           23
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Canonical model, create/edit/delete and validation cover the complete agreed capability.",
         "Applicable import/export, API, timeline and reporting representations are faithful.",
         "Meaningful automated and browser tests pass; required mobile usability and upgrade safety evidence is attached.",
-        "Feed/diaper/medication/sleep reminders and web/native-ready delivery respect per-caregiver/device preferences, revocation and deduplication; denied or unavailable permission has useful fallback."
+        "Feed/diaper/medication/sleep reminders and web/native-ready delivery respect per-caregiver/device preferences, revocation and deduplication; denied or unavailable permission has useful fallback.",
+        "Configured reminders and authorized web/native notifications respect family, caregiver, device and wearable access; unavailable transport or permissions are explicit, and notifications do not expose unnecessary private medical content."
       ],
       "implementationReferences": [
-        "docs/sat-tracker-source-parity-2026-11-01.md"
+        "docs/sat-tracker-source-parity-2026-11-01.md",
+        "application/src/lib/notifications/"
       ],
       "evidence": {
         "tests": [],
@@ -3001,17 +3174,20 @@
           3,
           19,
           23
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "The journal and normal FeedLog timeline share one canonical history.",
         "Daily and rolling-24-hour totals, target progress, timezone/DST/midnight boundaries, unit conversion and rounding match golden fixtures.",
         "Night mode, touch targets and clear save/sync states pass browser and required device checks.",
-        "Fast entry, manual refresh, targets and progress operate per child; historical revision conflicts and lost responses are visible while daily/rolling totals include only server-confirmed records."
+        "Fast entry, manual refresh, targets and progress operate per child; historical revision conflicts and lost responses are visible while daily/rolling totals include only server-confirmed records.",
+        "Daily and rolling targets remain user-configured; preserve offered/consumed distinctions, partial bottle observations and pending entries when describing intake or trends. Clinician-entered plans and caregiver choices remain authoritative."
       ],
       "implementationReferences": [
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/67"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/67",
+        "application/src/components/BottleJournal/"
       ],
       "evidence": {
         "tests": [
@@ -3080,14 +3256,18 @@
           2,
           22,
           30
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Demonstrate writes and edits from separate actual family devices/sessions becoming visible to other caregivers.",
-        "Exercise concurrent edits, reconnect and manual refresh with explicit conflict handling and no duplicates."
+        "Exercise concurrent edits, reconnect and manual refresh with explicit conflict handling and no duplicates.",
+        "A synthetic two-caregiver sequence covers A logging bottle/diaper and starting a nap, B seeing history/stopping the nap/adding a note, an interrupted edit, reconnection, duplicate-free final history and accurate handoff. Required actual-device receipts remain separate from automated browser contexts."
       ],
-      "implementationReferences": [],
+      "implementationReferences": [
+        "application/src/components/BottleJournal/README.md"
+      ],
       "evidence": {
         "tests": [],
         "preview": [],
@@ -3216,15 +3396,20 @@
           2,
           20,
           30
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Inspect reusable Capacitor/legacy wrappers and record which native package commitments belong to accepted scope.",
         "Where promised, deliver a versioned package using canonical backend, secure pairing/persistent sessions and tested sync/install/upgrade behavior.",
-        "A scope change requires an explicit recorded owner decision; do not infer package acceptance from web emulation."
+        "A scope change requires an explicit recorded owner decision; do not infer package acceptance from web emulation.",
+        "Reuse and qualify the existing Capacitor/native-aware boundaries before creating a wrapper. Deliver the agreed Android APK and update path with canonical backend, camera/OCR, push, secure persistent sessions and documented offline behavior; Pixel 9/10 physical acceptance remains DEV-001/002."
       ],
-      "implementationReferences": [],
+      "implementationReferences": [
+        "application/src/utils/native-app.ts",
+        "application/CLAUDE.md"
+      ],
       "evidence": {
         "tests": [],
         "preview": [],
@@ -3250,14 +3435,18 @@
           2,
           20,
           30
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Inspect reusable legacy desktop wrapper and document the agreed desktop package contract.",
-        "Where promised, qualify canonical secure backend/session, installation, upgrade, restart and multi-device sync."
+        "Where promised, qualify canonical secure backend/session, installation, upgrade, restart and multi-device sync.",
+        "Record the Windows browser/PWA versus native EXE decision, existing-wrapper reuse, secure local access, cross-device synchronization and update/version compatibility; do not silently discard a promised EXE or add redundant runtimes."
       ],
-      "implementationReferences": [],
+      "implementationReferences": [
+        "docs/MASTER_WORKSPACE.md"
+      ],
       "evidence": {
         "tests": [],
         "preview": [],
@@ -3314,16 +3503,21 @@
         "spec": "Sat Tracker autonomous completion mission supplied 2026-11-02",
         "issues": [
           50
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Registry validates version compatibility/dependencies, configuration, licenses and health.",
         "Owner can enable/disable approved modules reversibly while preserving canonical data and module migrations.",
         "Disabled or incompatible modules cannot become active by unsafe arbitrary downloads.",
-        "Module migrations declare canonical-schema compatibility and safe dependency ordering; enable/disable validates configuration and health without deleting underlying care records."
+        "Module migrations declare canonical-schema compatibility and safe dependency ordering; enable/disable validates configuration and health without deleting underlying care records.",
+        "An owner-facing internal module interface lists descriptions, versions, dependencies, settings, compatibility, update state and health, with safe reversible enable/disable and data preservation. Optional OCR, sleep, food enhancements, reporting, memory export, cameras, wearables and external integrations cannot disable essential care tracking when unavailable."
       ],
-      "implementationReferences": [],
+      "implementationReferences": [
+        "modules/registry.json",
+        "scripts/modules.py"
+      ],
       "evidence": {
         "tests": [],
         "preview": [],
@@ -3761,7 +3955,8 @@
           21,
           29,
           50
-        ]
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
@@ -3769,10 +3964,12 @@
         "Statuses/evidence distinguish implementation, automated tests, preview, production and physical acceptance.",
         "Percent is verified required contracts divided by all required contracts, including blocked/unimplemented; desired items are reported separately.",
         "Ledger records its source/release checkpoint and cannot turn sparse evidence or issue closure into PASS.",
-        "Complete the detailed mission/issue/source-parity mapping and independent final counterexample audit before certifying scopeComplete; any newly found required behavior joins the denominator."
+        "Complete the detailed mission/issue/source-parity mapping and independent final counterexample audit before certifying scopeComplete; any newly found required behavior joins the denominator.",
+        "The November 19 mandatory coverage index maps every owner-requested capability into existing contracts and issues, expanding detailed criteria rather than counting every screen, test or subfield as another requirement. Apple Watch is retained as DEV-004 until implemented and physically verified or explicitly changed by the owner."
       ],
       "implementationReferences": [
-        "https://github.com/MulattoTech/BabyTracker-Master/pull/69"
+        "https://github.com/MulattoTech/BabyTracker-Master/pull/69",
+        "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       ],
       "evidence": {
         "tests": [
@@ -3787,7 +3984,7 @@
         "device": []
       },
       "status": "IN PROGRESS",
-      "remainingWork": "PR #69 added a validated ledger; this audit maps detailed mission/issue criteria and adds three omitted capabilities. Complete pinned source-parity reconciliation, package/recovery scope decisions and independent final audit before certifying the denominator.",
+      "remainingWork": "The November 19 reconciliation expands existing criteria and adds only the distinct Apple Watch contract DEV-004, preserving all previous statuses/evidence. Complete pinned source parity, package/recovery decisions and independent final audit before certifying scope; no whole-product percentage is supported.",
       "requiredEvidence": [
         "tests",
         "preview",
@@ -3871,17 +4068,20 @@
           22,
           24
         ],
-        "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/22"
+        "url": "https://github.com/MulattoTech/BabyTracker-Master/issues/22",
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
       },
       "priority": "P1",
       "acceptanceCriteria": [
         "Provide a family/child-scoped handoff view of active sessions and recent feed, diaper, sleep and medication events with timestamps and caregiver attribution.",
         "Distinguish confirmed history from pending/failed local changes and make freshness/session state clear before another caregiver takes over.",
-        "Apply role and shared-device session boundaries from PAR-002/PAR-003; combine filters without exposing another family and verify the actual handoff workflow with synthetic records."
+        "Apply role and shared-device session boundaries from PAR-002/PAR-003; combine filters without exposing another family and verify the actual handoff workflow with synthetic records.",
+        "Handoff prominently includes latest diaper time/type/caregiver/notes and authorized rash details, latest feed/sleep, active timers, permitted recent medications, important notes, configured reminders and daily routines, with each item last-updated and pending status visible."
       ],
       "implementationReferences": [
         "application/src/components/DailyStats/index.tsx",
-        "docs/PRODUCT_VISION.md"
+        "docs/PRODUCT_VISION.md",
+        "application/src/components/DailyStats/"
       ],
       "evidence": {
         "tests": [],
@@ -3972,6 +4172,51 @@
         "preview",
         "production"
       ]
+    },
+    {
+      "id": "DEV-004",
+      "domain": "Mission extension",
+      "title": "Apple Watch architecture, companion workflows and physical acceptance",
+      "required": true,
+      "source": {
+        "spec": "Owner supplied Sat-Tracker mandatory feature mission 2026-11-19, section 10.1",
+        "issues": [
+          98,
+          2,
+          18,
+          22,
+          23
+        ],
+        "mandatoryCoverage": "docs/sat-tracker-mandatory-coverage-2026-11-19.md",
+        "url": "https://github.com/MulattoTech/Sat-Tracker/issues/98"
+      },
+      "priority": "P3",
+      "acceptanceCriteria": [
+        "Document the supported watchOS, pairing, compatible-phone, authentication, development-tooling and distribution architecture using current platform requirements. Do not assume a Pixel phone can serve as an Apple Watch companion; obtain an explicit architecture disposition before native implementation.",
+        "Build a staged watch interface with secure family/child-scoped pairing and revocation, recent feed/diaper/current sleep and compact handoff, selected reminders and authorized notifications.",
+        "Supported quick bottle/diaper logs and sleep start/stop synchronize through existing canonical services with actor attribution, duplicate prevention, explicit pending/error states, conflicts and documented offline behavior. A watch action cannot silently retarget another child or overwrite care history.",
+        "Qualify privacy, session expiry, access revocation, cross-family rejection, retry/reconnect and notification behavior in automated and preview tests before release.",
+        "Acceptance requires genuine compatible physical Apple Watch evidence identifying the model and any required paired phone; mobile-responsive web UI or simulator/emulation cannot establish VERIFIED PASS. When hardware/tooling/access are unavailable, mark physical acceptance blocked while continuing independent preparatory work."
+      ],
+      "implementationReferences": [
+        "application/src/utils/native-app.ts",
+        "application/src/lib/notifications/",
+        "docs/sat-tracker-mandatory-coverage-2026-11-19.md"
+      ],
+      "evidence": {
+        "tests": [],
+        "preview": [],
+        "production": [],
+        "device": []
+      },
+      "status": "NOT IMPLEMENTED",
+      "remainingWork": "No watch-specific implementation was found in the audited source. Audit compatible hardware/tooling/access and platform dependencies, record the approved architecture, then deliver staged read/log/timer/notification/sync behavior. Physical inventory was not checked in this source reconciliation; hardware evidence must remain blocked until genuinely available, without blocking independent architecture work.",
+      "requiredEvidence": [
+        "tests",
+        "preview",
+        "production",
+        "device"
+      ]
     }
   ],
   "checkpoints": [
@@ -4022,6 +4267,103 @@
       ],
       "evidenceScope": "Live GitHub inspection confirmed all five PRs merged and application/operations/Compose/image workflows successful on a072897. Current runtime, physical devices, genuine handwriting and historical migration are not inferred. Existing five release PASS contracts remain bound to the published 64c69c4 release.",
       "remainingWork": "Complete the interrupted exact-image release gates and all remaining broad contracts. Preserve draft PR35, recovery refs, worktrees and stashes."
+    },
+    {
+      "id": "2026-11-19-mandatory-feature-intake",
+      "revision": "236856df566064a6ea720e95b9ffbfcd84a724ec",
+      "status": "SOURCE_RECONCILIATION_ONLY",
+      "scope": [
+        "PAR-001",
+        "PAR-002",
+        "PAR-003",
+        "PAR-004",
+        "PAR-008",
+        "PAR-012",
+        "PAR-013",
+        "PAR-014",
+        "PAR-015",
+        "PAR-016",
+        "PAR-017",
+        "PAR-018",
+        "PAR-019",
+        "PAR-020",
+        "PAR-021",
+        "PAR-023",
+        "PAR-029",
+        "PAR-030",
+        "PAR-031",
+        "PAR-032",
+        "PAR-034",
+        "PAR-036",
+        "PAR-037",
+        "PAR-038",
+        "PAR-039",
+        "PAR-041",
+        "PAR-042",
+        "PAR-043",
+        "PAR-044",
+        "PAR-045",
+        "PAR-048",
+        "PAR-049",
+        "PAR-050",
+        "PAR-052",
+        "PAR-056",
+        "PAR-057",
+        "PAR-058",
+        "PAR-059",
+        "PAR-060",
+        "PAR-061",
+        "PAR-063",
+        "PAR-065",
+        "PAR-066",
+        "PAR-076",
+        "JRN-001",
+        "SYNC-001",
+        "PKG-001",
+        "PKG-002",
+        "MOD-001",
+        "CARE-001",
+        "GOV-002",
+        "DEV-004"
+      ],
+      "reference": "docs/sat-tracker-mandatory-coverage-2026-11-19.md",
+      "implementationReferences": [
+        "docs/FEATURE_PARITY_MATRIX.md",
+        "application/prisma/schema.prisma",
+        "application/src/components/forms/",
+        "application/src/components/PhotoGallery/",
+        "application/src/lib/bottle-journal/",
+        "application/src/lib/ocr/",
+        "modules/registry.json"
+      ],
+      "evidenceScope": "Source and requirement mapping only. Detailed criteria are expanded within existing IDs and one Apple Watch contract is added. Original statuses and evidence remain unchanged; no test, preview, deployment, physical-device or whole-product acceptance is inferred from this audit. Existing five release-control PASS records remain tied to their recorded 64c69c4 release.",
+      "remainingWork": "Implement and qualify the bounded current-source OCR/PIN work and next core-feature slices, update existing issue owners, retain watch issue #98, and continue the ledger. Production promotion requires separate explicit release approval and fresh exact-image safeguards."
+    },
+    {
+      "id": "2026-11-19-ocr-review-and-session-recovery",
+      "revision": "c43371363ec354bbb8848510953fff16bafd6db5",
+      "status": "IMPLEMENTATION_AND_LOCAL_VERIFICATION",
+      "scope": [
+        "PAR-002",
+        "PAR-003",
+        "PAR-019",
+        "PAR-052",
+        "PAR-066",
+        "SETUP-001",
+        "GOV-001",
+        "GOV-002",
+        "GOV-003"
+      ],
+      "reference": "https://github.com/MulattoTech/Sat-Tracker/pull/99",
+      "implementationReferences": [
+        "https://github.com/MulattoTech/Sat-Tracker/pull/97",
+        "https://github.com/MulattoTech/Sat-Tracker/commit/27b6c5ae74e56a2893697f95b09534693fa9831f",
+        "https://github.com/MulattoTech/Sat-Tracker/commit/28836661a006bb318f512dd67ae4f614a8e728ba",
+        "application/src/components/OcrImport/review-helpers.ts",
+        "application/tests/ocr-review-ui.test.ts"
+      ],
+      "evidenceScope": "The existing unpublished logout-session correction was recovered and independently reviewed. Eleven new OCR summary regressions failed before the correction; selected source timezone and explicit repeated-clock choices now determine elapsed sleep and rejected rows are excluded. Fresh combined local verification at c433713: 278 targeted tests passed, TypeScript passed, operations ran 44 tests (34 passed, 10 platform skips), and the ledger validator plus 13 ledger tests passed. Source reviews found no blocking findings. Full hosted application/browser gates are tracked in PR97 and PR99 and were still pending when this checkpoint was written. No new broad contract PASS, production promotion, handwriting or physical-device acceptance is claimed.",
+      "remainingWork": "Inspect and resolve the fresh complete browser gate, merge only qualified exact heads, and retain the current deployed b24ccc9 image until a separately qualified and approved release. Continue the next ready core/OCR or family-workflow slice from the mandatory coverage queue. Existing Project board discovery is blocked by missing read:project scope; issues/ledger were maintained without new credentials or a competing board."
     }
   ],
   "releaseEvidenceScope": "asOfSourceRevision identifies audited merged source, not a deployment claim. asOfRelease and the five existing VERIFIED PASS release controls remain pinned to the independently accepted 64c69c4 release. A newer production promotion requires its own exact-image receipts; no runtime/device evidence is inferred from main CI."

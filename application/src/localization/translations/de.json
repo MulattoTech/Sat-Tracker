@@ -3289,5 +3289,6 @@
   "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Die Abmeldung konnte nicht bestätigt werden. Versuchen Sie es erneut oder kehren Sie nach Ende der Anfrage zur Anmeldung zurück.",
   "Retry sign-out": "Abmeldung erneut versuchen",
   "Return to sign-in": "Zur Anmeldung zurückkehren",
-  "The sign-in page did not open. Try again.": "Die Anmeldeseite wurde nicht geöffnet. Versuchen Sie es erneut."
+  "The sign-in page did not open. Try again.": "Die Anmeldeseite wurde nicht geöffnet. Versuchen Sie es erneut.",
+  "Sleep periods awaiting valid times": "Schlafphasen mit noch ungültigen Zeitangaben"
 }

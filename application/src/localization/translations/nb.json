@@ -3289,5 +3289,6 @@
   "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "Utloggingen kunne ikke bekreftes. Prøv igjen, eller gå tilbake til innlogging når forespørselen har stoppet.",
   "Retry sign-out": "Prøv utlogging på nytt",
   "Return to sign-in": "Tilbake til innlogging",
-  "The sign-in page did not open. Try again.": "Innloggingssiden ble ikke åpnet. Prøv igjen."
+  "The sign-in page did not open. Try again.": "Innloggingssiden ble ikke åpnet. Prøv igjen.",
+  "Sleep periods awaiting valid times": "Søvnperioder som venter på gyldige tider"
 }

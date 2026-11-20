@@ -3289,5 +3289,6 @@
   "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "साइन आउट की पुष्टि नहीं हो सकी। दोबारा कोशिश करें या अनुरोध रुकने के बाद साइन इन पर लौटें।",
   "Retry sign-out": "साइन आउट फिर से करें",
   "Return to sign-in": "साइन इन पर लौटें",
-  "The sign-in page did not open. Try again.": "साइन इन पेज नहीं खुला। फिर से कोशिश करें।"
+  "The sign-in page did not open. Try again.": "साइन इन पेज नहीं खुला। फिर से कोशिश करें।",
+  "Sleep periods awaiting valid times": "मान्य समय की प्रतीक्षा में नींद की अवधियाँ"
 }

@@ -10,7 +10,7 @@ are fetched with an authorization header and rendered from temporary blob URLs.
 2. Compare the original page side-by-side with editable feeding, diaper and sleep drafts. Toggle between side-by-side and stacked views on phone/tablet.
 3. Edit, add manual events, split rows, merge adjacent split lines, or explicitly reject unwanted rows. Unknown handwriting can be manually transcribed.
 4. Check individual approved rows or explicitly bulk-approve valid rows after review. Edits, timezone changes, and merges clear approval.
-5. Review live recalculating totals (feeding volume in mL/oz, diaper breakdown by type, sleep duration).
+5. Review live recalculating totals (feeding volume in mL/oz, diaper breakdown by type, sleep duration). Sleep uses the selected source time zone and explicit repeated-clock occurrences, matching canonical import across daylight-saving changes. Unresolved or invalid sleep times are identified and excluded from the duration; rejected rows contribute to no domain total.
 6. Save incomplete drafts without creating events. Preview approved rows against existing care records.
 7. Resolve every reported duplicate (clearly distinguished between same-sheet event collisions and timeline duplicates) as a deliberate skip or a distinct event, acknowledge source/warning review, and confirm the import.
 

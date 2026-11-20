@@ -3289,5 +3289,6 @@
   "Sign-out could not be confirmed. Retry, or return to sign-in after the request has stopped.": "La déconnexion n’a pas pu être confirmée. Réessayez ou revenez à la connexion une fois la requête arrêtée.",
   "Retry sign-out": "Réessayer la déconnexion",
   "Return to sign-in": "Revenir à la connexion",
-  "The sign-in page did not open. Try again.": "La page de connexion ne s’est pas ouverte. Réessayez."
+  "The sign-in page did not open. Try again.": "La page de connexion ne s’est pas ouverte. Réessayez.",
+  "Sleep periods awaiting valid times": "Périodes de sommeil en attente d’horaires valides"
 }

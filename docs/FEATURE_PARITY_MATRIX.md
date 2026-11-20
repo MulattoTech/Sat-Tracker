@@ -2,6 +2,31 @@
 
 This file defines the desired *union* of Baby Buddy, Sprout Track, and independently implemented Huckleberry-style sleep planning.
 
+## Current mandatory scope
+
+The original 77 rows below retain stable ledger owners **PAR-001–PAR-077**.
+The [November 19 mandatory coverage index](sat-tracker-mandatory-coverage-2026-11-19.md)
+maps the owner's full baby-care mission to those rows and existing mission
+extensions, with source findings, issue ownership and a prioritized queue.
+Detailed acceptance criteria live in the
+[canonical acceptance ledger](sat-tracker-acceptance-ledger.json), scope version
+`2026-11-19-v3`; neither this table nor the coverage index is a separate progress
+denominator.
+
+The reconciliation explicitly retains preloaded foods (at least 75), rash
+logging, granular caregiver permissions, medical appointment/care-plan details,
+memory journals, cross-domain offline behavior and pediatrician reports within
+their existing owners. **DEV-004** adds the distinct mandatory Apple Watch
+architecture, workflows and physical-device acceptance contract, tracked in
+[issue #98](https://github.com/MulattoTech/Sat-Tracker/issues/98). Existing
+Android/Windows packaging and Pixel/iPad requirements remain intact.
+
+No current implementation or acceptance status is implied by a Required target.
+The ledger records VERIFIED PASS / IN PROGRESS / BLOCKED / NOT IMPLEMENTED and
+preserves separate test, preview, production and physical-device evidence.
+
+## Original parity capabilities
+
 Status values for future use:
 
 - NOT STARTED
