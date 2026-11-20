@@ -3302,5 +3302,20 @@
   "Not applicable": "लागू नहीं",
   "{age} before estimated due date": "अनुमानित प्रसव तिथि से {age} पहले",
   "Select a birth date before saving.": "सहेजने से पहले जन्म तिथि चुनें।",
-  "Unable to save baby. Please try again.": "बच्चे की जानकारी सहेजी नहीं जा सकी। कृपया फिर से कोशिश करें।"
+  "Unable to save baby. Please try again.": "बच्चे की जानकारी सहेजी नहीं जा सकी। कृपया फिर से कोशिश करें।",
+  "Rash observation": "चकत्ते का अवलोकन",
+  "Rash observed": "चकत्ता देखा गया",
+  "No rash observed": "कोई चकत्ता नहीं देखा गया",
+  "Clear rash observation": "चकत्ते का अवलोकन साफ़ करें",
+  "Rash location": "चकत्ते का स्थान",
+  "Rash description": "चकत्ते का विवरण",
+  "Products applied": "लगाए गए उत्पाद",
+  "Follow-up notes": "आगे की निगरानी के नोट्स",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "वैकल्पिक। जो देखा है, वही दर्ज करें; अज्ञात अवलोकनों को खाली छोड़ दें।",
+  "Maximum {count} characters.": "अधिकतम {count} अक्षर।",
+  "Please select a diaper type.": "कृपया डायपर का प्रकार चुनें।",
+  "One or more rash details exceed the character limit.": "चकत्ते के एक या अधिक विवरण अक्षर सीमा से अधिक हैं।",
+  "Export PDF": "PDF निर्यात करें",
+  "Unable to export activities. Please try again.": "गतिविधियाँ निर्यात नहीं हो सकीं। कृपया फिर से प्रयास करें।",
+  "Preparing PDF...": "PDF तैयार हो रहा है..."
 }

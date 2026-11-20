@@ -59,15 +59,22 @@ function contention(error: unknown): boolean {
 }
 const busy = () => new QuickCareWriteError('Another care action is being saved. Keep this saved action and retry.', 'QUICK_CARE_BUSY');
 type Stamps = 'id' | 'createdAt' | 'updatedAt';
+type DiaperIdentityFieldsV1 = 'familyId' | 'babyId' | 'caretakerId' | 'time' | 'type'
+  | 'condition' | 'color' | 'blowout' | 'creamApplied' | 'notes' | 'deletedAt';
 
-/** Explicit complete initial scalars let the receipt reconstruct the original
- * revision, independently of the current row. Added model scalars must also be
- * initialized here: the model type and generated revision inventory both guard
- * this boundary. No current row supplies a missing original field. */
-function initialDiaper(auth: AuthResult, request: QuickDiaperRequest): Omit<DiaperLog, Stamps> {
+/** Persisted v1 request identity: keep the original fields AND key order. Pending
+ * requests and durable receipts created before the rash migration use this hash.
+ * Added nullable fields belong in the reconstructed row, never this identity. */
+function diaperIdentityV1(auth: AuthResult, request: QuickDiaperRequest): Pick<DiaperLog, DiaperIdentityFieldsV1> {
   return { familyId: auth.familyId!, babyId: request.babyId, caretakerId: auth.caretakerId ?? null,
     time: new Date(request.time), type: request.type, condition: null, color: null, blowout: false,
     creamApplied: false, notes: null, deletedAt: null };
+}
+/** Complete initial scalars reconstruct the original revision without adopting
+ * anything from the current row. Quick care does not record a rash observation. */
+function initialDiaper(auth: AuthResult, request: QuickDiaperRequest): Omit<DiaperLog, Stamps> {
+  return { ...diaperIdentityV1(auth, request), rashObserved: null, rashLocation: null,
+    rashDescription: null, rashProductsApplied: null, rashFollowUpNotes: null };
 }
 function initialFood(auth: AuthResult, request: QuickFoodRequest): Omit<FoodLog, Stamps> {
   const foods = buildFoodLogFoodFields([{ foodId: request.foodId, hadReaction: false, reactionDescription: null }]);
@@ -85,7 +92,8 @@ export async function createNurseryQuickCare(db: PrismaClient, auth: AuthResult,
   const initial = request.kind === 'diaper' ? initialDiaper(auth, request) : initialFood(auth, request);
   // UUID distinguishes deliberate repeated care. The payload and authenticated
   // actor are also bound so an old UUID cannot adopt a later edited row.
-  const id = `nursery-${kind}-` + createHash('sha256').update(JSON.stringify([request.scope, request.requestId, initial])).digest('hex');
+  const identity = request.kind === 'diaper' ? diaperIdentityV1(auth, request) : initial;
+  const id = `nursery-${kind}-` + createHash('sha256').update(JSON.stringify([request.scope, request.requestId, identity])).digest('hex');
   const key = { familyId, providerId, sourceEntityType: kind, sourceRecordId: request.requestId };
   const targetEntityType = kind === 'diaper' ? 'DiaperLog' : 'FoodLog';
   const references = async (tx: Prisma.TransactionClient) => {

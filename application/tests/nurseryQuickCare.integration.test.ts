@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -39,6 +39,24 @@ const put = (kind: Kind, id: string, payload: unknown, token = tokens[peer]) => 
 const remove = (kind: Kind, id: string, payload?: unknown) => (kind === 'diaper' ? deleteDiaper : deleteFood)(request('DELETE', kind, payload, tokens[actor], id));
 const rows = async () => ({ diapers: await db.diaperLog.findMany({ orderBy: { id: 'asc' } }),
   food: await db.foodLog.findMany({ orderBy: { id: 'asc' } }), receipts: await db.externalImportRecord.findMany({ orderBy: { id: 'asc' } }) });
+
+// Frozen pre-rash v1 wire contract, deliberately independent of production
+// identity/revision helpers and the generated Prisma scalar inventory.
+function legacyDiaper(payload: ReturnType<typeof body>) {
+  const initial = { familyId, babyId, caretakerId: actor, time: new Date(at), type: 'WET' as const,
+    condition: null, color: null, blowout: false, creamApplied: false, notes: null, deletedAt: null };
+  const id = 'nursery-diaper-' + createHash('sha256').update(JSON.stringify([
+    payload.nurseryScope, payload.requestId, initial,
+  ])).digest('hex');
+  const importedAt = new Date('2026-10-20T12:00:01.123Z');
+  const row = { ...initial, id, createdAt: importedAt, updatedAt: importedAt };
+  const revision = createHash('sha256').update(JSON.stringify(Object.keys(row).sort().map(key =>
+    [key, row[key as keyof typeof row]]))).digest('hex');
+  const undo = { version: 1, kind: 'diaper', babyId, scope: payload.nurseryScope, records: [{ id, revision }] };
+  const receipt = { familyId, providerId: 'sat-tracker-nursery-quick-care-v1', sourceEntityType: 'diaper',
+    sourceRecordId: payload.requestId, sourceChildId: babyId, targetEntityType: 'DiaperLog', targetRecordId: id, importedAt };
+  return { row, receipt, undo };
+}
 
 beforeAll(async () => {
   directory = mkdtempSync(path.join(tmpdir(), 'sat-nursery-quick-care-'));
@@ -96,6 +114,49 @@ afterAll(async () => {
 });
 
 describe('Nursery quick diaper and food recovery through real ordinary-caregiver login and migrated SQLite', () => {
+  it('recovers a lost pre-upgrade diaper response from its durable v1 receipt after a client restart', async () => {
+    const pending = JSON.parse(JSON.stringify(body('diaper')));
+    const legacy = legacyDiaper(pending);
+    await db.diaperLog.create({ data: legacy.row }); await db.externalImportRecord.create({ data: legacy.receipt });
+    const before = await rows(), originalClient = state.db;
+    const restarted = new PrismaClient({ adapter: createPrismaAdapter('file:' + path.join(directory, 'synthetic.db')) });
+    try {
+      state.db = restarted;
+      const response = await post('diaper', pending); expect(response.status).toBe(200);
+      const saved = await response.json();
+      expect(saved).toMatchObject({ replayed: true, undo: legacy.undo, data: { id: legacy.row.id,
+        time: at, rashObserved: null, rashLocation: null, rashDescription: null, rashProductsApplied: null, rashFollowUpNotes: null } });
+      expect(await rows()).toEqual(before); expect(state.notify).not.toHaveBeenCalled(); expect(state.reset).not.toHaveBeenCalled();
+      expect((await remove('diaper', legacy.row.id, { nurseryUndo: legacy.undo })).status).toBe(200);
+      const removed = await rows(); expect(removed.diapers).toHaveLength(0); expect(removed.receipts).toEqual(before.receipts);
+      expect((await post('diaper', pending)).status).toBe(409); expect(await rows()).toEqual(removed);
+    } finally { state.db = originalClient; await restarted.$disconnect(); }
+  });
+
+  it('keeps an uncommitted pre-upgrade diaper request identity on first save and retry', async () => {
+    const pending = JSON.parse(JSON.stringify(body('diaper'))), legacy = legacyDiaper(pending);
+    const first = await post('diaper', pending); expect(first.status).toBe(200);
+    const saved = await first.json(); expect(saved.data.id).toBe(legacy.row.id); expect(saved.replayed).toBe(false);
+    const before = await rows(); expect(before.diapers).toHaveLength(1); expect(before.receipts).toHaveLength(1);
+    const replay = await post('diaper', pending); expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual({ ...saved, replayed: true }); expect(await rows()).toEqual(before);
+  });
+
+  it.each([
+    { rashObserved: true }, { rashObserved: false }, { rashLocation: 'Synthetic area' },
+    { rashDescription: 'Caregiver observed change' }, { rashProductsApplied: 'Synthetic product' },
+    { rashFollowUpNotes: 'Recheck observation' }, { rashDescription: '' },
+  ])('never adopts a later rash correction into a pre-upgrade replay or Undo: %j', async change => {
+    const pending = body('diaper'), legacy = legacyDiaper(pending);
+    await db.diaperLog.create({ data: legacy.row }); await db.externalImportRecord.create({ data: legacy.receipt });
+    await db.diaperLog.update({ where: { id: legacy.row.id }, data: { ...change, updatedAt: legacy.row.updatedAt } });
+    const corrected = await rows();
+    const replay = await post('diaper', pending); expect(replay.status).toBe(409);
+    expect((await replay.json()).undo).toBeUndefined();
+    expect((await remove('diaper', legacy.row.id, { nurseryUndo: legacy.undo })).status).toBe(409);
+    expect(await rows()).toEqual(corrected);
+  });
+
   it.each(kinds)('confirms one original %s save and the same original Undo on exact replay', async kind => {
     const payload = body(kind); const first = await post(kind, payload); expect(first.status).toBe(200);
     const saved = await first.json(), before = await rows(); expect(readNurseryUndo(saved.undo)?.kind).toBe(kind);

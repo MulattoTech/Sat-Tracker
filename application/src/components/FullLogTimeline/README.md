@@ -10,6 +10,23 @@ A comprehensive timeline component that displays activities over a date range wi
 - Pagination controls for viewing large sets of activities
 - Activity details view with edit and delete functionality
 - Dark mode support with consistent styling
+- Selected-range CSV, XLSX and PDF export with the active activity-type filter
+
+## Selected export
+
+`FullLogExportButton` sends the current child, date range, activity-type filter,
+timezone and language to the authorized timeline export route. The screen's
+free-text search is not an export filter. All three formats include labeled rash
+observations and caregiver details. Failed exports show an inline error and can
+be retried.
+
+CSV protects leading spreadsheet formula markers. XLSX uses string cells. The
+PDF's internal JSON request returns those same authorized localized rows;
+`activity-pdf.ts` inserts text nodes, paginates full fields without discarding
+overflow, captures one page at a time with the existing html2canvas/jsPDF
+dependencies, and removes its temporary DOM in `finally`. It produces a visual
+PDF of page images; use CSV/XLSX for selectable data. `activity-pdf.css` fixes the
+print layout independently of the device viewport and app theme.
 
 ## Usage
 
@@ -76,8 +93,7 @@ The FullLogTimeline component is built using:
 - TailwindCSS for styling via utility functions
 - Class Variance Authority (CVA) for style variants
 - Lucide React for icons
-- React Query for data fetching
-- React Hook Form for form handling
+- React hooks and the existing authenticated fetch flow
 
 ## Dark Mode Support
 

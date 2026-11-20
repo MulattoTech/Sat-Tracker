@@ -3302,5 +3302,20 @@
   "Not applicable": "Ikke aktuelt",
   "{age} before estimated due date": "{age} før beregnet termin",
   "Select a birth date before saving.": "Velg en fødselsdato før du lagrer.",
-  "Unable to save baby. Please try again.": "Kunne ikke lagre barnet. Prøv igjen."
+  "Unable to save baby. Please try again.": "Kunne ikke lagre barnet. Prøv igjen.",
+  "Rash observation": "Observasjon av utslett",
+  "Rash observed": "Utslett observert",
+  "No rash observed": "Ingen utslett observert",
+  "Clear rash observation": "Fjern observasjon av utslett",
+  "Rash location": "Plassering av utslett",
+  "Rash description": "Beskrivelse av utslett",
+  "Products applied": "Påførte produkter",
+  "Follow-up notes": "Oppfølgingsnotater",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Valgfritt. Registrer det du har observert; la ukjente observasjoner stå tomme.",
+  "Maximum {count} characters.": "Maksimalt {count} tegn.",
+  "Please select a diaper type.": "Velg en bleietype.",
+  "One or more rash details exceed the character limit.": "Én eller flere opplysninger om utslettet overskrider tegngrensen.",
+  "Export PDF": "Eksporter PDF",
+  "Unable to export activities. Please try again.": "Kunne ikke eksportere aktiviteter. Prøv igjen.",
+  "Preparing PDF...": "Klargjør PDF..."
 }

@@ -3306,5 +3306,20 @@
   "Not applicable": "Nie dotyczy",
   "{age} before estimated due date": "{age} przed przewidywanym terminem porodu",
   "Select a birth date before saving.": "Przed zapisaniem wybierz datę urodzenia.",
-  "Unable to save baby. Please try again.": "Nie udało się zapisać danych dziecka. Spróbuj ponownie."
+  "Unable to save baby. Please try again.": "Nie udało się zapisać danych dziecka. Spróbuj ponownie.",
+  "Rash observation": "Obserwacja wysypki",
+  "Rash observed": "Zaobserwowano wysypkę",
+  "No rash observed": "Nie zaobserwowano wysypki",
+  "Clear rash observation": "Wyczyść obserwację wysypki",
+  "Rash location": "Miejsce wysypki",
+  "Rash description": "Opis wysypki",
+  "Products applied": "Zastosowane produkty",
+  "Follow-up notes": "Notatki z dalszej obserwacji",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Opcjonalne. Zapisz to, co zaobserwowano; pozostaw nieznane obserwacje bez wpisu.",
+  "Maximum {count} characters.": "Maksymalnie {count} znaków.",
+  "Please select a diaper type.": "Wybierz rodzaj pieluchy.",
+  "One or more rash details exceed the character limit.": "Co najmniej jeden opis dotyczący wysypki przekracza limit znaków.",
+  "Export PDF": "Eksportuj PDF",
+  "Unable to export activities. Please try again.": "Nie udało się wyeksportować aktywności. Spróbuj ponownie.",
+  "Preparing PDF...": "Przygotowywanie PDF..."
 }

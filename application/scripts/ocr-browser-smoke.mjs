@@ -26,6 +26,7 @@ import { verifyNurseryQuickCare } from './nursery-quick-care-browser.mjs';
 import { verifyFamilyReadBoundaries } from './family-read-boundary-http.mjs';
 import { verifyLogoutLifecycle } from './logout-lifecycle-browser.mjs';
 import { verifyCorrectedAge } from './corrected-age-browser.mjs';
+import { verifyDiaperRash } from './diaper-rash-browser.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -351,6 +352,12 @@ try {
   report.screenshots.push(...[
     'corrected-age-default.png', 'corrected-age-default-phone.png', 'corrected-age-phone-header.png',
     'corrected-age-storybook.png', 'corrected-age-storybook-tablet.png', 'corrected-age-tablet-header.png',
+  ].map(name => path.join(reportDir, name)));
+  report.checks.push(...await verifyDiaperRash({ base, db, browser, reportDir }));
+  report.diaperRashChecksPassed = true;
+  report.screenshots.push(...[
+    'diaper-rash-history.png', 'diaper-rash-phone-status.png', 'diaper-rash-phone-fields.png',
+    'diaper-rash-phone-rejected.png', 'diaper-rash-phone-history.png', 'diaper-rash-pdf-first.png', 'diaper-rash-pdf-last.png',
   ].map(name => path.join(reportDir, name)));
   report.checks.push(...await verifyNurseryPumpRecovery({ base, db, family, baby, caretaker, token, secret, context }));
   report.nurseryPumpRecoveryChecksPassed = true;

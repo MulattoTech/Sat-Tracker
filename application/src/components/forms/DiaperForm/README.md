@@ -1,93 +1,42 @@
-# DiaperForm Component
+# DiaperForm
 
-A form component for creating and editing diaper change records for a baby. This component follows the form-page pattern used throughout the application.
-
-## Features
-
-- Create new diaper change records
-- Edit existing diaper change records
-- Support for different diaper types (Wet, Dirty, Both)
-- Conditional fields based on diaper type
-- Form validation for required fields
-- Responsive design
-- Multi-family support with family ID association
+The active diaper editor creates and updates wet, dirty, wet-and-dirty, and dry records. It is used by Log Entry and the timeline editors. The older DiaperModal is not part of this flow.
 
 ## Props
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `isOpen` | boolean | Yes | Controls whether the form is visible |
-| `onClose` | () => void | Yes | Function to call when the form should be closed |
-| `babyId` | string \| undefined | Yes | ID of the baby for whom the diaper change is being recorded |
-| `initialTime` | string | Yes | Initial time value for the form (ISO format) |
-| `activity` | DiaperLogResponse | No | Existing diaper change record data (for edit mode) |
-| `onSuccess` | () => void | No | Optional callback function called after successful submission |
-| `familyId` | string | No | The ID of the family this diaper change record belongs to (for multi-family support) |
+| Prop | Type | Purpose |
+| --- | --- | --- |
+| `isOpen` | `boolean` | Opens the form page. |
+| `onClose` | `() => void` | Closes the editor. |
+| `babyId` | `string \| undefined` | Identifies the selected child. |
+| `initialTime` | `string` | Initial event time for a new entry. |
+| `activity` | `DiaperLogResponse` | Optional existing entry to edit. |
+| `onSuccess` | `() => void` | Refreshes the caller after a successful write. |
 
-## Usage
+Family authorization is enforced by the API using the authenticated session. This component does not accept a client-selected family ID.
 
-```tsx
-import DiaperForm from '@/src/components/forms/DiaperForm';
-import { useFamily } from '@/src/context/family'; // Import family context
+## Observational rash capture
 
-function MyComponent() {
-  const [showDiaperForm, setShowDiaperForm] = useState(false);
-  const [selectedBaby, setSelectedBaby] = useState<{ id: string }>();
-  const { family } = useFamily(); // Get current family from context
-  
-  return (
-    <>
-      <Button onClick={() => setShowDiaperForm(true)}>
-        Log Diaper Change
-      </Button>
-      
-      <DiaperForm
-        isOpen={showDiaperForm}
-        onClose={() => setShowDiaperForm(false)}
-        babyId={selectedBaby?.id}
-        initialTime={new Date().toISOString()}
-        familyId={family?.id} // Pass the current family ID
-        onSuccess={() => {
-          // Refresh data or perform other actions after successful submission
-        }}
-      />
-    </>
-  );
-}
-```
+`DiaperRashFields` presents three keyboard-accessible, mutually exclusive pressed buttons. **Rash observed** records `true`; **No rash observed** records `false`; **Clear rash observation** records `null` (not recorded). A new or legacy record starts unknown. Cream use, diaper type, and caregiver text never decide rash status. Clearing the status leaves optional text intact; each text field can be cleared separately.
 
-## Form Fields
+The optional fields are rash location (200 characters), description (2,000), products applied (1,000), and follow-up notes (2,000). They record caregiver observations without diagnosis, severity scoring, treatment advice, or inferred relationships. Limits are shared with the API through `DIAPER_RASH_TEXT_LIMITS`. HTML `maxLength` and the API use UTF-16 string length. Nonblank text remains verbatim; a caregiver clearing a text field sends `null`.
 
-The component dynamically shows different fields based on the selected diaper type:
+All four diaper types expose these controls. Stool condition and color retain their existing dirty/both behavior. The independent cream, blowout, and general notes fields remain available.
 
-### All Diaper Types
-- **Time**: Date and time of the diaper change (required)
-- **Type**: Type of diaper (Wet, Dirty, Both) (required)
+## Editing and failures
 
-### Dirty or Both Types
-Additional fields are shown when the type is "Dirty" or "Both":
-- **Condition**: The condition of the stool (Normal, Loose, Firm, Other)
-- **Color**: The color of the stool (Yellow, Brown, Green, Black, Red, Other)
+The draft initializes on opening a record and survives failed saves and same-record refreshes. Only touched rash fields enter the payload, protecting newer stored data when a legacy cached activity lacks those fields. Untouched fields are omitted for both new entries and edits; the API supplies null defaults for new records.
 
-## Implementation Details
+The date/time picker edits minutes. When the selected instant remains within the original minute, the update omits `time`, preserving stored seconds, milliseconds, and the original instant. A changed minute is sent as an ISO timestamp; repeated wall-clock times across a DST change remain distinct instants.
 
-- Uses the FormPage component for consistent UI across the application
-- Implements useEffect hooks to populate form data when editing
-- Uses an initialization flag to prevent form reset when initialTime prop changes
-- Conditionally renders fields based on the selected diaper type
-- Provides validation before submission
-- Handles API calls for creating and updating diaper change records
-- Resets form after successful submission
-- Supports multi-family functionality by accepting a familyId prop and including it in API requests
+Save failures show a localized inline alert and keep every field on screen for retry. A successful response closes the editor and refreshes the caller. Closing and reopening a new-entry form starts a fresh draft.
 
-### Multi-Family Support
+## History and search
 
-The component supports multi-family functionality by:
-- Accepting a `familyId` prop to associate the diaper change record with a specific family
-- Including the family ID in the API request payload
-- The API endpoint also extracts the family ID from request headers as a fallback
+`src/utils/diaperRash.ts` supplies the same explicit true/false/unknown wording to timeline details, compact summaries, and selected-range exports. Full Log search includes every optional rash text plus localized status and labels. Diaper detail rows stack on narrow screens and wrap long text while preserving line breaks.
 
-When using this component in a multi-family context, you should:
-1. Import and use the family context to get the current family ID
-2. Pass the family ID to the DiaperForm component
-3. The component will handle sending this ID to the API
+Photos, timestamped follow-up history, complete caregiver handoff, and clinical interpretation are outside this component's current scope.
+
+## Verification
+
+`tests/diaperRashPresentation.test.ts` covers status distinctions, caregiver-text preservation, actual history formatting for all four diaper types, legacy omission, explicit clears, length boundaries, and timestamp preservation including the repeated DST hour. The translation suite verifies every new message in all twelve locales. The separate browser acceptance harness verifies real create/edit/failure/history/search and responsive keyboard interactions with synthetic records.

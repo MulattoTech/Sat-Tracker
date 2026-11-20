@@ -83,15 +83,24 @@ async function createCare(kind: CareKind, id: string, options: CareOptions = {})
   }
 }
 
-async function exportRows(format: 'csv' | 'xlsx') {
-  const response = await exportTimeline(request(`/api/timeline/export?babyId=${babyId}&format=${format}&timezone=UTC&language=en`));
+async function exportRows(format: 'csv' | 'xlsx' | 'json', query = '') {
+  const response = await exportTimeline(request(`/api/timeline/export?babyId=${babyId}&format=${format}&timezone=UTC&language=en${query}`));
   expect(response.status).toBe(200);
+  if (format === 'json') {
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    const result = await response.json(); expect(result.success).toBe(true);
+    expect(result.data.filename).toMatch(/^activity-log-.+\.pdf$/);
+    return result.data.rows as Record<string, string>[];
+  }
   if (format === 'csv') return parse(await response.text(), { columns: true }) as Record<string, string>[];
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(await response.arrayBuffer());
   const sheet = workbook.worksheets[0], headers = (sheet.getRow(1).values as string[]).slice(1);
   const rows: Record<string, string>[] = [];
-  sheet.eachRow((row, index) => { if (index > 1) rows.push(Object.fromEntries(headers.map((header, i) => [header, row.getCell(i + 1).text]))); });
+  sheet.eachRow((row, index) => {
+    row.eachCell(cell => expect(cell.type).not.toBe(ExcelJS.ValueType.Formula));
+    if (index > 1) rows.push(Object.fromEntries(headers.map((header, i) => [header, row.getCell(i + 1).text])));
+  });
   return rows;
 }
 
@@ -194,7 +203,7 @@ describe('family read boundaries through real USER/read-only-key auth and migrat
     ]);
   });
 
-  it.each(['csv', 'xlsx'] as const)('%s preserves own historical export rows while suppressing foreign/unresolved related labels', async format => {
+  it.each(['csv', 'xlsx', 'json'] as const)('%s preserves own historical export rows while suppressing foreign/unresolved related labels', async format => {
     for (const [kind, owner] of badOwners) {
       const caretakerId = kind === 'foreign' ? foreignCaregiver : nullCaregiver;
       await createCare('diaper', `${kind}-diaper`, { caretakerId });
@@ -207,10 +216,43 @@ describe('family read boundaries through real USER/read-only-key auth and migrat
     const rows = await exportRows(format); expect(rows).toHaveLength(8);
     for (const [kind] of badOwners) for (const type of ['diaper', 'dose', 'meal']) {
       const row = rows.find(item => item.Notes === `${kind}-${type}`); expect(row).toBeDefined();
-      expect(row?.Caretaker).toBe(''); expect(row?.Details).toBe('');
+      expect(row?.Caretaker).toBe(''); expect(row?.Details).toBe(type === 'diaper' ? 'Rash observation: Not recorded' : '');
     }
     expect(rows.find(row => row.Notes === 'owned-deleted-dose')).toMatchObject({ Details: `Synthetic ${deletedMedicine}`, Caretaker: `Synthetic ${deletedCaregiver}` });
     expect(rows.find(row => row.Notes === 'owned-deleted-meal')).toMatchObject({ Details: `Synthetic ${deletedFood}; Common allergen`, Caretaker: `Synthetic ${deletedCaregiver}` });
+  });
+
+  it.each(['csv', 'xlsx', 'json'] as const)('%s exports exact selected rash observations as literal text without inferring from cream', async format => {
+    const statuses = [true, false, null] as const;
+    const rashLocation = '=CAREGIVER(1,2)', rashDescription = 'Caregiver said "café"\n@observation only; no diagnosis',
+      rashProductsApplied = '+Synthetic product', rashFollowUpNotes = '-Caregiver follow-up';
+    for (const [index, rashObserved] of statuses.entries()) await db.diaperLog.create({ data: {
+      id: `rash-${index}`, babyId, familyId, caretakerId: caregiver, time: new Date(at.getTime() + index * 1000),
+      type: 'BOTH', creamApplied: true, rashObserved, rashLocation, rashDescription, rashProductsApplied, rashFollowUpNotes,
+      notes: `=RASH_${index}(1,2)`,
+    } });
+    await createCare('diaper', 'rash-before-range', { time: new Date(at.getTime() - 1) });
+    await createCare('diaper', 'rash-after-range', { time: new Date(at.getTime() + 2001) });
+    await createCare('diaper', 'rash-foreign-row', { familyId: otherFamilyId, time: at });
+    await createCare('note', 'rash-other-activity', { time: at });
+    const before = await db.diaperLog.findMany({ orderBy: { id: 'asc' } });
+    const query = '&filter=diaper&startDate=' + encodeURIComponent(at.toISOString())
+      + '&endDate=' + encodeURIComponent(new Date(at.getTime() + 2000).toISOString());
+    const rows = await exportRows(format, query); expect(rows).toHaveLength(3);
+    for (const [index, status] of ['Rash observed', 'No rash observed', 'Not recorded'].entries()) {
+      const note = `${format === 'csv' ? "'" : ''}=RASH_${index}(1,2)`;
+      const row = rows.find(value => value.Notes === note); expect(row).toBeDefined();
+      expect(row?.Details).toBe(`Cream Applied; Rash observation: ${status}; Rash location: ${rashLocation}; Rash description: ${rashDescription}; Products applied: ${rashProductsApplied}; Follow-up notes: ${rashFollowUpNotes}`);
+      expect(row?.Caretaker).toBe(`Synthetic ${caregiver}`);
+    }
+    expect(await db.diaperLog.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+  });
+
+  it.each(['csv', 'xlsx', 'json'] as const)('%s retains export family and authentication boundaries', async format => {
+    const endpoint = `/api/timeline/export?babyId=${babyId}&format=${format}`;
+    expect((await exportTimeline(request(endpoint, null))).status).toBe(401);
+    expect((await exportTimeline(request(endpoint, foreignToken))).status).toBe(404);
+    expect((await exportTimeline(request(`/api/timeline/export?babyId=${foreignBaby}&format=${format}`))).status).toBe(404);
   });
 
   describe.each(kinds)('%s hook activities', kind => {

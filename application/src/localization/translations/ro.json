@@ -3302,5 +3302,20 @@
   "Not applicable": "Nu se aplică",
   "{age} before estimated due date": "Cu {age} înainte de data estimată a nașterii",
   "Select a birth date before saving.": "Selectați data nașterii înainte de a salva.",
-  "Unable to save baby. Please try again.": "Datele copilului nu au putut fi salvate. Încercați din nou."
+  "Unable to save baby. Please try again.": "Datele copilului nu au putut fi salvate. Încercați din nou.",
+  "Rash observation": "Observarea unei erupții cutanate",
+  "Rash observed": "Erupție cutanată observată",
+  "No rash observed": "Nu s-a observat nicio erupție cutanată",
+  "Clear rash observation": "Șterge observația despre erupție",
+  "Rash location": "Localizarea erupției",
+  "Rash description": "Descrierea erupției",
+  "Products applied": "Produse aplicate",
+  "Follow-up notes": "Note de urmărire",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Opțional. Înregistrați ce ați observat; lăsați necompletate observațiile necunoscute.",
+  "Maximum {count} characters.": "Maximum {count} de caractere.",
+  "Please select a diaper type.": "Selectați un tip de scutec.",
+  "One or more rash details exceed the character limit.": "Unul sau mai multe detalii despre erupție depășesc limita de caractere.",
+  "Export PDF": "Exportă PDF",
+  "Unable to export activities. Please try again.": "Activitățile nu au putut fi exportate. Încercați din nou.",
+  "Preparing PDF...": "Se pregătește PDF-ul..."
 }

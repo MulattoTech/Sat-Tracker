@@ -3302,5 +3302,20 @@
   "Not applicable": "Niet van toepassing",
   "{age} before estimated due date": "{age} vóór de uitgerekende datum",
   "Select a birth date before saving.": "Selecteer een geboortedatum voordat je opslaat.",
-  "Unable to save baby. Please try again.": "De babygegevens konden niet worden opgeslagen. Probeer het opnieuw."
+  "Unable to save baby. Please try again.": "De babygegevens konden niet worden opgeslagen. Probeer het opnieuw.",
+  "Rash observation": "Observatie van huiduitslag",
+  "Rash observed": "Huiduitslag waargenomen",
+  "No rash observed": "Geen huiduitslag waargenomen",
+  "Clear rash observation": "Observatie van huiduitslag wissen",
+  "Rash location": "Locatie van de huiduitslag",
+  "Rash description": "Beschrijving van de huiduitslag",
+  "Products applied": "Aangebrachte producten",
+  "Follow-up notes": "Notities voor opvolging",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Optioneel. Noteer wat je hebt waargenomen; laat onbekende observaties leeg.",
+  "Maximum {count} characters.": "Maximaal {count} tekens.",
+  "Please select a diaper type.": "Selecteer een type luier.",
+  "One or more rash details exceed the character limit.": "Een of meer details over de huiduitslag overschrijden de tekenlimiet.",
+  "Export PDF": "PDF exporteren",
+  "Unable to export activities. Please try again.": "De activiteiten konden niet worden geëxporteerd. Probeer het opnieuw.",
+  "Preparing PDF...": "PDF voorbereiden..."
 }

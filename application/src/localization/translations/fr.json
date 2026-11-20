@@ -3302,5 +3302,20 @@
   "Not applicable": "Sans objet",
   "{age} before estimated due date": "{age} avant la date prévue d’accouchement",
   "Select a birth date before saving.": "Sélectionnez une date de naissance avant d’enregistrer.",
-  "Unable to save baby. Please try again.": "Impossible d’enregistrer les données du bébé. Veuillez réessayer."
+  "Unable to save baby. Please try again.": "Impossible d’enregistrer les données du bébé. Veuillez réessayer.",
+  "Rash observation": "Observation d’une éruption cutanée",
+  "Rash observed": "Éruption cutanée observée",
+  "No rash observed": "Aucune éruption cutanée observée",
+  "Clear rash observation": "Effacer l’observation de l’éruption",
+  "Rash location": "Emplacement de l’éruption",
+  "Rash description": "Description de l’éruption",
+  "Products applied": "Produits appliqués",
+  "Follow-up notes": "Notes de suivi",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Facultatif. Notez ce que vous avez observé ; ne renseignez pas les observations inconnues.",
+  "Maximum {count} characters.": "Maximum {count} caractères.",
+  "Please select a diaper type.": "Veuillez sélectionner un type de couche.",
+  "One or more rash details exceed the character limit.": "Un ou plusieurs détails sur l’éruption dépassent la limite de caractères.",
+  "Export PDF": "Exporter en PDF",
+  "Unable to export activities. Please try again.": "Impossible d’exporter les activités. Veuillez réessayer.",
+  "Preparing PDF...": "Préparation du PDF..."
 }

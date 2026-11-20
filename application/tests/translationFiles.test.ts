@@ -53,4 +53,18 @@ describe('translation files', () => {
     const hindi = read('hi.json');
     expect(referenceKeys.filter((key) => !hindi[key].trim())).toEqual([]);
   });
+
+  it.each(translationFiles)('%s translates the observational rash and PDF controls', file => {
+    const translations = read(file);
+    const keys = [
+      'Rash observation', 'Rash observed', 'No rash observed', 'Clear rash observation',
+      'Rash location', 'Rash description', 'Products applied', 'Follow-up notes',
+      'Optional. Record what you observed; leave unknown observations unrecorded.',
+      'Maximum {count} characters.', 'Please select a diaper type.',
+      'One or more rash details exceed the character limit.',
+      'Export PDF', 'Unable to export activities. Please try again.', 'Preparing PDF...',
+    ];
+    expect(keys.filter(key => !translations[key]?.trim())).toEqual([]);
+    expect(new Set(['Rash observed', 'No rash observed', 'Not recorded'].map(key => translations[key])).size).toBe(3);
+  });
 });

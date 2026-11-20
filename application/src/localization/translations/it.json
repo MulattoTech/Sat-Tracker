@@ -3302,5 +3302,20 @@
   "Not applicable": "Non applicabile",
   "{age} before estimated due date": "{age} prima della data presunta del parto",
   "Select a birth date before saving.": "Seleziona una data di nascita prima di salvare.",
-  "Unable to save baby. Please try again.": "Impossibile salvare i dati del bambino. Riprova."
+  "Unable to save baby. Please try again.": "Impossibile salvare i dati del bambino. Riprova.",
+  "Rash observation": "Osservazione di un’eruzione cutanea",
+  "Rash observed": "Eruzione cutanea osservata",
+  "No rash observed": "Nessuna eruzione cutanea osservata",
+  "Clear rash observation": "Cancella l’osservazione dell’eruzione",
+  "Rash location": "Posizione dell’eruzione",
+  "Rash description": "Descrizione dell’eruzione",
+  "Products applied": "Prodotti applicati",
+  "Follow-up notes": "Note di controllo",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Facoltativo. Registra ciò che hai osservato; lascia vuote le osservazioni sconosciute.",
+  "Maximum {count} characters.": "Massimo {count} caratteri.",
+  "Please select a diaper type.": "Seleziona un tipo di pannolino.",
+  "One or more rash details exceed the character limit.": "Uno o più dettagli dell’eruzione superano il limite di caratteri.",
+  "Export PDF": "Esporta PDF",
+  "Unable to export activities. Please try again.": "Impossibile esportare le attività. Riprova.",
+  "Preparing PDF...": "Preparazione del PDF..."
 }

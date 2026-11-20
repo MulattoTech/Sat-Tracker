@@ -3302,5 +3302,20 @@
   "Not applicable": "Nicht zutreffend",
   "{age} before estimated due date": "{age} vor dem errechneten Geburtstermin",
   "Select a birth date before saving.": "Wählen Sie vor dem Speichern ein Geburtsdatum aus.",
-  "Unable to save baby. Please try again.": "Das Baby konnte nicht gespeichert werden. Bitte versuchen Sie es erneut."
+  "Unable to save baby. Please try again.": "Das Baby konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+  "Rash observation": "Beobachtung eines Ausschlags",
+  "Rash observed": "Ausschlag beobachtet",
+  "No rash observed": "Kein Ausschlag beobachtet",
+  "Clear rash observation": "Ausschlagbeobachtung zurücksetzen",
+  "Rash location": "Stelle des Ausschlags",
+  "Rash description": "Beschreibung des Ausschlags",
+  "Products applied": "Aufgetragene Produkte",
+  "Follow-up notes": "Notizen zur Nachbeobachtung",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Optional. Halten Sie fest, was Sie beobachtet haben; lassen Sie unbekannte Beobachtungen offen.",
+  "Maximum {count} characters.": "Höchstens {count} Zeichen.",
+  "Please select a diaper type.": "Bitte wählen Sie einen Windeltyp aus.",
+  "One or more rash details exceed the character limit.": "Mindestens eine Angabe zum Ausschlag überschreitet die Zeichenbegrenzung.",
+  "Export PDF": "PDF exportieren",
+  "Unable to export activities. Please try again.": "Aktivitäten konnten nicht exportiert werden. Bitte versuchen Sie es erneut.",
+  "Preparing PDF...": "PDF wird vorbereitet..."
 }

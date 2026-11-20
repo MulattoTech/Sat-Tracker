@@ -24,6 +24,7 @@ import { PumpLogResponse, MedicineLogResponse, BreastMilkAdjustmentResponse, Pla
 import { cn } from '@/src/lib/utils';
 import styles from './full-log-timeline.styles';
 import { useLocalization } from '@/src/context/localization';
+import { getDiaperRashSearchText, type DiaperRashObservation } from '@/src/utils/diaperRash';
 import './full-log-timeline.css';
 
 /**
@@ -112,7 +113,7 @@ const FullLogTimeline: React.FC<FullLogTimelineProps> = ({
       return 'amount' in act && !('foodId' in act);
     };
     
-    const isDiaperActivity = (act: any): act is { 
+    const isDiaperActivity = (act: any): act is DiaperRashObservation & {
       condition: string; 
       type?: string; 
       color?: string;
@@ -197,6 +198,7 @@ const FullLogTimeline: React.FC<FullLogTimelineProps> = ({
       if (activity.condition && activity.condition.toLowerCase().includes(searchLower)) return true;
       if (activity.color && activity.color.toLowerCase().includes(searchLower)) return true;
       if (activity.notes && activity.notes.toLowerCase().includes(searchLower)) return true;
+      if (getDiaperRashSearchText(activity, t).toLowerCase().includes(searchLower)) return true;
       return false;
     }
     

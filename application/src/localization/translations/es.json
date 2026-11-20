@@ -3302,5 +3302,20 @@
   "Not applicable": "No corresponde",
   "{age} before estimated due date": "{age} antes de la fecha prevista de parto",
   "Select a birth date before saving.": "Selecciona una fecha de nacimiento antes de guardar.",
-  "Unable to save baby. Please try again.": "No se pudieron guardar los datos del bebé. Inténtalo de nuevo."
+  "Unable to save baby. Please try again.": "No se pudieron guardar los datos del bebé. Inténtalo de nuevo.",
+  "Rash observation": "Observación de sarpullido",
+  "Rash observed": "Sarpullido observado",
+  "No rash observed": "No se observó sarpullido",
+  "Clear rash observation": "Borrar observación de sarpullido",
+  "Rash location": "Ubicación del sarpullido",
+  "Rash description": "Descripción del sarpullido",
+  "Products applied": "Productos aplicados",
+  "Follow-up notes": "Notas de seguimiento",
+  "Optional. Record what you observed; leave unknown observations unrecorded.": "Opcional. Registra lo que observaste; deja sin registrar las observaciones desconocidas.",
+  "Maximum {count} characters.": "Máximo {count} caracteres.",
+  "Please select a diaper type.": "Selecciona un tipo de pañal.",
+  "One or more rash details exceed the character limit.": "Uno o más detalles del sarpullido superan el límite de caracteres.",
+  "Export PDF": "Exportar PDF",
+  "Unable to export activities. Please try again.": "No se pudieron exportar las actividades. Inténtalo de nuevo.",
+  "Preparing PDF...": "Preparando PDF..."
 }

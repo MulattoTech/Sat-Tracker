@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DiaperType, Gender, MeasurementType, MilestoneCategory, SleepQuality, SleepType } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { isValidGestationalAgeDays } from '@/src/utils/childAge';
+import { DIAPER_RASH_TEXT_LIMITS } from '@/src/utils/diaperRash';
 
 type FieldRule = {
   kind: 'string' | 'number' | 'boolean' | 'ids';
@@ -9,6 +10,7 @@ type FieldRule = {
   integer?: boolean;
   date?: boolean;
   nonempty?: boolean;
+  maxLength?: number;
   choices?: readonly string[];
   validate?: (value: unknown) => boolean;
 };
@@ -35,6 +37,11 @@ export const careFields = {
   diaper: {
     babyId: careIdentifier, time: date, type: choice(DiaperType), condition: nullableText,
     color: nullableText, blowout: boolean, creamApplied: boolean, notes: nullableText,
+    rashObserved: { ...boolean, nullable: true },
+    rashLocation: { ...nullableText, maxLength: DIAPER_RASH_TEXT_LIMITS.rashLocation },
+    rashDescription: { ...nullableText, maxLength: DIAPER_RASH_TEXT_LIMITS.rashDescription },
+    rashProductsApplied: { ...nullableText, maxLength: DIAPER_RASH_TEXT_LIMITS.rashProductsApplied },
+    rashFollowUpNotes: { ...nullableText, maxLength: DIAPER_RASH_TEXT_LIMITS.rashFollowUpNotes },
   },
   medicineLog: { babyId: careIdentifier, medicineId: careIdentifier, time: date, doseAmount: number, unitAbbr: nullableText, notes: nullableText },
   measurement: { babyId: careIdentifier, date, type: choice(MeasurementType), value: number, unit: text, notes: nullableText },
@@ -65,6 +72,7 @@ function validScalar(value: unknown, rule: FieldRule): boolean {
   if (typeof value === 'number') return Number.isFinite(value) && (!rule.integer || Number.isSafeInteger(value));
   if (typeof value === 'string') {
     return (!rule.nonempty || value.trim().length > 0)
+      && (rule.maxLength === undefined || value.length <= rule.maxLength)
       && (!rule.date || Number.isFinite(Date.parse(value)))
       && (!rule.choices || rule.choices.includes(value));
   }

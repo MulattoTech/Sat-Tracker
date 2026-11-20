@@ -27,12 +27,55 @@ remain pinned to their recorded `64c69c4` evidence, not silently reassigned to t
 observed runtime or future builds. Production promotion still requires fresh
 exact-image qualification and explicit approval.
 
-## Corrected-age profile foundation — November 20, 2026
+## Latest verified merged source — November 20, 2026
+
+PRs [#100](https://github.com/MulattoTech/Sat-Tracker/pull/100) and
+[#101](https://github.com/MulattoTech/Sat-Tracker/pull/101) completed the bounded
+corrected-age foundation at `cb22a07055b2f512165dabab7dd663c3e2c57940`.
+Its [final-main application gate](https://github.com/MulattoTech/Sat-Tracker/actions/runs/44696359448)
+passed 2,845 tests across 176 files, TypeScript/build, 34 service checks,
+174 runtime checks and all 18 required flags. Corrected-age browser checks passed
+10/10 and PostgreSQL compatibility passed 6/6; artifact bytes and owned cleanup
+were independently verified. Operations and deployment-configuration gates also
+passed. The [immutable image build](https://github.com/MulattoTech/Sat-Tracker/actions/runs/44697862162)
+published digest `sha256:aef3b3bfbf50ac42e716d1e4aa7aaaa4a996319eff43c8dc4e3823801f41789a`.
+
+This is the latest merged-source checkpoint in `asOfSourceRevision`. It was not
+deployed. PAR-042 remains IN PROGRESS for its broader consumers and runtime/device
+qualification. The owner approved the next bounded observational rash package
+in [issue #5](https://github.com/MulattoTech/Sat-Tracker/issues/5).
+
+## Rash-observation implementation checkpoint — November 20, 2026
+
+Application candidate `8f4f72cf16e8a16a63153b8d7ea917e7ccb4bc4f` implements the
+approved issue #5 scalar package: explicit observed/negative/unknown status,
+optional caregiver location/description/products/follow-up, canonical and hook
+APIs, active DiaperForm, history/search, all twelve locales, scalar backup/restore
+and preserved pre-upgrade Nursery replay/Undo. Selected CSV/XLSX and the new
+selected-range PDF share authorized rows and date/type selection. The PDF is a
+visual document made from page images; broader report accessibility remains open.
+The [architecture record](../application/documentation/Architecture-Documentation/DiaperRash.md)
+defines limits, omission/null behavior, legacy identity and report boundaries.
+
+Integrated local verification passed **565 focused tests across 12 files**,
+nonincremental TypeScript and a production build. Independent source reviews
+found no blocking issues. The mandatory hosted browser module adds twelve
+scenarios and the separate PostgreSQL verifier adds eight checks; actual hosted
+outcomes must be recorded in the PR before a qualified merge. Local Chromium
+launch was blocked by socket permissions, so no local browser result is claimed.
+
+**PAR-018 remains IN PROGRESS.** Private photos with same-child authorization,
+retained upload/link failures, portable media backup, timestamped follow-up
+history, trends, full caregiver handoff, pediatrician-report qualification,
+deployed workflows and required device evidence remain under the existing
+issues. Contract counts and historical release-control evidence are unchanged.
+
+## Historical corrected-age implementation checkpoint — November 20, 2026
 
 The previous continuation merged through [PR #99](https://github.com/MulattoTech/Sat-Tracker/pull/99)
 to source `2ed233ba0107996818f8b59d518142bd793d442d`. Its acceptance, operations,
-deployment-validation and image-build workflows passed. This is the latest
-verified merged-source checkpoint in `asOfSourceRevision`; it was not promoted
+deployment-validation and image-build workflows passed. This was the previous
+verified merged-source checkpoint; it was not promoted
 to the observed production or preview containers.
 
 The owner then approved the bounded [issue #15](https://github.com/MulattoTech/Sat-Tracker/issues/15)
