@@ -10,10 +10,11 @@ import net from 'node:net';
 import { chromium } from 'playwright';
 import jwt from 'jsonwebtoken';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { createRecoveryBrowserFixture } from './recovery-browser-fixture.ts';
-import { exportMetadata, validatePortableMetadata } from '../src/lib/portable-recovery/metadata.ts';
-import { decryptFixtureFile } from './recovery-qualification-fixtures.ts';
 const require = createRequire(import.meta.url);
+// tsx loads this package's TypeScript as CommonJS; use its actual exports, including re-exports.
+const { createRecoveryBrowserFixture } = require('./recovery-browser-fixture.ts');
+const { exportMetadata, validatePortableMetadata } = require('../src/lib/portable-recovery/metadata.ts');
+const { decryptFixtureFile } = require('./recovery-qualification-fixtures.ts');
 const { PrismaClient } = require('@prisma/client');
 const appRoot = process.cwd(), reportDir = path.join(appRoot, 'test-results');
 const invocation = randomUUID(), cancellation = new AbortController();
