@@ -130,7 +130,8 @@ export async function verifyFamilyReadBoundaries({ base, db, secret, reportDir }
     const xlsx = await exported('ownedXlsx', `${exportBase}&format=xlsx`, userToken, 'xlsx'); assert.deepEqual(xlsx, csv);
     assert.equal(csv.length, Object.keys(own).length);
     for (const note of ['OWN_CROSS_CARETAKER', 'OWN_CROSS_MEDICINE', 'OWN_CROSS_FOOD']) {
-      const row = csv.find(value => value.Notes === note); assert.ok(row); assert.equal(row.Caretaker, ''); assert.equal(row.Details, '');
+      const row = csv.find(value => value.Notes === note); assert.ok(row); assert.equal(row.Caretaker, '');
+      assert.equal(row.Details, note === 'OWN_CROSS_CARETAKER' ? 'Rash observation: Not recorded' : '');
     }
     assert.equal(csv.find(row => row.Notes === 'OWN_DELETED_DOSE').Details, oldMedicine.name);
     assert.equal(csv.find(row => row.Notes === 'OWN_DELETED_FOOD').Details, oldFood.name);
