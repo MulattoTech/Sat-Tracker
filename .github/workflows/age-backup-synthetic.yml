@@ -7,7 +7,10 @@ on:
       - "scripts/verify_age_cross_os_synthetic.py"
       - "scripts/verify_age_pipe_synthetic.py"
       - "tests/ops/test_age_pipe_synthetic.py"
+      - "scripts/verify_age_isolated_restore_synthetic.py"
+      - "tests/ops/test_age_isolated_restore_synthetic.py"
       - "docs/feedback-hotfix-age-format-review.md"
+      - "docs/feedback-hotfix-isolated-restore-synthetic.md"
       - "docs/feedback-hotfix-age-streaming-prep.md"
   workflow_dispatch:
 permissions:
@@ -52,6 +55,8 @@ jobs:
         run: python scripts/verify_age_backup_synthetic.py
       - name: Qualify synthetic tar-to-age binary streaming without plaintext archive
         run: python scripts/verify_age_pipe_synthetic.py
+      - name: Qualify isolated fake three-volume restore after full decryption
+        run: python scripts/verify_age_isolated_restore_synthetic.py
       - name: Create one fabricated Linux ciphertext for Windows recovery
         run: python scripts/verify_age_cross_os_synthetic.py generate
       - uses: actions/upload-artifact@v4
@@ -112,6 +117,8 @@ jobs:
         run: python scripts/verify_age_backup_synthetic.py
       - name: Qualify Windows synthetic tar-to-age binary subprocess stream
         run: python scripts/verify_age_pipe_synthetic.py
+      - name: Qualify isolated fake three-volume restore after complete decryption
+        run: python scripts/verify_age_isolated_restore_synthetic.py
       - uses: actions/download-artifact@v4
         with:
           name: synthetic-age-linux-to-windows-${{ github.sha }}
