@@ -1,0 +1,28 @@
+name: Agentic PR backlog triage
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '29 8 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: agentic-pr-triage-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  triage:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout trusted default branch only
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Classify PRs; arm guarded native auto-merge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 tools/ci/pr_backlog_triage.py
