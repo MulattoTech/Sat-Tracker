@@ -44,6 +44,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run prisma:generate && npm run prisma:generate:log
       - run: npx tsc --noEmit --incremental false
+      - name: Verify synthetic browser stage-timing diagnostics
+        run: node --test scripts/browser-stage-timing.test.mjs
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium --only-shell
