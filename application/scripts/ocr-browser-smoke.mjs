@@ -27,6 +27,7 @@ import { verifyFamilyReadBoundaries } from './family-read-boundary-http.mjs';
 import { verifyLogoutLifecycle } from './logout-lifecycle-browser.mjs';
 import { verifyCorrectedAge } from './corrected-age-browser.mjs';
 import { verifyDiaperRash } from './diaper-rash-browser.mjs';
+import { createBrowserStageTiming } from './browser-stage-timing.mjs';
 const require = createRequire(import.meta.url);
 const { PrismaClient } = require('@prisma/client');
 const { createPrismaAdapter } = require('../prisma/prisma-adapter.js');
@@ -44,6 +45,7 @@ let server, serverLifecycle, browser, browserServer, browserLifecycle, db, failu
 let output = '';
 const documents = [];
 const report = { runId: process.env.SAT_TRACKER_ACCEPTANCE_RUN_ID || null, syntheticOnly: true, startedAt: new Date().toISOString(), checks: [], screenshots: [] };
+const timing = createBrowserStageTiming({ reportDir, syntheticOnly: report.syntheticOnly });
 
 async function bounded(promise, milliseconds, label) {
   let timer;
@@ -89,6 +91,7 @@ async function stopOwnedProcess(lifecycle, label) {
   }
 }
 
+timing.begin('initial-ocr-journal');
 try {
   execFileSync(process.execPath, ['node_modules/prisma/build/index.js', 'migrate', 'deploy'], { env, stdio: 'pipe', timeout: 60_000 });
   db = new PrismaClient({ adapter: createPrismaAdapter(databaseUrl) });
@@ -335,49 +338,50 @@ try {
   // out and invalidate the shared synthetic token during another scenario.
   await bounded(page.close(), 5000, 'Completed journal page closure');
   assert.equal(context.pages().length, 0, 'Completed journal checks must leave no active pages in the shared context');
-  report.checks.push(...await verifyJournalOutbox({ base, db, family, baby, caretaker, token, secret, scratch }));
+  timing.finish('initial-ocr-journal');
+  report.checks.push(...await timing.measure('journal-outbox', () => verifyJournalOutbox({ base, db, family, baby, caretaker, token, secret, scratch })));
   report.journalOutboxChecksPassed = true;
-  report.checks.push(...await verifyMedicationImport({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('medication-import', () => verifyMedicationImport({ base, db, family, baby, caretaker, token, secret, context })));
   report.medicationChecksPassed = true;
-  report.checks.push(...await verifyFeedingImport({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('feeding-import', () => verifyFeedingImport({ base, db, family, baby, caretaker, token, secret, context })));
   report.feedingImportChecksPassed = true;
-  report.checks.push(...await verifyPumpingImport({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('pumping-import', () => verifyPumpingImport({ base, db, family, baby, caretaker, token, secret, context })));
   report.pumpingImportChecksPassed = true;
-  report.checks.push(...await verifyPumpingConflicts({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('pumping-conflicts', () => verifyPumpingConflicts({ base, db, family, baby, caretaker, token, secret, context })));
   report.pumpingConflictChecksPassed = true;
-  report.checks.push(...await verifyCareContactEditors({ base, db, family, baby, caretaker, context }));
+  report.checks.push(...await timing.measure('care-contact-editors', () => verifyCareContactEditors({ base, db, family, baby, caretaker, context })));
   report.careContactEditorChecksPassed = true;
-  report.checks.push(...await verifyCorrectedAge({ base, db, browser, reportDir }));
+  report.checks.push(...await timing.measure('corrected-age', () => verifyCorrectedAge({ base, db, browser, reportDir })));
   report.correctedAgeChecksPassed = true;
   report.screenshots.push(...[
     'corrected-age-default.png', 'corrected-age-default-phone.png', 'corrected-age-phone-header.png',
     'corrected-age-storybook.png', 'corrected-age-storybook-tablet.png', 'corrected-age-tablet-header.png',
   ].map(name => path.join(reportDir, name)));
-  report.checks.push(...await verifyDiaperRash({ base, db, browser, reportDir }));
+  report.checks.push(...await timing.measure('diaper-rash', () => verifyDiaperRash({ base, db, browser, reportDir })));
   report.diaperRashChecksPassed = true;
   report.screenshots.push(...[
     'diaper-rash-history.png', 'diaper-rash-phone-status.png', 'diaper-rash-phone-fields.png',
     'diaper-rash-phone-rejected.png', 'diaper-rash-phone-history.png', 'diaper-rash-pdf-first.png', 'diaper-rash-pdf-last.png',
   ].map(name => path.join(reportDir, name)));
-  report.checks.push(...await verifyNurseryPumpRecovery({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('nursery-pump-recovery', () => verifyNurseryPumpRecovery({ base, db, family, baby, caretaker, token, secret, context })));
   report.nurseryPumpRecoveryChecksPassed = true;
-  report.checks.push(...await verifyNurseryBottle({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('nursery-bottle', () => verifyNurseryBottle({ base, db, family, baby, caretaker, token, secret, context })));
   report.nurseryBottleChecksPassed = true;
-  report.checks.push(...await verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context }));
+  report.checks.push(...await timing.measure('breastfeeding-recovery', () => verifyBreastfeedingRecovery({ base, db, family, baby, caretaker, token, secret, context })));
   report.breastfeedingRecoveryChecksPassed = true;
-  report.checks.push(...await verifyNurseryUndo({ base, db, family, secret, context }));
+  report.checks.push(...await timing.measure('nursery-undo', () => verifyNurseryUndo({ base, db, family, secret, context })));
   report.nurseryUndoChecksPassed = true;
-  report.checks.push(...await verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
+  report.checks.push(...await timing.measure('nursery-sleep-recovery', () => verifyNurserySleepRecovery({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile })));
   report.nurserySleepRecoveryChecksPassed = true;
-  report.checks.push(...await verifyLogoutLifecycle({ base, db, scratch, reportDir }));
+  report.checks.push(...await timing.measure('logout-lifecycle', () => verifyLogoutLifecycle({ base, db, scratch, reportDir })));
   report.logoutLifecycleChecksPassed = true;
-  report.checks.push(...await verifyMedicineDoseRecovery({ base, db, scratch, reportDir }));
+  report.checks.push(...await timing.measure('medicine-dose-recovery', () => verifyMedicineDoseRecovery({ base, db, scratch, reportDir })));
   report.medicineDoseRecoveryChecksPassed = true;
-  report.checks.push(...await verifyNurseryQuickCare({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile }));
+  report.checks.push(...await timing.measure('nursery-quick-care', () => verifyNurseryQuickCare({ base, db, secret, context, scratch, browserExecutable: browserServer.process().spawnfile })));
   report.nurseryQuickCareRecoveryChecksPassed = true;
   report.screenshots.push(path.join(reportDir, 'nursery-quick-care-mobile.png'));
   report.screenshots.push(...['diaper', 'food'].map(kind => path.join(reportDir, `nursery-quick-care-${kind}-cards.png`)));
-  report.checks.push(...await verifyFamilyReadBoundaries({ base, db, secret, reportDir }));
+  report.checks.push(...await timing.measure('family-read-boundaries', () => verifyFamilyReadBoundaries({ base, db, secret, reportDir })));
   report.familyReadBoundaryChecksPassed = true;
   const userToken = jwt.sign({ id: caretaker.id, name: caretaker.name, role: 'USER', familyId: family.id, familySlug: family.slug }, secret, { expiresIn: '5m' });
   const denied = await fetch(`${base}/api/ocr/documents?babyId=${baby.id}`, { headers: { Authorization: `Bearer ${userToken}` }, signal: AbortSignal.timeout(5000) });
@@ -386,8 +390,10 @@ try {
   assert.deepEqual(pageErrors, [], 'Browser JavaScript errors');
   report.browserChecksPassed = true;
 } catch (error) {
+  if (timing.isActive('initial-ocr-journal')) timing.finish('initial-ocr-journal', { failed: true });
   failure = error; report.error = error.message;
 } finally {
+  timing.begin('cleanup');
   const cleanupErrors = [];
   report.cleanup = {};
   try {
@@ -433,6 +439,7 @@ try {
     process.exitCode = 1;
   }
   writeFileSync(path.join(reportDir, 'ocr-browser-report.json'), JSON.stringify(report, null, 2));
+  timing.finish('cleanup', { failed: report.status !== 'PASS' });
   // PASS is emitted only after owned processes exited and cleanup completed.
   console.log(JSON.stringify({ status: report.status, checks: report.checks, screenshots: report.screenshots, cleanup: report.cleanup, error: report.error }, null, 2));
 }
